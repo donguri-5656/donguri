@@ -14,35 +14,41 @@
   </header>
 
   <main>
+    <!-- パスワード入力欄 -->
     <div id="password-section">
       <input type="password" id="password-input" placeholder="パスワードを入力">
       <button onclick="checkPassword()">開く</button>
       <p id="error-message"></p>
     </div>
 
+    <!-- パスワード成功時に表示される内容 -->
     <div id="protected-content" style="display: none;">
       <nav>
         <button onclick="showSection('embed')">埋め込みHTML</button>
         <button onclick="showSection('youtube')">YouTube</button>
       </nav>
 
-    <section id="embed" class="content-section">
-      <h2>埋め込みHTML</h2>
-      <!-- 埋め込み用iframeコード -->
-      <iframe
-       style="width:728px;height:90px;max-width:100%;border:none;display:block;margin:auto"
-       src="https://ja.namemc.com/server/cool.ssnetwork.io:42264/embed"
-       width="728"
-       height="90">
-      </iframe>
-    </section>
+      <!-- 埋め込みHTMLセクション -->
+      <section id="embed" class="content-section">
+        <h2>埋め込みHTML</h2>
+        <iframe
+          style="width:728px;height:90px;max-width:100%;border:none;display:block;margin:auto"
+          src="https://ja.namemc.com/server/cool.ssnetwork.io:42264/embed"
+          width="728"
+          height="90">
+        </iframe>
+      </section>
 
-      <section id="youtube" class="content-section" style="display:none;">
+      <!-- YouTube動画セクション -->
+      <section id="youtube" class="content-section" style="display: none;">
         <h2>YouTube動画</h2>
-        <iframe width="560" height="315" src="https://www.youtube.com/watch?v=2PlF27G_bi8"
-                title="YouTube video player" frameborder="0"
+        <iframe width="560" height="315"
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                title="YouTube video player"
+                frameborder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen></iframe>
+                allowfullscreen>
+        </iframe>
       </section>
     </div>
   </main>
@@ -71,5 +77,6 @@
       document.getElementById(sectionId).style.display = 'block';
     }
   </script>
+
 </body>
 </html>
