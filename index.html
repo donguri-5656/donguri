@@ -11,7 +11,7 @@
       height: 100%;
       font-family: sans-serif;
       background: linear-gradient(120deg, #a0e9ff, #a8edea);
-      overflow: hidden;
+      overflow-x: hidden;
     }
     .leaf {
       position: absolute;
@@ -69,19 +69,6 @@
   </style>
 </head>
 <body>
-  <script>
-    for (let i = 0; i < 40; i++) {
-      const leaf = document.createElement('div');
-      leaf.classList.add('leaf');
-      leaf.style.left = Math.random() * 100 + 'vw';
-      leaf.style.top = -Math.random() * 200 + 'px';
-      leaf.style.animationDuration = (10 + Math.random() * 10) + 's';
-      leaf.style.animationDelay = Math.random() * 20 + 's';
-      leaf.style.transform = `rotate(${Math.random() * 360}deg)`;
-      document.body.appendChild(leaf);
-    }
-  </script>
-
   <div class="container">
     <h1>癒しの空間へようこそ</h1>
     <div class="menu">
@@ -107,6 +94,53 @@
   </div>
 
   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      for (let i = 0; i < 40; i++) {
+        const leaf = document.createElement('div');
+        leaf.classList.add('leaf');
+        leaf.style.left = Math.random() * 100 + 'vw';
+        leaf.style.top = -Math.random() * 200 + 'px';
+        leaf.style.animationDuration = (10 + Math.random() * 10) + 's';
+        leaf.style.animationDelay = Math.random() * 20 + 's';
+        document.body.appendChild(leaf);
+      }
+
+      // ソリティア
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const suits = ['♠', '♥', '♣', '♦'];
+      const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      let deck = [];
+      let displayedCards = [];
+
+      function initDeck() {
+        deck = [];
+        for (let suit of suits) {
+          for (let rank of ranks) {
+            deck.push({ rank, suit });
+          }
+        }
+        deck.sort(() => Math.random() - 0.5);
+        displayedCards = deck.slice(0, 5);
+      }
+
+      function drawGame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        displayedCards.forEach((card, i) => {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(50 + i * 100, 100, 60, 90);
+          ctx.strokeStyle = 'black';
+          ctx.strokeRect(50 + i * 100, 100, 60, 90);
+          ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+          ctx.font = '16px sans-serif';
+          ctx.fillText(card.rank + card.suit, 55 + i * 100, 120);
+        });
+      }
+
+      initDeck();
+      drawGame();
+    });
+
     function toggleSection(id) {
       document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
       document.getElementById(id).style.display = 'block';
@@ -137,61 +171,6 @@
           document.getElementById('serverStatus').innerHTML = 'サーバーステータスの取得に失敗しました';
         });
     }
-
-    // ソリティア ロジック
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas?.getContext('2d');
-    const suits = ['♠', '♥', '♣', '♦'];
-    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-    let deck = [];
-
-    function initDeck() {
-      deck = [];
-      for (let suit of suits) {
-        for (let rank of ranks) {
-          deck.push({ rank, suit, x: 0, y: 0, faceUp: false });
-        }
-      }
-      deck.sort(() => Math.random() - 0.5);
-    }
-
-    function layoutCards() {
-      for (let i = 0; i < 7; i++) {
-        for (let j = 0; j <= i; j++) {
-          const card = deck.pop();
-          card.x = 100 + i * 100;
-          card.y = 50 + j * 30;
-          card.faceUp = j === i;
-        }
-      }
-    }
-
-    function drawCard(card) {
-      ctx.fillStyle = card.faceUp ? 'white' : '#333';
-      ctx.fillRect(card.x, card.y, 60, 90);
-      ctx.strokeStyle = 'black';
-      ctx.strokeRect(card.x, card.y, 60, 90);
-      if (card.faceUp) {
-        ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-        ctx.font = '16px sans-serif';
-        ctx.fillText(card.rank + card.suit, card.x + 5, card.y + 20);
-      }
-    }
-
-    function drawGame() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      deck.forEach(drawCard);
-    }
-
-    canvas.addEventListener('click', () => {
-      initDeck();
-      layoutCards();
-      drawGame();
-    });
-
-    initDeck();
-    layoutCards();
-    drawGame();
   </script>
 </body>
 </html>
