@@ -10,18 +10,34 @@
       padding: 0;
       height: 100%;
       font-family: sans-serif;
-      background: linear-gradient(120deg, #d4fc79, #96e6a1);
-      background-size: 200% 200%;
-      animation: gentleBG 30s ease infinite;
+      background: linear-gradient(120deg, #a0e9ff, #a8edea);
+      overflow-x: hidden;
     }
-    @keyframes gentleBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    .leaf {
+      position: absolute;
+      top: -50px;
+      width: 30px;
+      height: 30px;
+      background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Leaf_icon.svg/1024px-Leaf_icon.svg.png');
+      background-size: cover;
+      opacity: 0.7;
+      animation: fall linear infinite;
+    }
+    @keyframes fall {
+      0% {
+        transform: translateY(-50px) rotate(0deg);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+      }
     }
     .container {
       padding: 2rem;
       text-align: center;
+      position: relative;
+      z-index: 1;
     }
     .menu {
       margin-top: 100vh;
@@ -48,10 +64,137 @@
       border-radius: 12px;
     }
     canvas {
-      max-width: 100%;
-      margin-top: 1rem;
+      background: #00796b;
+      border-radius: 10px;
     }
   </style>
+</head>
+<body>
+  <script>
+    for (let i = 0; i < 30; i++) {
+      const leaf = document.createElement('div');
+      leaf.classList.add('leaf');
+      leaf.style.left = Math.random() * 100 + 'vw';
+      leaf.style.animationDuration = (10 + Math.random() * 10) + 's';
+      leaf.style.animationDelay = Math.random() * 20 + 's';
+      document.body.appendChild(leaf);
+    }
+  </script>
+
+  <div class="container">
+    <h1>癒しの空間へようこそ</h1>
+    <div class="menu">
+      <button onclick="toggleSection('solitaire')">ソリティア</button>
+      <button onclick="toggleSection('secure')">サーバー＆動画</button>
+
+      <div id="solitaire" class="section">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+      </div>
+
+      <div id="secure" class="section">
+        <input type="password" id="passwordInput" placeholder="パスワード入力" />
+        <button onclick="checkPassword()">開く</button>
+        <div id="secureContent" style="display: none;">
+          <video controls width="100%">
+            <source src="sample.mp4" type="video/mp4">
+            お使いのブラウザは動画をサポートしていません。
+          </video>
+          <div id="serverStatus">読み込み中...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleSection(id) {
+      document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+    }
+
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      if (input === 'asdf1234') {
+        document.getElementById('secureContent').style.display = 'block';
+        fetchServerStatus();
+      } else {
+        alert('パスワードが間違っています');
+      }
+    }
+
+    function fetchServerStatus() {
+      fetch('https://api.mcsrvstat.us/2/cool.ssnetwork.io:42264')
+        .then(res => res.json())
+        .then(data => {
+          let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
+          if (data.online) {
+            status += `<p>プレイヤー数: ${data.players.online}/${data.players.max}</p>`;
+            status += `<p>IP: ${data.ip}:${data.port}</p>`;
+          }
+          document.getElementById('serverStatus').innerHTML = status;
+        })
+        .catch(() => {
+          document.getElementById('serverStatus').innerHTML = 'サーバーステータスの取得に失敗しました';
+        });
+    }
+
+    // ソリティア ロジック
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas?.getContext('2d');
+    const suits = ['♠', '♥', '♣', '♦'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    let deck = [];
+
+    function initDeck() {
+      deck = [];
+      for (let suit of suits) {
+        for (let rank of ranks) {
+          deck.push({ rank, suit, x: 0, y: 0, faceUp: false });
+        }
+      }
+      deck.sort(() => Math.random() - 0.5);
+    }
+
+    function layoutCards() {
+      for (let i = 0; i < 7; i++) {
+        for (let j = 0; j <= i; j++) {
+          const card = deck.pop();
+          card.x = 100 + i * 100;
+          card.y = 50 + j * 30;
+          card.faceUp = j === i;
+        }
+      }
+    }
+
+    function drawCard(card) {
+      ctx.fillStyle = card.faceUp ? 'white' : '#333';
+      ctx.fillRect(card.x, card.y, 60, 90);
+      ctx.strokeStyle = 'black';
+      ctx.strokeRect(card.x, card.y, 60, 90);
+      if (card.faceUp) {
+        ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+        ctx.font = '16px sans-serif';
+        ctx.fillText(card.rank + card.suit, card.x + 5, card.y + 20);
+      }
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      deck.forEach(drawCard);
+    }
+
+    canvas.addEventListener('click', () => {
+      initDeck();
+      layoutCards();
+      drawGame();
+    });
+
+    initDeck();
+    layoutCards();
+    drawGame();
+  </script>
+</body>
+</html>
+
 </head>
 <body>
   <div class="container">
