@@ -10,11 +10,11 @@
       padding: 0;
       height: 100%;
       font-family: sans-serif;
-      background: linear-gradient(-45deg, #e0f7fa, #b2ebf2, #80deea, #4dd0e1);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
+      background: linear-gradient(120deg, #d4fc79, #96e6a1);
+      background-size: 200% 200%;
+      animation: gentleBG 30s ease infinite;
     }
-    @keyframes gradientBG {
+    @keyframes gentleBG {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
@@ -47,6 +47,10 @@
       background: white;
       border-radius: 12px;
     }
+    canvas {
+      max-width: 100%;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -57,7 +61,7 @@
       <button onclick="toggleSection('secure')">サーバー＆動画</button>
 
       <div id="solitaire" class="section">
-        <iframe src="https://solitaire.play-puzzle.com/" width="100%" height="600px" style="border:none;"></iframe>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
       </div>
 
       <div id="secure" class="section">
@@ -74,10 +78,20 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/solitairejs@1.0.0/dist/solitaire.min.js"></script>
   <script>
     function toggleSection(id) {
       document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
       document.getElementById(id).style.display = 'block';
+
+      if (id === 'solitaire') {
+        setTimeout(() => {
+          if (!window.solitaireStarted) {
+            Solitaire.init(document.getElementById('gameCanvas'));
+            window.solitaireStarted = true;
+          }
+        }, 100);
+      }
     }
 
     function checkPassword() {
@@ -91,7 +105,7 @@
     }
 
     function fetchServerStatus() {
-      fetch('https://api.mcsrvstat.us/2/cool.ssnetwork.io:42264')
+      fetch('https://api.mcsrvstat.us/2/2b2t.com')
         .then(res => res.json())
         .then(data => {
           let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
@@ -108,4 +122,3 @@
   </script>
 </body>
 </html>
-
