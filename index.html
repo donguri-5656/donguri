@@ -1,82 +1,111 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>パスワード付きサイト</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>癒しサイト</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+      background: linear-gradient(-45deg, #e0f7fa, #b2ebf2, #80deea, #4dd0e1);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .container {
+      padding: 2rem;
+      text-align: center;
+    }
+    .menu {
+      margin-top: 100vh;
+    }
+    button {
+      margin: 1rem;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      border-radius: 12px;
+      border: none;
+      background-color: #0097a7;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #006064;
+    }
+    .section {
+      display: none;
+      margin-top: 2rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 12px;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>癒しの空間へようこそ</h1>
+    <div class="menu">
+      <button onclick="toggleSection('solitaire')">ソリティア</button>
+      <button onclick="toggleSection('secure')">サーバー＆動画</button>
 
-  <header>
-    <h1>ようこそ！</h1>
-    <p>下のメニューはパスワードを入力すると表示されます。</p>
-  </header>
+      <div id="solitaire" class="section">
+        <iframe src="https://solitaire.play-puzzle.com/" width="100%" height="600px" style="border:none;"></iframe>
+      </div>
 
-  <main>
-    <!-- パスワード入力欄 -->
-    <div id="password-section">
-      <input type="password" id="password-input" placeholder="パスワードを入力">
-      <button onclick="checkPassword()">開く</button>
-      <p id="error-message"></p>
+      <div id="secure" class="section">
+        <input type="password" id="passwordInput" placeholder="パスワード入力" />
+        <button onclick="checkPassword()">開く</button>
+        <div id="secureContent" style="display: none;">
+          <video controls width="100%">
+            <source src="sample.mp4" type="video/mp4">
+            お使いのブラウザは動画をサポートしていません。
+          </video>
+          <div id="serverStatus">読み込み中...</div>
+        </div>
+      </div>
     </div>
-
-    <!-- パスワード成功時に表示される内容 -->
-    <div id="protected-content" style="display: none;">
-      <nav>
-        <button onclick="showSection('embed')">埋め込みHTML</button>
-        <button onclick="showSection('youtube')">YouTube</button>
-      </nav>
-
-      <!-- 埋め込みHTMLセクション -->
-      <section id="embed" class="content-section">
-        <h2>埋め込みHTML</h2>
-        <iframe
-          style="width:728px;height:90px;max-width:100%;border:none;display:block;margin:auto"
-          src="https://ja.namemc.com/server/cool.ssnetwork.io:42264/embed"
-          width="728"
-          height="90">
-        </iframe>
-      </section>
-
-      <!-- YouTube動画セクション -->
-      <section id="youtube" class="content-section" style="display: none;">
-        <h2>YouTube動画</h2>
-        <iframe width="560" height="315"
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-                title="YouTube video player"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen>
-        </iframe>
-      </section>
-    </div>
-  </main>
-
-  <footer>
-    <p>&copy; ﾄﾞﾝｸﾞﾘ</p>
-  </footer>
+  </div>
 
   <script>
-    function checkPassword() {
-      const input = document.getElementById("password-input").value;
-      const correctPassword = "asdf1234";
+    function toggleSection(id) {
+      document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+    }
 
-      if (input === correctPassword) {
-        document.getElementById("password-section").style.display = "none";
-        document.getElementById("protected-content").style.display = "block";
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      if (input === 'asdf1234') {
+        document.getElementById('secureContent').style.display = 'block';
+        fetchServerStatus();
       } else {
-        document.getElementById("error-message").textContent = "パスワードが間違っています。";
+        alert('パスワードが間違っています');
       }
     }
 
-    function showSection(sectionId) {
-      document.querySelectorAll('.content-section').forEach(section => {
-        section.style.display = 'none';
-      });
-      document.getElementById(sectionId).style.display = 'block';
+    function fetchServerStatus() {
+      fetch('https://api.mcsrvstat.us/2/cool.ssnetwork.io:42264')
+        .then(res => res.json())
+        .then(data => {
+          let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
+          if (data.online) {
+            status += `<p>プレイヤー数: ${data.players.online}/${data.players.max}</p>`;
+            status += `<p>IP: ${data.ip}:${data.port}</p>`;
+          }
+          document.getElementById('serverStatus').innerHTML = status;
+        })
+        .catch(() => {
+          document.getElementById('serverStatus').innerHTML = 'サーバーステータスの取得に失敗しました';
+        });
     }
   </script>
-
 </body>
 </html>
+
