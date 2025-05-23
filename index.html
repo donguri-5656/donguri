@@ -105,13 +105,14 @@
         document.body.appendChild(leaf);
       }
 
-      // ソリティア
+      // ソリティアの設定
       const canvas = document.getElementById('gameCanvas');
       const ctx = canvas.getContext('2d');
       const suits = ['♠', '♥', '♣', '♦'];
       const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
       let deck = [];
       let displayedCards = [];
+      let selectedCard = null;
 
       function initDeck() {
         deck = [];
@@ -121,34 +122,51 @@
           }
         }
         deck.sort(() => Math.random() - 0.5);
-        displayedCards = deck.slice(0, 5);
+        displayedCards = deck.slice(0, 7).map((card, i) => {
+          return { ...card, x: 50 + i * 100, y: 100 };
+        });
       }
 
       function drawGame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        displayedCards.forEach((card, i) => {
+        displayedCards.forEach((card) => {
           ctx.fillStyle = 'white';
-          ctx.fillRect(50 + i * 100, 100, 60, 90);
+          ctx.fillRect(card.x, card.y, 60, 90);
           ctx.strokeStyle = 'black';
-          ctx.strokeRect(50 + i * 100, 100, 60, 90);
+          ctx.strokeRect(card.x, card.y, 60, 90);
           ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
           ctx.font = '16px sans-serif';
-          ctx.fillText(card.rank + card.suit, 55 + i * 100, 120);
+          ctx.fillText(card.rank + card.suit, card.x + 5, card.y + 20);
         });
       }
 
-      canvas.addEventListener('click', (e) => {
+      canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        displayedCards.forEach((card, i) => {
-          const cx = 50 + i * 100;
-          const cy = 100;
-          if (x >= cx && x <= cx + 60 && y >= cy && y <= cy + 90) {
-            alert(`${card.rank}${card.suit} を選びました`);
+        for (let i = displayedCards.length - 1; i >= 0; i--) {
+          const card = displayedCards[i];
+          if (x >= card.x && x <= card.x + 60 && y >= card.y && y <= card.y + 90) {
+            selectedCard = { card, offsetX: x - card.x, offsetY: y - card.y };
+            break;
           }
-        });
+        }
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (selectedCard) {
+          const rect = canvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          selectedCard.card.x = x - selectedCard.offsetX;
+          selectedCard.card.y = y - selectedCard.offsetY;
+          drawGame();
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => {
+        selectedCard = null;
       });
 
       initDeck();
@@ -171,7 +189,7 @@
     }
 
     function fetchServerStatus() {
-      fetch('https://api.mcsrvstat.us/2/cool.ssnetwork.io:42264')
+      fetch('https://api.mcsrvstat.us/2/2b2t.com')
         .then(res => res.json())
         .then(data => {
           let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
