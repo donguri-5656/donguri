@@ -15,18 +15,17 @@
     }
     .leaf {
       position: absolute;
-      top: -50px;
       width: 30px;
       height: 30px;
       background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Leaf_icon.svg/1024px-Leaf_icon.svg.png');
       background-size: cover;
-      opacity: 0.7;
+      opacity: 0.8;
       animation: fall linear infinite;
     }
     @keyframes fall {
       0% {
-        transform: translateY(-50px) rotate(0deg);
-        opacity: 0.7;
+        transform: translateY(-100px) rotate(0deg);
+        opacity: 0.8;
       }
       100% {
         transform: translateY(110vh) rotate(360deg);
@@ -71,10 +70,11 @@
 </head>
 <body>
   <script>
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 40; i++) {
       const leaf = document.createElement('div');
       leaf.classList.add('leaf');
       leaf.style.left = Math.random() * 100 + 'vw';
+      leaf.style.top = -Math.random() * 200 + 'px';
       leaf.style.animationDuration = (10 + Math.random() * 10) + 's';
       leaf.style.animationDelay = Math.random() * 20 + 's';
       document.body.appendChild(leaf);
@@ -191,77 +191,6 @@
     initDeck();
     layoutCards();
     drawGame();
-  </script>
-</body>
-</html>
-
-</head>
-<body>
-  <div class="container">
-    <h1>癒しの空間へようこそ</h1>
-    <div class="menu">
-      <button onclick="toggleSection('solitaire')">ソリティア</button>
-      <button onclick="toggleSection('secure')">サーバー＆動画</button>
-
-      <div id="solitaire" class="section">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-      </div>
-
-      <div id="secure" class="section">
-        <input type="password" id="passwordInput" placeholder="パスワード入力" />
-        <button onclick="checkPassword()">開く</button>
-        <div id="secureContent" style="display: none;">
-          <video controls width="100%">
-            <source src="sample.mp4" type="video/mp4">
-            お使いのブラウザは動画をサポートしていません。
-          </video>
-          <div id="serverStatus">読み込み中...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/solitairejs@1.0.0/dist/solitaire.min.js"></script>
-  <script>
-    function toggleSection(id) {
-      document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
-      document.getElementById(id).style.display = 'block';
-
-      if (id === 'solitaire') {
-        setTimeout(() => {
-          if (!window.solitaireStarted) {
-            Solitaire.init(document.getElementById('gameCanvas'));
-            window.solitaireStarted = true;
-          }
-        }, 100);
-      }
-    }
-
-    function checkPassword() {
-      const input = document.getElementById('passwordInput').value;
-      if (input === 'asdf1234') {
-        document.getElementById('secureContent').style.display = 'block';
-        fetchServerStatus();
-      } else {
-        alert('パスワードが間違っています');
-      }
-    }
-
-    function fetchServerStatus() {
-      fetch('https://api.mcsrvstat.us/2/2b2t.com')
-        .then(res => res.json())
-        .then(data => {
-          let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
-          if (data.online) {
-            status += `<p>プレイヤー数: ${data.players.online}/${data.players.max}</p>`;
-            status += `<p>IP: ${data.ip}:${data.port}</p>`;
-          }
-          document.getElementById('serverStatus').innerHTML = status;
-        })
-        .catch(() => {
-          document.getElementById('serverStatus').innerHTML = 'サーバーステータスの取得に失敗しました';
-        });
-    }
   </script>
 </body>
 </html>
