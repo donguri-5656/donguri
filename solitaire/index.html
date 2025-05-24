@@ -7,42 +7,24 @@
   <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <div class="overlay" id="difficultyOverlay">
-    <div class="difficulty-container">
-      <h2>難易度を選択してください</h2>
-      <button onclick="startGame(1)">簡単（1枚）</button>
-      <button onclick="startGame(3)">難しい（3枚）</button>
-    </div>
+  <div id="difficulty-select">
+    <button onclick="startGame(1)">簡単（1枚ドロー）</button>
+    <button onclick="startGame(3)">難しい（3枚ドロー）</button>
   </div>
-
-  <div class="controls">
-    <button onclick="resetGame()">やり直し</button>
-    <button onclick="toggleRules()">ルール</button>
-    <span id="score">スコア: 0</span>
+  <div id="score-container">
+    スコア: <span id="score">0</span>
+    <button onclick="toggleRules()">ルール表示</button>
   </div>
-
-  <div id="rules" class="rules hidden">
-    <h3>スコアルール</h3>
+  <div id="rules" class="hidden">
+    <p>■ スコアルール：</p>
     <ul>
-      <li>場から場へ移動: +5</li>
-      <li>場から組札へ移動: +10</li>
-      <li>手札使用: +5</li>
-      <li>1移動戻し: -10</li>
+      <li>場から山札へ移動: +5点</li>
+      <li>場から完成列へ移動: +10点</li>
+      <li>3枚モード: 難易度が高い</li>
     </ul>
   </div>
-
-  <div id="gameBoard">
-    <div id="stock" class="pile"></div>
-    <div id="waste" class="pile"></div>
-    <div id="foundations">
-      <div class="foundation pile" data-suit="♠"></div>
-      <div class="foundation pile" data-suit="♥"></div>
-      <div class="foundation pile" data-suit="♣"></div>
-      <div class="foundation pile" data-suit="♦"></div>
-    </div>
-    <div id="tableau"></div>
-  </div>
-
+  <canvas id="gameCanvas" width="1024" height="700"></canvas>
+  <button onclick="resetGame()">やり直し</button>
   <script src="solitaire.js"></script>
 </body>
 </html>
