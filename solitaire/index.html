@@ -2,24 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ソリティア</title>
   <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <h1>ソリティア</h1>
-  <div id="controls">
-    <button onclick="startGame(1)">簡単（1枚）</button>
-    <button onclick="startGame(3)">難しい（3枚）</button>
+  <div class="controls">
+    <button onclick="startGame(1)">簡単</button>
+    <button onclick="startGame(3)">難しい</button>
     <button onclick="toggleRules()">ルール</button>
-    <div id="score">0</div>
+    <span>スコア: <span id="score">0</span></span>
   </div>
+
   <div id="rules" class="hidden">
-    <p>簡単：山札から1枚ずつ引く</p>
-    <p>難しい：山札から3枚ずつ引く</p>
-    <p>カードをエースからKまで同じスートで揃えると完成</p>
-    <p>正しい移動で +5 点、ファンデーションに移動で +10 点</p>
+    <p>・山札をクリックしてカードをめくります（簡単: 1枚／難しい: 3枚）</p>
+    <p>・赤黒交互に数字の小さい順で場に積めます</p>
+    <p>・Aから順に同じマークを完成列に積めば勝ち</p>
+    <p>・カードを動かすとスコアが増減します</p>
   </div>
-  <canvas id="gameCanvas" width="1000" height="700"></canvas>
+
+  <canvas id="gameCanvas" width="1024" height="768"></canvas>
+
   <script src="solitaire.js"></script>
 </body>
 </html>
