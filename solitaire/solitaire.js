@@ -1,150 +1,169 @@
-let deck = [];
-let tableau = [[], [], [], [], [], [], []];
-let foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
-let waste = [];
-let stock = [];
-let drawCount = 1;
-let score = 0;
+const canvas = document.getElementById('solitaireCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 960;
+canvas.height = 600;
 
-function startGame(mode) {
-  drawCount = mode;
-  document.getElementById('difficulty-selection').classList.add('hidden');
-  document.getElementById('game-ui').classList.remove('hidden');
-  initGame();
+let game = {
+  deck: [],
+  waste: [],
+  foundations: [[], [], [], []],
+  tableau: [[], [], [], [], [], [], []],
+  stockDraw: 1,
+  selected: null,
+  score: 0,
+  lastMoveTime: Date.now(),
+  dragging: null,
+  offsetX: 0,
+  offsetY: 0
+};
+
+const suits = ['♠', '♥', '♣', '♦'];
+const colors = { '♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red' };
+
+function createDeck() {
+  let deck = [];
+  for (let suit of suits) {
+    for (let rank = 1; rank <= 13; rank++) {
+      deck.push({ suit, rank, faceUp: false });
+    }
+  }
+  return deck.sort(() => Math.random() - 0.5);
+}
+
+function startGame(drawCount) {
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+
+  game.deck = createDeck();
+  game.stockDraw = drawCount;
+  game.foundations = [[], [], [], []];
+  game.tableau = [[], [], [], [], [], [], []];
+  game.waste = [];
+  game.score = 0;
+  game.selected = null;
+  game.lastMoveTime = Date.now();
+
+  for (let i = 0; i < 7; i++) {
+    for (let j = i; j < 7; j++) {
+      let card = game.deck.pop();
+      card.faceUp = j === i;
+      game.tableau[j].push(card);
+    }
+  }
+
+  draw();
 }
 
 function restartGame() {
-  document.getElementById('difficulty-selection').classList.remove('hidden');
-  document.getElementById('game-ui').classList.add('hidden');
-  clearBoard();
-}
-
-function clearBoard() {
-  document.getElementById('tableau').innerHTML = '';
-  document.getElementById('stock').innerHTML = '';
-  document.getElementById('waste').innerHTML = '';
-  document.querySelectorAll('.foundation').forEach(f => f.innerHTML = '');
-  score = 0;
-  updateScore();
-}
-
-function initGame() {
-  deck = createDeck();
-  shuffle(deck);
-  dealTableau();
-  stock = [...deck];
-  renderStock();
-  updateScore();
-}
-
-function createDeck() {
-  const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-  const values = Array.from({ length: 13 }, (_, i) => i + 1);
-  let cards = [];
-  for (let suit of suits) {
-    for (let value of values) {
-      cards.push({ suit, value, faceUp: false });
-    }
+  if (confirm("ゲームをやり直しますか？")) {
+    document.getElementById('menu').classList.remove('hidden');
+    document.getElementById('game').classList.add('hidden');
   }
-  return cards;
-}
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-
-function dealTableau() {
-  for (let i = 0; i < 7; i++) {
-    tableau[i] = deck.splice(0, i + 1);
-    tableau[i][i].faceUp = true;
-  }
-  renderTableau();
-}
-
-function renderTableau() {
-  const container = document.getElementById('tableau');
-  container.innerHTML = '';
-  tableau.forEach((column, colIdx) => {
-    const colDiv = document.createElement('div');
-    colDiv.className = 'column';
-    column.forEach((card, idx) => {
-      const cardDiv = createCardElement(card);
-      cardDiv.style.top = `${idx * 30}px`;
-      colDiv.appendChild(cardDiv);
-    });
-    container.appendChild(colDiv);
-  });
-}
-
-function createCardElement(card) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  if (card.faceUp) {
-    div.textContent = getCardSymbol(card);
-    if (card.suit === 'hearts' || card.suit === 'diamonds') {
-      div.classList.add('red');
-    }
-  } else {
-    div.style.backgroundColor = '#999';
-  }
-  return div;
-}
-
-function getCardSymbol(card) {
-  const symbols = {
-    1: 'A', 11: 'J', 12: 'Q', 13: 'K'
-  };
-  const value = symbols[card.value] || card.value;
-  const suitSymbols = {
-    hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠'
-  };
-  return `${value}${suitSymbols[card.suit]}`;
-}
-
-function renderStock() {
-  const stockDiv = document.getElementById('stock');
-  const wasteDiv = document.getElementById('waste');
-  stockDiv.innerHTML = '';
-  wasteDiv.innerHTML = '';
-
-  stockDiv.onclick = () => {
-    if (stock.length === 0 && waste.length > 0) {
-      stock = waste.reverse().map(c => ({ ...c, faceUp: false }));
-      waste = [];
-      score -= 5;
-      updateScore();
-      renderStock();
-    } else {
-      const drawn = stock.splice(0, drawCount).map(c => ({ ...c, faceUp: true }));
-      waste.unshift(...drawn);
-      score -= drawCount;
-      updateScore();
-      renderStock();
-    }
-  };
-
-  if (stock.length > 0) {
-    const back = document.createElement('div');
-    back.className = 'card';
-    back.style.backgroundColor = '#555';
-    stockDiv.appendChild(back);
-  }
-
-  waste.slice(0, drawCount).forEach((card, idx) => {
-    const cardDiv = createCardElement(card);
-    cardDiv.style.left = `${idx * 10}px`;
-    wasteDiv.appendChild(cardDiv);
-  });
-}
-
-function updateScore() {
-  document.getElementById('score').textContent = `スコア: ${score}`;
 }
 
 function toggleRules() {
-  const ruleDiv = document.getElementById('rules');
-  ruleDiv.classList.toggle('hidden');
+  document.getElementById('rules').classList.toggle('hidden');
 }
+
+function showHint() {
+  alert("ヒント：空の列にキングを移動してみよう！");
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawDeck();
+  drawWaste();
+  drawFoundations();
+  drawTableau();
+  drawScore();
+
+  requestAnimationFrame(draw);
+}
+
+function drawDeck() {
+  ctx.strokeStyle = 'white';
+  ctx.strokeRect(20, 20, 60, 90);
+  if (game.deck.length > 0) {
+    ctx.fillStyle = '#3366cc';
+    ctx.fillRect(20, 20, 60, 90);
+    ctx.fillStyle = 'white';
+    ctx.fillText('山札', 35, 70);
+  }
+}
+
+function drawWaste() {
+  if (game.waste.length > 0) {
+    let card = game.waste[game.waste.length - 1];
+    drawCard(card, 100, 20);
+  } else {
+    ctx.strokeRect(100, 20, 60, 90);
+  }
+}
+
+function drawFoundations() {
+  for (let i = 0; i < 4; i++) {
+    let x = 200 + i * 80;
+    if (game.foundations[i].length > 0) {
+      drawCard(game.foundations[i][game.foundations[i].length - 1], x, 20);
+    } else {
+      ctx.strokeRect(x, 20, 60, 90);
+    }
+  }
+}
+
+function drawTableau() {
+  for (let i = 0; i < 7; i++) {
+    let y = 130;
+    for (let j = 0; j < game.tableau[i].length; j++) {
+      let card = game.tableau[i][j];
+      drawCard(card, 20 + i * 130, y);
+      y += card.faceUp ? 25 : 12;
+    }
+  }
+}
+
+function drawCard(card, x, y) {
+  ctx.fillStyle = card.faceUp ? 'white' : '#999';
+  ctx.fillRect(x, y, 60, 90);
+  ctx.strokeStyle = 'black';
+  ctx.strokeRect(x, y, 60, 90);
+  if (card.faceUp) {
+    ctx.fillStyle = colors[card.suit];
+    ctx.font = '16px sans-serif';
+    ctx.fillText(card.suit + card.rank, x + 5, y + 20);
+  }
+}
+
+function drawScore() {
+  let now = Date.now();
+  if (now - game.lastMoveTime > 10000) {
+    game.score = Math.max(0, game.score - 1);
+    game.lastMoveTime = now;
+  }
+  document.getElementById('score').textContent = "スコア: " + game.score;
+}
+
+// ドロー処理
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  if (mx >= 20 && mx <= 80 && my >= 20 && my <= 110) {
+    if (game.deck.length === 0) {
+      game.deck = game.waste.reverse().map(c => { c.faceUp = false; return c; });
+      game.waste = [];
+      game.score = Math.max(0, game.score - 10);
+    } else {
+      for (let i = 0; i < game.stockDraw && game.deck.length > 0; i++) {
+        let card = game.deck.pop();
+        card.faceUp = true;
+        game.waste.push(card);
+      }
+      game.score += 5;
+    }
+  }
+});
+
+draw();
