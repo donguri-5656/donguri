@@ -1,62 +1,126 @@
 body {
+  font-family: sans-serif;
+  background: linear-gradient(120deg, #d0f0ff, #f0fff0);
   margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #a0c0ff, #ffffff);
-  animation: bgMove 20s infinite alternate;
+  padding: 0;
   overflow-x: hidden;
 }
 
-@keyframes bgMove {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 100% 100%; }
-}
-
-.difficulty-screen {
+.difficulty-select {
   text-align: center;
-  padding-top: 20vh;
-  animation: fadeInUp 1s ease;
+  margin-top: 100px;
+  animation: fadeIn 1s ease-out;
 }
 
-.difficulty-buttons button {
-  font-size: 1.5rem;
-  margin: 20px;
-  padding: 15px 30px;
-  border-radius: 12px;
+.difficulty-select button {
+  padding: 10px 20px;
+  font-size: 20px;
+  margin: 0 15px;
   border: none;
-  background-color: #5fa8d3;
+  border-radius: 10px;
+  background-color: #88c0d0;
   color: white;
   cursor: pointer;
-  transition: transform 0.3s ease, background 0.3s;
+  transition: transform 0.3s, background 0.3s;
 }
 
-.difficulty-buttons button:hover {
-  background-color: #417ba1;
+.difficulty-select button:hover {
+  background-color: #5e9ca0;
   transform: scale(1.1);
 }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+.top-bar, .tableau {
+  display: flex;
+  justify-content: center;
+  margin: 20px auto;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.hidden {
+.deck, .waste, .foundation-slot, .card, .column {
+  width: 80px;
+  height: 120px;
+  border-radius: 8px;
+  background-color: white;
+  border: 2px solid #ccc;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.deck {
+  background-color: #444;
+  cursor: pointer;
+  color: white;
+}
+
+.card.hidden {
+  background-color: #999;
+  color: transparent;
+}
+
+.card {
+  position: relative;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.card.red {
+  color: red;
+}
+
+.card.black {
+  color: black;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+.foundations {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.controls {
+  text-align: center;
+  margin: 20px;
+}
+
+.controls button {
+  margin: 5px;
+  padding: 8px 16px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #4caf50;
+  color: white;
+  cursor: pointer;
+}
+
+.rule-panel {
+  background: #fff;
+  max-width: 400px;
+  margin: 10px auto;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
   display: none;
 }
 
-.game-container {
-  padding: 20px;
-  animation: fadeIn 1s ease;
+.win-message {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: green;
+  display: none;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(50px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-.card-back {
-  width: 80px;
-  height: 120px;
-  background-color: #333;
-  border-radius: 8px;
-}
-
