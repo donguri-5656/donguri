@@ -1,58 +1,47 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>ソリティア</title>
-  <link rel="stylesheet" href="solitaire.css">
+  <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <div id="difficultySelection">
-    <h2>難易度を選択してください</h2>
-    <button onclick="startGame(1)">簡単（1枚）</button>
-    <button onclick="startGame(3)">難しい（3枚）</button>
+  <div id="difficulty-selection" class="difficulty-popup">
+    <h2>難易度を選んでください</h2>
+    <button onclick="startGame(1)">簡単（1枚ドロー）</button>
+    <button onclick="startGame(3)">難しい（3枚ドロー）</button>
   </div>
 
-  <div id="gameContainer" style="display:none;">
-    <div class="top-row">
-      <div id="stock" class="pile"></div>
-      <div id="waste" class="pile"></div>
-      <div id="scoreArea">
-        <span>スコア: <span id="score">0</span></span>
-        <button onclick="restartGame()">やり直し</button>
-        <button onclick="toggleRules()">スコアルール</button>
-        <div id="rules" class="hidden">
-          <ul>
-            <li>カード移動: +5点</li>
-            <li>完成列へ移動: +10点</li>
-            <li>10秒毎に -1点</li>
-          </ul>
+  <div id="game-ui" class="hidden">
+    <div class="top-bar">
+      <button onclick="restartGame()">やり直し</button>
+      <button onclick="toggleRules()">スコアルール</button>
+      <span id="score">スコア: 0</span>
+    </div>
+
+    <div id="rules" class="rules hidden">
+      <ul>
+        <li>カード移動: +5点</li>
+        <li>組札にカード追加: +10点</li>
+        <li>組札から場札に戻す: -15点</li>
+        <li>1枚ドロー: -1点</li>
+        <li>3枚ドロー: -3点</li>
+      </ul>
+    </div>
+
+    <div id="solitaire">
+      <div class="piles">
+        <div class="pile stock" id="stock"></div>
+        <div class="pile waste" id="waste"></div>
+        <div class="foundations">
+          <div class="foundation" data-suit="hearts"></div>
+          <div class="foundation" data-suit="diamonds"></div>
+          <div class="foundation" data-suit="clubs"></div>
+          <div class="foundation" data-suit="spades"></div>
         </div>
       </div>
-      <div id="foundations" class="foundations">
-        <!-- 完成列4つ -->
-        <div class="foundation" data-suit="hearts"></div>
-        <div class="foundation" data-suit="diamonds"></div>
-        <div class="foundation" data-suit="clubs"></div>
-        <div class="foundation" data-suit="spades"></div>
-      </div>
+      <div class="tableau" id="tableau"></div>
     </div>
-    <div id="tableau" class="tableau"></div>
-  </div>
-
-  <script src="solitaire.js"></script>
-</body>
-</html>
-
-      </div>
-      <div id="foundations" class="foundations">
-        <!-- 完成列4つ -->
-        <div class="foundation" data-suit="hearts"></div>
-        <div class="foundation" data-suit="diamonds"></div>
-        <div class="foundation" data-suit="clubs"></div>
-        <div class="foundation" data-suit="spades"></div>
-      </div>
-    </div>
-    <div id="tableau" class="tableau"></div>
   </div>
 
   <script src="solitaire.js"></script>
