@@ -1,103 +1,62 @@
-/* solitaire.css */
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(160deg, #aee1f9, #c3f0f9);
-  background-size: 400% 400%;
-  animation: gradientBG 20s ease infinite;
-  color: #333;
+  font-family: "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #a0c0ff, #ffffff);
+  animation: bgMove 20s infinite alternate;
+  overflow-x: hidden;
 }
 
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes bgMove {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
 }
 
-.header {
+.difficulty-screen {
   text-align: center;
-  padding: 20px;
+  padding-top: 20vh;
+  animation: fadeInUp 1s ease;
 }
 
-.scoreboard {
-  margin-top: 10px;
-}
-
-.controls {
-  margin-top: 10px;
-}
-
-button {
-  padding: 10px 20px;
-  margin: 5px;
+.difficulty-buttons button {
+  font-size: 1.5rem;
+  margin: 20px;
+  padding: 15px 30px;
+  border-radius: 12px;
   border: none;
-  border-radius: 8px;
-  background-color: #3498db;
+  background-color: #5fa8d3;
   color: white;
-  font-weight: bold;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: transform 0.3s ease, background 0.3s;
 }
 
-button:hover {
-  background-color: #2980b9;
+.difficulty-buttons button:hover {
+  background-color: #417ba1;
+  transform: scale(1.1);
 }
 
-.rules {
-  background: #ffffffdd;
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin: 10px auto;
-  width: fit-content;
-  border-radius: 10px;
-  transition: max-height 0.5s ease, opacity 0.5s ease;
-}
-
-.rules.hidden {
-  display: none;
-}
-
-.game-area {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  padding: 20px;
-  min-height: 60vh;
-}
-
-.card {
-  width: 60px;
-  height: 90px;
-  background-color: white;
-  border: 1px solid #888;
-  border-radius: 6px;
-  box-shadow: 1px 1px 5px rgba(0,0,0,0.2);
-  margin: 4px;
-  text-align: center;
-  line-height: 90px;
-  font-weight: bold;
-  font-size: 18px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.card.red {
-  color: red;
-}
-
-.hidden-card {
-  background-color: #bbb;
-  color: transparent;
-  cursor: default;
-}
-
-#winMessage {
-  text-align: center;
-  font-size: 24px;
-  color: green;
-  margin-top: 20px;
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .hidden {
   display: none;
 }
+
+.game-container {
+  padding: 20px;
+  animation: fadeIn 1s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card-back {
+  width: 80px;
+  height: 120px;
+  background-color: #333;
+  border-radius: 8px;
+}
+
