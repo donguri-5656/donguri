@@ -3,205 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>癒しサイト</title>
+  <title>ソリティアポータル</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body, html {
+    body {
       margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: sans-serif;
-      background: linear-gradient(120deg, #a0e9ff, #a8edea);
+      font-family: 'Noto Sans JP', sans-serif;
       overflow-x: hidden;
     }
-    .leaf {
-      position: absolute;
-      width: 30px;
-      height: 30px;
-      background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Leaf_icon.svg/1024px-Leaf_icon.svg.png');
-      background-size: cover;
-      opacity: 0.8;
-      animation: fall linear infinite;
+    #bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(270deg, #667eea, #764ba2);
+      background-size: 400% 400%;
+      z-index: -1;
+      animation: gradient 15s ease infinite;
     }
-    @keyframes fall {
-      0% {
-        transform: translateY(-100px) rotate(0deg);
-        opacity: 0.8;
-      }
-      100% {
-        transform: translateY(110vh) rotate(360deg);
-        opacity: 0;
-      }
-    }
-    .container {
-      padding: 2rem;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-    .menu {
-      margin-top: 100vh;
-    }
-    button {
-      margin: 1rem;
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      border-radius: 12px;
-      border: none;
-      background-color: #0097a7;
-      color: white;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    button:hover {
-      background-color: #006064;
-    }
-    .section {
-      display: none;
-      margin-top: 2rem;
-      padding: 1rem;
-      background: white;
-      border-radius: 12px;
-    }
-    canvas {
-      background: #00796b;
-      border-radius: 10px;
+    @keyframes gradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>癒しの空間へようこそ</h1>
-    <div class="menu">
-      <button onclick="toggleSection('solitaire')">ソリティア</button>
-      <button onclick="toggleSection('secure')">サーバー＆動画</button>
+<body class="text-white">
+  <div id="bg"></div>
 
-      <div id="solitaire" class="section">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <!-- Navbar -->
+  <header class="bg-black bg-opacity-50 backdrop-blur sticky top-0 z-10 shadow-md">
+    <nav class="container mx-auto flex justify-between items-center p-4">
+      <h1 class="text-2xl font-bold">ソリティアポータル</h1>
+      <ul class="flex gap-6">
+        <li><a href="#" onclick="showPage('solitaire')" class="hover:underline">ソリティア</a></li>
+        <li><a href="#" onclick="showPage('locked')" class="hover:underline">限定ページ</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Pages -->
+  <main class="container mx-auto p-6 space-y-10">
+    <!-- Solitaire Game -->
+    <section id="solitaire" class="hidden">
+      <h2 class="text-3xl font-semibold mb-4">🃏 ソリティア</h2>
+      <iframe src="https://solitaired.com/embed/klondike" width="100%" height="600" class="rounded-xl shadow-xl border-2 border-white"></iframe>
+    </section>
+
+    <!-- Password Locked Section -->
+    <section id="locked" class="hidden">
+      <h2 class="text-3xl font-semibold mb-4">🔐 パスワード保護ページ</h2>
+      <div id="passwordForm" class="space-y-4">
+        <input type="password" id="passwordInput" placeholder="パスワードを入力" class="p-2 rounded text-black" />
+        <button onclick="checkPassword()" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded">確認</button>
+        <p id="passwordError" class="text-red-400"></p>
       </div>
+      <div id="secretContent" class="hidden mt-6 space-y-4">
+        <h3 class="text-2xl">🎥 限定動画</h3>
+        <video controls class="w-full max-w-xl rounded shadow">
+          <source src="your-video.mp4" type="video/mp4">
+          対応する動画形式が見つかりません。
+        </video>
 
-      <div id="secure" class="section">
-        <input type="password" id="passwordInput" placeholder="パスワード入力" />
-        <button onclick="checkPassword()">開く</button>
-        <div id="secureContent" style="display: none;">
-          <video controls width="100%">
-            <source src="sample.mp4" type="video/mp4">
-            お使いのブラウザは動画をサポートしていません。
-          </video>
-          <div id="serverStatus">読み込み中...</div>
-        </div>
+        <h3 class="text-2xl">🟢 Minecraftサーバーステータス</h3>
+        <iframe src="https://api.mcstatus.io/v2/widget/your-server-address" width="100%" height="200" class="rounded shadow border border-white"></iframe>
       </div>
-    </div>
-  </div>
+    </section>
+  </main>
 
+  <!-- Footer -->
+  <footer class="bg-black bg-opacity-50 text-center py-6 mt-10">
+    &copy; 2025 ソリティアポータル. All rights reserved.
+  </footer>
+
+  <!-- JS Scripts -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      for (let i = 0; i < 40; i++) {
-        const leaf = document.createElement('div');
-        leaf.classList.add('leaf');
-        leaf.style.left = Math.random() * 100 + 'vw';
-        leaf.style.top = -Math.random() * 200 + 'px';
-        leaf.style.animationDuration = (10 + Math.random() * 10) + 's';
-        leaf.style.animationDelay = Math.random() * 20 + 's';
-        document.body.appendChild(leaf);
-      }
-
-      // ソリティアの設定
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
-      const suits = ['♠', '♥', '♣', '♦'];
-      const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-      let deck = [];
-      let displayedCards = [];
-      let selectedCard = null;
-
-      function initDeck() {
-        deck = [];
-        for (let suit of suits) {
-          for (let rank of ranks) {
-            deck.push({ rank, suit });
-          }
-        }
-        deck.sort(() => Math.random() - 0.5);
-        displayedCards = deck.slice(0, 7).map((card, i) => {
-          return { ...card, x: 50 + i * 100, y: 100 };
-        });
-      }
-
-      function drawGame() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        displayedCards.forEach((card) => {
-          ctx.fillStyle = 'white';
-          ctx.fillRect(card.x, card.y, 60, 90);
-          ctx.strokeStyle = 'black';
-          ctx.strokeRect(card.x, card.y, 60, 90);
-          ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-          ctx.font = '16px sans-serif';
-          ctx.fillText(card.rank + card.suit, card.x + 5, card.y + 20);
-        });
-      }
-
-      canvas.addEventListener('mousedown', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        for (let i = displayedCards.length - 1; i >= 0; i--) {
-          const card = displayedCards[i];
-          if (x >= card.x && x <= card.x + 60 && y >= card.y && y <= card.y + 90) {
-            selectedCard = { card, offsetX: x - card.x, offsetY: y - card.y };
-            break;
-          }
-        }
-      });
-
-      canvas.addEventListener('mousemove', (e) => {
-        if (selectedCard) {
-          const rect = canvas.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          selectedCard.card.x = x - selectedCard.offsetX;
-          selectedCard.card.y = y - selectedCard.offsetY;
-          drawGame();
-        }
-      });
-
-      canvas.addEventListener('mouseup', () => {
-        selectedCard = null;
-      });
-
-      initDeck();
-      drawGame();
-    });
-
-    function toggleSection(id) {
-      document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
-      document.getElementById(id).style.display = 'block';
+    const pages = ['solitaire', 'locked'];
+    function showPage(id) {
+      pages.forEach(p => document.getElementById(p).classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
     }
 
     function checkPassword() {
       const input = document.getElementById('passwordInput').value;
-      if (input === 'asdf1234') {
-        document.getElementById('secureContent').style.display = 'block';
-        fetchServerStatus();
+      const correct = 'shirokuma'; // ← 任意に変更可能
+      const error = document.getElementById('passwordError');
+      const content = document.getElementById('secretContent');
+
+      if (input === correct) {
+        error.textContent = '';
+        document.getElementById('passwordForm').classList.add('hidden');
+        content.classList.remove('hidden');
       } else {
-        alert('パスワードが間違っています');
+        error.textContent = 'パスワードが違います。';
       }
     }
+  </script>
+</body>
+</html>
 
-    function fetchServerStatus() {
-      fetch('https://api.mcsrvstat.us/2/2b2t.com')
-        .then(res => res.json())
-        .then(data => {
-          let status = `<p>ステータス: ${data.online ? '🟢オンライン' : '🔴オフライン'}</p>`;
-          if (data.online) {
-            status += `<p>プレイヤー数: ${data.players.online}/${data.players.max}</p>`;
-            status += `<p>IP: ${data.ip}:${data.port}</p>`;
-          }
-          document.getElementById('serverStatus').innerHTML = status;
-        })
-        .catch(() => {
-          document.getElementById('serverStatus').innerHTML = 'サーバーステータスの取得に失敗しました';
-        });
     }
   </script>
 </body>
