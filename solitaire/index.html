@@ -1,27 +1,43 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ソリティア</title>
-  <link rel="stylesheet" href="solitaire.css">
+  <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <div id="difficultyScreen" class="difficulty-screen">
-    <h1>難易度を選んでください</h1>
-    <div class="difficulty-buttons">
-      <button id="easyBtn">簡単</button>
-      <button id="hardBtn">難しい</button>
-    </div>
+  <div class="difficulty-select">
+    <button onclick="startGame(1)">簡単（1枚）</button>
+    <button onclick="startGame(3)">難しい（3枚）</button>
   </div>
 
-  <div id="gameContainer" class="game-container hidden">
-    <!-- 山札・捨て札・場・組札などがここに描画される -->
-    <div id="stockArea">
-      <div id="stock" class="card-back"></div>
-      <div id="waste"></div>
+  <div id="gameContainer" style="display:none;">
+    <div class="top-bar">
+      <div class="deck" id="deck" onclick="drawCard()"></div>
+      <div class="waste" id="waste"></div>
+      <div class="foundations" id="foundations"></div>
     </div>
-    <div id="foundations"></div>
-    <div id="tableau"></div>
+    <div class="tableau" id="tableau"></div>
+
+    <div class="controls">
+      <button onclick="resetGame()">やり直し</button>
+      <button onclick="showHint()">ヒント</button>
+      <button onclick="toggleRules()">スコアルール</button>
+      <span>スコア: <span id="score">0</span></span>
+    </div>
+
+    <div class="rule-panel" id="rulePanel">
+      <h3>スコアのルール</h3>
+      <ul>
+        <li>場に移動：+10</li>
+        <li>山札ドロー：-1</li>
+        <li>台札に移動：+20</li>
+        <li>やり直し：スコアリセット</li>
+      </ul>
+    </div>
+
+    <div id="winMessage" class="win-message">🎉 クリアしました！</div>
   </div>
 
   <script src="solitaire.js"></script>
