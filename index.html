@@ -16,22 +16,27 @@
       top: 0; left: 0;
       width: 100vw;
       height: 100vh;
-      background: linear-gradient(270deg, #667eea, #764ba2);
+      background: linear-gradient(-45deg, #ff6ec4, #7873f5, #4adede, #00ffa3);
       background-size: 400% 400%;
       z-index: -1;
-      animation: gradient 15s ease infinite;
+      animation: gradient 5s ease-in-out infinite;
     }
     @keyframes gradient {
       0% {background-position: 0% 50%;}
       50% {background-position: 100% 50%;}
       100% {background-position: 0% 50%;}
     }
+    canvas {
+      display: block;
+      margin: auto;
+      background-color: #1a1a1a;
+      border-radius: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="text-white">
   <div id="bg"></div>
-
-  <!-- Navbar -->
   <header class="bg-black bg-opacity-50 backdrop-blur sticky top-0 z-10 shadow-md">
     <nav class="container mx-auto flex justify-between items-center p-4">
       <h1 class="text-2xl font-bold">ソリティアポータル</h1>
@@ -41,16 +46,11 @@
       </ul>
     </nav>
   </header>
-
-  <!-- Pages -->
   <main class="container mx-auto p-6 space-y-10">
-    <!-- Solitaire Game -->
     <section id="solitaire" class="hidden">
       <h2 class="text-3xl font-semibold mb-4">🃏 ソリティア</h2>
-      <iframe src="https://solitaired.com/embed/klondike" width="100%" height="600" class="rounded-xl shadow-xl border-2 border-white"></iframe>
+      <canvas id="gameCanvas" width="1000" height="700"></canvas>
     </section>
-
-    <!-- Password Locked Section -->
     <section id="locked" class="hidden">
       <h2 class="text-3xl font-semibold mb-4">🔐 パスワード保護ページ</h2>
       <div id="passwordForm" class="space-y-4">
@@ -64,19 +64,15 @@
           <source src="your-video.mp4" type="video/mp4">
           対応する動画形式が見つかりません。
         </video>
-
         <h3 class="text-2xl">🟢 Minecraftサーバーステータス</h3>
         <iframe src="https://api.mcstatus.io/v2/widget/your-server-address" width="100%" height="200" class="rounded shadow border border-white"></iframe>
       </div>
     </section>
   </main>
-
-  <!-- Footer -->
   <footer class="bg-black bg-opacity-50 text-center py-6 mt-10">
     &copy; 2025 ソリティアポータル. All rights reserved.
   </footer>
 
-  <!-- JS Scripts -->
   <script>
     const pages = ['solitaire', 'locked'];
     function showPage(id) {
@@ -86,10 +82,9 @@
 
     function checkPassword() {
       const input = document.getElementById('passwordInput').value;
-      const correct = 'shirokuma'; // ← 任意に変更可能
+      const correct = 'asdf1234';
       const error = document.getElementById('passwordError');
       const content = document.getElementById('secretContent');
-
       if (input === correct) {
         error.textContent = '';
         document.getElementById('passwordForm').classList.add('hidden');
@@ -99,10 +94,129 @@
       }
     }
   </script>
-</body>
-</html>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
+    const cardWidth = 80;
+    const cardHeight = 120;
+    const suits = ['♠', '♥', '♦', '♣'];
+    const colors = {'♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red'};
+    let deck = [];
+    let piles = [[], [], [], [], [], [], []];
+    let selectedCard = null;
+    let selectedPile = -1;
+    let offsetY = 0;
+
+    function createDeck() {
+      deck = [];
+      for (let s of suits) {
+        for (let n = 1; n <= 13; n++) {
+          deck.push({
+            suit: s,
+            number: n,
+            faceUp: false,
+            x: 0,
+            y: 0
+          });
+        }
+      }
+      shuffle(deck);
     }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function drawCard(card, x, y) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x, y, cardWidth, cardHeight);
+      ctx.strokeStyle = '#000';
+      ctx.strokeRect(x, y, cardWidth, cardHeight);
+
+      if (card.faceUp) {
+        ctx.fillStyle = colors[card.suit];
+        ctx.font = '20px sans-serif';
+        ctx.fillText(`${card.suit}${card.number}`, x + 10, y + 30);
+        card.x = x;
+        card.y = y;
+      } else {
+        ctx.fillStyle = '#444';
+        ctx.fillRect(x + 5, y + 5, cardWidth - 10, cardHeight - 10);
+      }
+    }
+
+    function deal() {
+      createDeck();
+      piles = [[], [], [], [], [], [], []];
+      let index = 0;
+      for (let i = 0; i < 7; i++) {
+        for (let j = 0; j <= i; j++) {
+          const card = deck[index++];
+          card.faceUp = (j === i);
+          piles[i].push(card);
+        }
+      }
+      drawBoard();
+    }
+
+    function drawBoard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < piles.length; i++) {
+        for (let j = 0; j < piles[i].length; j++) {
+          const card = piles[i][j];
+          drawCard(card, 50 + i * 130, 50 + j * 30);
+        }
+      }
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      for (let i = 0; i < piles.length; i++) {
+        const pile = piles[i];
+        for (let j = pile.length - 1; j >= 0; j--) {
+          const card = pile[j];
+          if (card.faceUp &&
+              mouseX >= card.x && mouseX <= card.x + cardWidth &&
+              mouseY >= card.y && mouseY <= card.y + cardHeight) {
+            if (selectedCard) {
+              if (isValidMove(selectedCard, pile)) {
+                piles[selectedPile].pop();
+                piles[i].push(selectedCard);
+                selectedCard = null;
+                selectedPile = -1;
+                drawBoard();
+                return;
+              }
+            } else {
+              selectedCard = card;
+              selectedPile = i;
+              ctx.strokeStyle = 'yellow';
+              ctx.lineWidth = 4;
+              ctx.strokeRect(card.x, card.y, cardWidth, cardHeight);
+              return;
+            }
+          }
+        }
+      }
+    });
+
+    function isValidMove(card, targetPile) {
+      if (targetPile.length === 0) return card.number === 13;
+      const top = targetPile[targetPile.length - 1];
+      return card.suit !== top.suit && card.number === top.number - 1;
+    }
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px sans-serif';
+    ctx.fillText('クリックしてソリティアを開始', 350, 350);
+    canvas.addEventListener('dblclick', () => deal());
   </script>
 </body>
 </html>
