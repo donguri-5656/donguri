@@ -1,23 +1,15 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>ﾄﾞﾝｸﾞﾘサイト</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ソリティア</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="donguri-container" id="donguriContainer"></div>
+  <h1>ソリティア</h1>
+  <div id="game-container"></div>
 
-  <div class="menu-container" id="menuContainer">
-    <h2>パスワードを入力してください</h2>
-    <input type="password" id="passwordInput" placeholder="パスワード">
-    <button onclick="checkPassword()">送信</button>
-    <div id="menu" style="display:none;">
-      <a href="status.html">サーバーステータス</a>
-      <a href="video.html">動画を見る</a>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
