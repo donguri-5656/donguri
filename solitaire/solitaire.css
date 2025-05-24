@@ -1,51 +1,89 @@
 body {
   margin: 0;
-  font-family: sans-serif;
-  background: linear-gradient(to bottom right, #cdeac0, #a4c99b);
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #bfe9c7, #76c893);
+  color: #333;
+  user-select: none;
+  overflow: hidden;
 }
 
-#game {
+#start-screen {
   text-align: center;
-  padding: 20px;
+  padding-top: 150px;
+  animation: fadeIn 1s ease-in;
 }
 
-#controls {
-  margin-bottom: 10px;
+#start-screen h1 {
+  font-size: 3rem;
+  margin-bottom: 2rem;
 }
 
-button {
-  padding: 8px 12px;
-  margin: 5px;
-  font-size: 16px;
+#start-screen button {
+  padding: 1rem 2rem;
+  margin: 1rem;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 12px;
+  background: #4caf50;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+#start-screen button:hover {
+  background: #45a049;
+  transform: scale(1.1);
+}
+
+#game-container {
+  padding: 1rem;
+}
+
+#score-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0 2rem;
+}
+
+#score {
+  font-size: 1.2rem;
+}
+
+#restart, #show-rules {
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  font-size: 1rem;
   border: none;
   border-radius: 8px;
-  background: #ffffffaa;
+  background: #4caf50;
+  color: white;
   cursor: pointer;
-  transition: transform 0.2s ease;
-}
-button:hover {
-  transform: scale(1.05);
 }
 
-#solitaireCanvas {
-  border-radius: 12px;
-  box-shadow: 0 0 10px #00000033;
-  background-color: #2e7d32;
-}
-
-.popup {
+#rules-popup {
   position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translate(-50%, -30%);
+  top: 70px;
+  right: 20px;
   background: white;
-  border: 1px solid #999;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 0 10px #00000044;
-  z-index: 100;
+  border-radius: 10px;
+  padding: 1rem;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .hidden {
   display: none;
+}
+
+canvas {
+  display: block;
+  margin: auto;
+  background-color: transparent;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
