@@ -20,4 +20,11 @@ window.addEventListener('scroll', () => {
 });
 
 // パスワードチェック
-function checkP
+function checkPassword() {
+  const input = document.getElementById('passwordInput').value;
+  if (input === 'asdf1234') {
+    document.getElementById('menu').style.display = 'block';
+  } else {
+    alert('パスワードが違います');
+  }
+}
