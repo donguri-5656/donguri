@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>サーバーステータス</title>
+</head>
+<body>
+  <h1>サーバーステータス</h1>
+  <iframe style="width:728px;height:90px;max-width:100%;border:none;display:block;margin:auto"
+    src="https://ja.namemc.com/server/cool.ssnetwork.io:42264/embed"
+    width="728" height="90"></iframe>
+
+  <div id="serverStatus" style="text-align:center; margin-top:20px;"></div>
+
+  <script>
+    fetch("https://api.mcsrvstat.us/2/cool.ssnetwork.io:42264")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('serverStatus').innerHTML = `
+          <p>IP: ${data.ip}</p>
+          <p>プレイヤー: ${data.players?.online || 0} / ${data.players?.max || "?"}</p>
+          <p>バージョン: ${data.version || "不明"}</p>
+        `;
+      });
+  </script>
+</body>
+</html>
