@@ -1,83 +1,60 @@
-// solitaire.js
-const suits = ['♠', '♥', '♦', '♣'];
-const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-let deck = [];
-let score = 0;
+let drawCount = 1; // 初期は簡単モード
+let stock = [];
+let waste = [];
 
-function createDeck() {
-  deck = [];
+document.getElementById("easyBtn").addEventListener("click", () => {
+  drawCount = 1;
+  startGame();
+});
+
+document.getElementById("hardBtn").addEventListener("click", () => {
+  drawCount = 3;
+  startGame();
+});
+
+function startGame() {
+  document.getElementById("difficultyScreen").classList.add("hidden");
+  document.getElementById("gameContainer").classList.remove("hidden");
+  initDeck();
+  renderStock();
+}
+
+function initDeck() {
+  stock = [];
+  const suits = ["♠", "♥", "♦", "♣"];
   for (let suit of suits) {
-    for (let value of values) {
-      deck.push({ suit, value });
+    for (let i = 1; i <= 13; i++) {
+      stock.push({ suit, value: i });
     }
   }
+  shuffle(stock);
+  waste = [];
 }
 
-function shuffleDeck() {
-  for (let i = deck.length - 1; i > 0; i--) {
-    let j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
   }
 }
 
-function drawCard(card) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  if (card.suit === '♥' || card.suit === '♦') div.classList.add('red');
-  div.textContent = `${card.value}${card.suit}`;
-  div.onclick = () => playCard(div, card);
-  return div;
+document.getElementById("stock").addEventListener("click", () => {
+  drawFromStock();
+});
+
+function drawFromStock() {
+  const draw = stock.splice(0, drawCount);
+  waste.unshift(...draw);
+  renderStock();
 }
 
-function renderGame() {
-  const area = document.getElementById('gameArea');
-  area.innerHTML = '';
-  for (let card of deck.slice(0, 7)) {
-    area.appendChild(drawCard(card));
-  }
-  updateScore(0);
-}
-
-function playCard(el, card) {
-  score += 10;
-  el.classList.add('hidden-card');
-  updateScore();
-  checkWin();
-}
-
-function updateScore(diff = 0) {
-  score += diff;
-  document.getElementById('score').textContent = `スコア: ${score}`;
-}
-
-function resetGame() {
-  createDeck();
-  shuffleDeck();
-  renderGame();
-  score = 0;
-  document.getElementById('winMessage').classList.add('hidden');
-  updateScore();
-}
-
-function showHint() {
-  alert('ヒント：どれかをクリックしてスコアを稼ごう！');
-  score -= 5;
-  updateScore();
-}
-
-function toggleRules() {
-  document.getElementById('rulesBox').classList.toggle('hidden');
-}
-
-function checkWin() {
-  const remaining = document.querySelectorAll('.card:not(.hidden-card)');
-  if (remaining.length === 0) {
-    document.getElementById('winMessage').classList.remove('hidden');
+function renderStock() {
+  const wasteDiv = document.getElementById("waste");
+  wasteDiv.innerHTML = "";
+  for (let card of waste.slice(0, 3)) {
+    const cardDiv = document.createElement("div");
+    cardDiv.className = "card";
+    cardDiv.textContent = `${card.value}${card.suit}`;
+    wasteDiv.appendChild(cardDiv);
   }
 }
-
-document.getElementById('shuffleBtn').onclick = resetGame;
-document.getElementById('hintBtn').onclick = showHint;
-document.getElementById('rulesBtn').onclick = toggleRules;
-
-window.onload = resetGame;
