@@ -1,126 +1,97 @@
 body {
-  font-family: sans-serif;
-  background: linear-gradient(120deg, #d0f0ff, #f0fff0);
   margin: 0;
-  padding: 0;
-  overflow-x: hidden;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(160deg, #aee1f9, #c3f0f9);
+  background-size: 400% 400%;
+  animation: gradientBG 20s ease infinite;
+  overflow: hidden;
 }
 
-.difficulty-select {
-  text-align: center;
-  margin-top: 100px;
-  animation: fadeIn 1s ease-out;
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-.difficulty-select button {
-  padding: 10px 20px;
-  font-size: 20px;
-  margin: 0 15px;
-  border: none;
-  border-radius: 10px;
-  background-color: #88c0d0;
-  color: white;
-  cursor: pointer;
-  transition: transform 0.3s, background 0.3s;
-}
-
-.difficulty-select button:hover {
-  background-color: #5e9ca0;
-  transform: scale(1.1);
-}
-
-.top-bar, .tableau {
+#game {
+  padding: 20px;
   display: flex;
-  justify-content: center;
-  margin: 20px auto;
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.deck, .waste, .foundation-slot, .card, .column {
+.card {
   width: 80px;
   height: 120px;
-  border-radius: 8px;
   background-color: white;
-  border: 2px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  border: 2px solid #333;
+  border-radius: 8px;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
   display: flex;
   justify-content: center;
   align-items: center;
   font-weight: bold;
+  font-size: 20px;
+  cursor: grab;
+  position: absolute;
+  user-select: none;
+  transition: box-shadow 0.2s;
 }
 
-.deck {
-  background-color: #444;
-  cursor: pointer;
-  color: white;
+.card.dragging {
+  opacity: 0.8;
+  box-shadow: 4px 4px 10px rgba(0,0,0,0.4);
+  cursor: grabbing;
 }
 
-.card.hidden {
-  background-color: #999;
-  color: transparent;
-}
-
-.card {
+.stack {
   position: relative;
-  background-color: #fff;
-  cursor: pointer;
+  width: 80px;
+  height: 600px;
+  margin: 10px;
+  border: 1px dashed rgba(0,0,0,0.2);
 }
 
-.card.red {
-  color: red;
+.card.in-stack {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
-.card.black {
-  color: black;
+.card.in-stack:nth-child(n) {
+  margin-top: calc(var(--stack-gap, 20px) * (var(--index)));
 }
 
-.column {
+.solitaire-ui {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
 }
 
-.foundations {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
+.difficulty-select button {
+  margin-right: 10px;
+  padding: 10px 20px;
 }
 
-.controls {
-  text-align: center;
-  margin: 20px;
+.score-panel {
+  font-size: 18px;
 }
 
-.controls button {
-  margin: 5px;
-  padding: 8px 16px;
-  font-size: 16px;
-  border-radius: 8px;
-  border: none;
-  background: #4caf50;
-  color: white;
-  cursor: pointer;
-}
-
-.rule-panel {
+.rules-panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
   background: #fff;
-  max-width: 400px;
-  margin: 10px auto;
-  padding: 15px;
+  border: 1px solid #888;
   border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  padding: 15px;
   display: none;
+  animation: slideDown 0.4s ease;
 }
 
-.win-message {
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: green;
-  display: none;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(50px); }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
