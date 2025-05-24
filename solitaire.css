@@ -1,0 +1,39 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #2e7d32;
+  color: white;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+h1 {
+  margin-top: 20px;
+}
+
+#game {
+  margin: 20px auto;
+  display: grid;
+  grid-template-columns: repeat(7, 100px);
+  grid-gap: 15px;
+  justify-content: center;
+}
+
+.card {
+  width: 100px;
+  height: 140px;
+  background-color: white;
+  color: black;
+  border-radius: 8px;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.card.red {
+  color: red;
+}
