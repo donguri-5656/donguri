@@ -1,44 +1,32 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>ソリティア</title>
-  <link rel="stylesheet" href="solitaire.css" />
+  <link rel="stylesheet" href="solitaire.css">
 </head>
 <body>
-  <div class="difficulty-select">
-    <button onclick="startGame(1)">簡単（1枚）</button>
-    <button onclick="startGame(3)">難しい（3枚）</button>
-  </div>
-
-  <div id="gameContainer" style="display:none;">
-    <div class="top-bar">
-      <div class="deck" id="deck" onclick="drawCard()"></div>
-      <div class="waste" id="waste"></div>
-      <div class="foundations" id="foundations"></div>
+  <div class="solitaire-ui">
+    <div class="difficulty-select">
+      <button onclick="startGame(1)">簡単（1枚）</button>
+      <button onclick="startGame(3)">難しい（3枚）</button>
     </div>
-    <div class="tableau" id="tableau"></div>
-
-    <div class="controls">
-      <button onclick="resetGame()">やり直し</button>
-      <button onclick="showHint()">ヒント</button>
-      <button onclick="toggleRules()">スコアルール</button>
-      <span>スコア: <span id="score">0</span></span>
+    <div class="score-panel">
+      スコア: <span id="score">0</span>
+      <button id="rulesToggle">ルール</button>
     </div>
-
-    <div class="rule-panel" id="rulePanel">
-      <h3>スコアのルール</h3>
+    <div class="rules-panel" id="rulesPanel">
       <ul>
-        <li>場に移動：+10</li>
-        <li>山札ドロー：-1</li>
-        <li>台札に移動：+20</li>
-        <li>やり直し：スコアリセット</li>
+        <li>カード移動: 10点</li>
+        <li>山札から引く: 5点</li>
+        <li>山札リセット: -20点</li>
+        <li>自動移動: 5点</li>
+        <li>クリアボーナス: 500点</li>
       </ul>
     </div>
-
-    <div id="winMessage" class="win-message">🎉 クリアしました！</div>
   </div>
+
+  <div id="game"></div>
 
   <script src="solitaire.js"></script>
 </body>
