@@ -1,100 +1,76 @@
-/* 全体設定 */
-body {
-  margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  background: linear-gradient(160deg, #aee1f9, #c3f0f9);
-  background-size: 400% 400%;
-  animation: gradientBG 20s ease infinite;
-  color: #333;
-  overflow-x: hidden;
+const suits = ['♠', '♥', '♦', '♣'];
+const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+function generateDeck() {
+  const deck = [];
+  for (let suit of suits) {
+    for (let rank of ranks) {
+      deck.push({ suit, rank });
+    }
+  }
+  return deck;
 }
 
-/* 背景グラデーションのアニメーション */
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
 }
 
-/* ドングリアニメーション */
-.donguri-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 1;
-  transition: opacity 0.5s ease;
+function createCardElement(card, index) {
+  const el = document.createElement('div');
+  el.classList.add('card');
+  el.innerText = `${card.rank}${card.suit}`;
+  el.style.top = `${index * 20}px`;
+
+  // 色分け
+  if (card.suit === '♥' || card.suit === '♦') {
+    el.classList.add('red');
+  } else {
+    el.classList.add('black');
+  }
+
+  // ドラッグ
+  el.setAttribute('draggable', true);
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify(card));
+    el.classList.add('dragging');
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+  });
+
+  return el;
 }
 
-.donguri {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  background-image: url('assets/donguri.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  animation: float 5s infinite ease-in-out;
+function initGame() {
+  const container = document.getElementById('game-container');
+  container.innerHTML = '';
+
+  const deck = shuffle(generateDeck());
+
+  for (let i = 0; i < 7; i++) {
+    const stack = document.createElement('div');
+    stack.classList.add('stack');
+    container.appendChild(stack);
+
+    for (let j = 0; j <= i; j++) {
+      const card = deck.pop();
+      const el = createCardElement(card, j);
+      stack.appendChild(el);
+    }
+
+    // ドロップ
+    stack.addEventListener('dragover', (e) => e.preventDefault());
+    stack.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const newCard = createCardElement(data, stack.children.length);
+      stack.appendChild(newCard);
+    });
+  }
 }
 
-@keyframes float {
-  0%   { transform: translateY(0) rotate(0deg); }
-  50%  { transform: translateY(-20px) rotate(180deg); }
-  100% { transform: translateY(0) rotate(360deg); }
-}
-
-/* メニュー表示エリア */
-.menu-container {
-  margin-top: 100vh;
-  padding: 40px 20px;
-  text-align: center;
-  background: #ffffffdd;
-  border-radius: 20px;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-  z-index: 2;
-  position: relative;
-}
-
-/* 入力欄とボタン */
-input[type="password"] {
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  width: 60%;
-  margin-top: 15px;
-  font-size: 16px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-}
-
-button {
-  padding: 12px 24px;
-  margin-top: 15px;
-  border: none;
-  border-radius: 10px;
-  background-color: #88c0d0;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 16px;
-  transition: background 0.3s;
-}
-
-button:hover {
-  background-color: #5e9ca0;
-}
-
-/* メニュー内リンク */
-#menu {
-  margin-top: 25px;
-}
-
-#menu a {
-  display: block;
-  margin: 15px auto;
-  color: #336699;
-  font-size: 20px;
-  text
+initGame();
