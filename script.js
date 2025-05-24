@@ -1,3 +1,4 @@
+// ドングリ生成
 function createDonguri() {
   const container = document.getElementById('donguriContainer');
   for (let i = 0; i < 30; i++) {
@@ -11,13 +12,14 @@ function createDonguri() {
 }
 createDonguri();
 
-// スクロールでフェードアウト
+// スクロールでフェード（戻っても戻るように修正）
 window.addEventListener('scroll', () => {
   const container = document.getElementById('donguriContainer');
   const opacity = 1 - Math.min(window.scrollY / window.innerHeight, 1);
   container.style.opacity = opacity;
 });
 
+// パスワードチェック
 function checkPassword() {
   const input = document.getElementById('passwordInput').value;
   if (input === 'asdf1234') {
