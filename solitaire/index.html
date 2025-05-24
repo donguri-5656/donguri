@@ -6,27 +6,38 @@
   <link rel="stylesheet" href="solitaire.css">
 </head>
 <body>
-  <div class="solitaire-ui">
-    <div class="difficulty-select">
-      <button onclick="startGame(1)">簡単（1枚）</button>
-      <button onclick="startGame(3)">難しい（3枚）</button>
-    </div>
-    <div class="score-panel">
-      スコア: <span id="score">0</span>
-      <button id="rulesToggle">ルール</button>
-    </div>
-    <div class="rules-panel" id="rulesPanel">
-      <ul>
-        <li>カード移動: 10点</li>
-        <li>山札から引く: 5点</li>
-        <li>山札リセット: -20点</li>
-        <li>自動移動: 5点</li>
-        <li>クリアボーナス: 500点</li>
-      </ul>
-    </div>
+  <div id="difficultySelection">
+    <h2>難易度を選択してください</h2>
+    <button onclick="startGame(1)">簡単（1枚）</button>
+    <button onclick="startGame(3)">難しい（3枚）</button>
   </div>
 
-  <div id="game"></div>
+  <div id="gameContainer" style="display:none;">
+    <div class="top-row">
+      <div id="stock" class="pile"></div>
+      <div id="waste" class="pile"></div>
+      <div id="scoreArea">
+        <span>スコア: <span id="score">0</span></span>
+        <button onclick="restartGame()">やり直し</button>
+        <button onclick="toggleRules()">スコアルール</button>
+        <div id="rules" class="hidden">
+          <ul>
+            <li>カード移動: +5点</li>
+            <li>完成列へ移動: +10点</li>
+            <li>10秒毎に -1点</li>
+          </ul>
+        </div>
+      </div>
+      <div id="foundations" class="foundations">
+        <!-- 完成列4つ -->
+        <div class="foundation" data-suit="hearts"></div>
+        <div class="foundation" data-suit="diamonds"></div>
+        <div class="foundation" data-suit="clubs"></div>
+        <div class="foundation" data-suit="spades"></div>
+      </div>
+    </div>
+    <div id="tableau" class="tableau"></div>
+  </div>
 
   <script src="solitaire.js"></script>
 </body>
