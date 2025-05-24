@@ -2,33 +2,34 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ソリティア</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="game">
-    <div id="controls">
-      <button id="restartBtn">🔁 やり直し</button>
-      <button id="scoreRuleBtn">📋 スコアルール</button>
-      <div id="scorePanel">スコア: <span id="score">0</span></div>
+  <div id="start-screen">
+    <h1>ソリティア</h1>
+    <button onclick="startGame('easy')">簡単（1枚）</button>
+    <button onclick="startGame('hard')">難しい（3枚）</button>
+  </div>
+
+  <div id="game-container" style="display:none;">
+    <div id="score-container">
+      <span id="score">スコア: 0</span>
+      <button id="restart" onclick="restartGame()">やり直し</button>
+      <button id="show-rules">ルール</button>
     </div>
-    <div id="difficultySelect" class="popup hidden">
-      <p>難易度を選んでください</p>
-      <button id="easyBtn">簡単（1枚）</button>
-      <button id="hardBtn">難しい（3枚）</button>
-    </div>
-    <div id="rules" class="popup hidden">
-      <p>📝 スコアルール</p>
+    <div id="rules-popup" class="hidden">
+      <p><strong>スコアルール:</strong></p>
       <ul>
-        <li>カードを場に移動: +5点</li>
-        <li>カードを完成列に移動: +10点</li>
-        <li>ドロー時: -1点</li>
-        <li>やり直し: -20点</li>
+        <li>フォンデーションに移動: +10点</li>
+        <li>場に戻す: -5点</li>
+        <li>ドロー: 0点</li>
       </ul>
     </div>
-    <canvas id="solitaireCanvas" width="1024" height="768"></canvas>
+    <canvas id="solitaire-canvas" width="1024" height="768"></canvas>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>
