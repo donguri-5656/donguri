@@ -1,10 +1,9 @@
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: "Segoe UI", sans-serif;
   background: linear-gradient(160deg, #aee1f9, #c3f0f9);
-  background-size: 400% 400%;
   animation: gradientBG 20s ease infinite;
-  overflow: hidden;
+  background-size: 400% 400%;
 }
 
 @keyframes gradientBG {
@@ -13,85 +12,98 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-#game {
+#difficultySelection {
+  text-align: center;
+  padding: 80px;
+}
+
+button {
+  padding: 12px 24px;
+  margin: 10px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: none;
+  background: #6db5d9;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #3d8bb0;
+}
+
+#gameContainer {
   padding: 20px;
+}
+
+.top-row {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.pile {
+  width: 80px;
+  height: 120px;
+  border: 2px dashed #aaa;
+  background-color: #ffffffaa;
+  border-radius: 8px;
+  position: relative;
+}
+
+.foundations {
+  display: flex;
   gap: 10px;
+}
+
+.foundation {
+  width: 80px;
+  height: 120px;
+  border: 2px solid #444;
+  background-color: #fff;
+  border-radius: 8px;
+}
+
+#scoreArea {
+  text-align: center;
+}
+
+.tableau {
+  display: flex;
+  gap: 12px;
+}
+
+.tableau-column {
+  width: 80px;
+  min-height: 120px;
+  border-radius: 8px;
+  position: relative;
 }
 
 .card {
   width: 80px;
   height: 120px;
-  background-color: white;
-  border: 2px solid #333;
   border-radius: 8px;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  border: 1px solid #333;
+  position: absolute;
+  background-color: white;
+  text-align: center;
+  line-height: 120px;
+  font-size: 24px;
   font-weight: bold;
-  font-size: 20px;
-  cursor: grab;
-  position: absolute;
   user-select: none;
-  transition: box-shadow 0.2s;
+  cursor: grab;
 }
 
-.card.dragging {
-  opacity: 0.8;
-  box-shadow: 4px 4px 10px rgba(0,0,0,0.4);
-  cursor: grabbing;
+.card.red {
+  color: red;
 }
 
-.stack {
-  position: relative;
-  width: 80px;
-  height: 600px;
-  margin: 10px;
-  border: 1px dashed rgba(0,0,0,0.2);
+.card.black {
+  color: black;
 }
 
-.card.in-stack {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.card.in-stack:nth-child(n) {
-  margin-top: calc(var(--stack-gap, 20px) * (var(--index)));
-}
-
-.solitaire-ui {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-}
-
-.difficulty-select button {
-  margin-right: 10px;
-  padding: 10px 20px;
-}
-
-.score-panel {
-  font-size: 18px;
-}
-
-.rules-panel {
-  position: absolute;
-  top: 60px;
-  right: 20px;
-  background: #fff;
-  border: 1px solid #888;
-  border-radius: 10px;
-  padding: 15px;
+.hidden {
   display: none;
-  animation: slideDown 0.4s ease;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
