@@ -1,21 +1,37 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ソリティア</title>
-  <link rel="stylesheet" href="solitaire.css">
+  <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <div class="solitaire-app">
+  <div class="header">
     <h1>ソリティア</h1>
-    <div id="game-board"></div>
+    <div class="scoreboard">
+      <span id="score">スコア: 0</span>
+      <button onclick="toggleRules()">ルール表示</button>
+    </div>
+    <div id="rules" class="rules hidden">
+      <p>得点ルール：</p>
+      <ul>
+        <li>場から組札へ移動：+10点</li>
+        <li>場内移動：+5点</li>
+        <li>山札 → 場：+5点</li>
+        <li>戻す：-15点</li>
+      </ul>
+    </div>
     <div class="controls">
-      <button onclick="restartGame()">やり直す</button>
-      <button onclick="shuffleAndDeal()">シャッフル</button>
+      <button onclick="shuffleDeck()">シャッフル</button>
+      <button onclick="resetGame()">やり直し</button>
+      <button onclick="showHint()">ヒント</button>
     </div>
   </div>
-
-  <script src="solitaire.js" defer></script>
+  <div class="game-area" id="gameArea">
+    <!-- カード列や山札などのエリア -->
+  </div>
+  <div id="winMessage" class="hidden">🎉 クリアしました！ 🎉</div>
+  <script src="solitaire.js"></script>
 </body>
 </html>
