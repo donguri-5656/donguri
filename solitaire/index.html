@@ -4,32 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ソリティア</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
-  <div id="start-screen">
-    <h1>ソリティア</h1>
-    <button onclick="startGame('easy')">簡単（1枚）</button>
-    <button onclick="startGame('hard')">難しい（3枚）</button>
+  <div class="overlay" id="difficultyOverlay">
+    <div class="difficulty-container">
+      <h2>難易度を選択してください</h2>
+      <button onclick="startGame(1)">簡単（1枚）</button>
+      <button onclick="startGame(3)">難しい（3枚）</button>
+    </div>
   </div>
 
-  <div id="game-container" style="display:none;">
-    <div id="score-container">
-      <span id="score">スコア: 0</span>
-      <button id="restart" onclick="restartGame()">やり直し</button>
-      <button id="show-rules">ルール</button>
-    </div>
-    <div id="rules-popup" class="hidden">
-      <p><strong>スコアルール:</strong></p>
-      <ul>
-        <li>フォンデーションに移動: +10点</li>
-        <li>場に戻す: -5点</li>
-        <li>ドロー: 0点</li>
-      </ul>
-    </div>
-    <canvas id="solitaire-canvas" width="1024" height="768"></canvas>
+  <div class="controls">
+    <button onclick="resetGame()">やり直し</button>
+    <button onclick="toggleRules()">ルール</button>
+    <span id="score">スコア: 0</span>
   </div>
 
-  <script src="script.js"></script>
+  <div id="rules" class="rules hidden">
+    <h3>スコアルール</h3>
+    <ul>
+      <li>場から場へ移動: +5</li>
+      <li>場から組札へ移動: +10</li>
+      <li>手札使用: +5</li>
+      <li>1移動戻し: -10</li>
+    </ul>
+  </div>
+
+  <div id="gameBoard">
+    <div id="stock" class="pile"></div>
+    <div id="waste" class="pile"></div>
+    <div id="foundations">
+      <div class="foundation pile" data-suit="♠"></div>
+      <div class="foundation pile" data-suit="♥"></div>
+      <div class="foundation pile" data-suit="♣"></div>
+      <div class="foundation pile" data-suit="♦"></div>
+    </div>
+    <div id="tableau"></div>
+  </div>
+
+  <script src="solitaire.js"></script>
 </body>
 </html>
