@@ -1,131 +1,157 @@
-// solitaire.js
-let stock = [], waste = [], tableau = [], foundations = [[], [], [], []];
-let suits = ["♠", "♥", "♣", "♦"];
-let values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let deck = [];
+let waste = [];
+let foundations = [[], [], [], []];
+let tableau = [[], [], [], [], [], [], []];
+let drawCount = 1;
 let score = 0;
-let drawCount = 1; // 1 for easy, 3 for hard
+let selected = null;
 
-function toggleRules() {
-  const rules = document.getElementById("rules");
-  rules.classList.toggle("hidden");
+function startGame(count) {
+  drawCount = count;
+  resetGame();
 }
 
 function resetGame() {
-  document.getElementById("difficultyOverlay").style.display = "flex";
-}
-
-function startGame(drawMode) {
-  drawCount = drawMode;
-  document.getElementById("difficultyOverlay").style.display = "none";
+  deck = createDeck();
+  shuffle(deck);
+  waste = [];
+  foundations = [[], [], [], []];
+  tableau = [[], [], [], [], [], [], []];
   score = 0;
-  updateScore();
-  initGame();
+  selected = null;
+  dealCards();
+  draw();
+  document.getElementById('score').innerText = score;
 }
 
-function updateScore(val = 0) {
-  score += val;
-  document.getElementById("score").textContent = `スコア: ${score}`;
+function toggleRules() {
+  const rules = document.getElementById('rules');
+  rules.classList.toggle('hidden');
 }
 
 function createDeck() {
-  let deck = [];
-  suits.forEach((suit, si) => {
-    values.forEach((val, vi) => {
-      deck.push({
-        suit,
-        value: val,
-        number: vi + 1,
-        color: suit === "♥" || suit === "♦" ? "red" : "black",
-        faceUp: false
+  const suits = ['♠', '♥', '♦', '♣'];
+  const colors = ['black', 'red', 'red', 'black'];
+  let cards = [];
+  for (let s = 0; s < 4; s++) {
+    for (let v = 1; v <= 13; v++) {
+      cards.push({
+        suit: suits[s],
+        color: colors[s],
+        value: v,
+        faceUp: false,
+        x: 0,
+        y: 0,
+        pile: null,
       });
-    });
-  });
-  return deck;
-}
-
-function shuffle(deck) {
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
   }
-  return deck;
+  return cards;
 }
 
-function initGame() {
-  let deck = shuffle(createDeck());
-  stock = [];
-  waste = [];
-  tableau = Array.from({ length: 7 }, () => []);
-  foundations = [[], [], [], []];
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
 
-  for (let i = 0; i < 7; i++) {
+function dealCards() {
+  let index = 0;
+  for (let i = 0; i < tableau.length; i++) {
     for (let j = 0; j <= i; j++) {
-      let card = deck.pop();
+      let card = deck[index++];
+      card.pile = 'tableau';
       card.faceUp = j === i;
       tableau[i].push(card);
     }
   }
-  stock = deck;
-  render();
+  deck = deck.slice(index);
 }
 
-function render() {
-  const stockEl = document.getElementById("stock");
-  const wasteEl = document.getElementById("waste");
-  const foundationsEl = document.querySelectorAll(".foundation");
-  const tableauEl = document.getElementById("tableau");
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawFoundations();
+  drawTableau();
+  drawWaste();
+  drawDeck();
+}
 
-  stockEl.innerHTML = stock.length ? `<div class="card back" onclick="drawCard()"></div>` : "";
-
-  wasteEl.innerHTML = "";
-  if (waste.length) {
-    let top = waste[waste.length - 1];
-    let card = createCardElement(top);
-    wasteEl.appendChild(card);
+function drawCard(card, x, y) {
+  ctx.strokeStyle = '#000';
+  ctx.strokeRect(x, y, 80, 100);
+  if (card.faceUp) {
+    ctx.fillStyle = card.color === 'red' ? '#fdd' : '#fff';
+    ctx.fillRect(x, y, 80, 100);
+    ctx.fillStyle = card.color;
+    ctx.font = '18px sans-serif';
+    const label = card.value === 11 ? 'J' : card.value === 12 ? 'Q' : card.value === 13 ? 'K' : card.value;
+    ctx.fillText(`${label}${card.suit}`, x + 10, y + 25);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x, y, 80, 100);
   }
+}
 
-  foundationsEl.forEach((el, i) => {
-    el.innerHTML = "";
-    let f = foundations[i];
-    if (f.length) {
-      el.appendChild(createCardElement(f[f.length - 1]));
+function drawDeck() {
+  if (deck.length > 0) {
+    drawCard({ faceUp: false }, 20, 20);
+  } else {
+    ctx.clearRect(20, 20, 80, 100);
+  }
+}
+
+function drawWaste() {
+  if (waste.length > 0) {
+    const card = waste[waste.length - 1];
+    drawCard(card, 120, 20);
+  }
+}
+
+function drawFoundations() {
+  for (let i = 0; i < foundations.length; i++) {
+    const x = 400 + i * 100;
+    const y = 20;
+    if (foundations[i].length > 0) {
+      drawCard(foundations[i][foundations[i].length - 1], x, y);
     } else {
-      el.textContent = el.dataset.suit;
+      ctx.strokeStyle = '#000';
+      ctx.strokeRect(x, y, 80, 100);
     }
-  });
-
-  tableauEl.innerHTML = "";
-  tableau.forEach((pile, i) => {
-    let pileEl = document.createElement("div");
-    pileEl.className = "pile";
-    pile.forEach((card, j) => {
-      let cardEl = createCardElement(card);
-      cardEl.style.top = `${j * 20}px`;
-      pileEl.appendChild(cardEl);
-    });
-    tableauEl.appendChild(pileEl);
-  });
-}
-
-function drawCard() {
-  if (stock.length === 0) {
-    stock = waste.reverse();
-    waste = [];
-    stock.forEach(c => c.faceUp = false);
   }
-  for (let i = 0; i < drawCount; i++) {
-    let card = stock.pop();
-    if (!card) break;
-    card.faceUp = true;
-    waste.push(card);
-  }
-  updateScore(5);
-  render();
 }
 
-function createCardElement(card) {
-  let div = document.createElement("div");
-  div.className = `card ${card.color} ${card.faceUp ? 'face-up' : 'face-down'}`;
-  if (card.faceUp) div.textContent = `${card.value}${card.suit}`;
-  return div;
+function drawTableau() {
+  for (let i = 0; i < tableau.length; i++) {
+    const x = 20 + i * 140;
+    let y = 150;
+    for (let j = 0; j < tableau[i].length; j++) {
+      const card = tableau[i][j];
+      drawCard(card, x, y);
+      y += 30; // 縦にずらして重ね描画
+    }
+  }
 }
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  // デッキの範囲クリックで山札から drawCount 枚引いて waste に追加
+  if (x >= 20 && x <= 100 && y >= 20 && y <= 120 && deck.length > 0) {
+    for (let i = 0; i < drawCount && deck.length > 0; i++) {
+      const card = deck.shift();
+      card.faceUp = true;
+      waste.push(card);
+      score += 5;
+    }
+    document.getElementById('score').innerText = score;
+    draw();
+  }
+});
+
+// 初期化
+startGame(drawCount);
