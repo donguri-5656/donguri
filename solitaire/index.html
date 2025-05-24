@@ -3,19 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <title>ソリティア</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="solitaire.css" />
 </head>
 <body>
   <h1>ソリティア</h1>
-  <div id="menu">
-    <button onclick="startGame(1)">簡単（1枚引き）</button>
-    <button onclick="startGame(3)">難しい（3枚引き）</button>
-    <button onclick="toggleRules()">ルール表示</button>
-    <span>スコア: <span id="score">0</span></span>
+  <div id="controls">
+    <button onclick="startGame(1)">簡単（1枚）</button>
+    <button onclick="startGame(3)">難しい（3枚）</button>
+    <button onclick="toggleRules()">ルール</button>
+    <div id="score">0</div>
   </div>
   <div id="rules" class="hidden">
-    <p>山札からカードを1枚または3枚引いて、ルールに従って場札に移動していきます。</p>
-    <p>色を交互にして数字を1つずつ小さくなるように重ねていきましょう。</p>
+    <p>簡単：山札から1枚ずつ引く</p>
+    <p>難しい：山札から3枚ずつ引く</p>
+    <p>カードをエースからKまで同じスートで揃えると完成</p>
+    <p>正しい移動で +5 点、ファンデーションに移動で +10 点</p>
   </div>
   <canvas id="gameCanvas" width="1000" height="700"></canvas>
   <script src="solitaire.js"></script>
