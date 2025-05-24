@@ -1,3 +1,4 @@
+// solitaire.js
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let deck = [];
@@ -6,7 +7,9 @@ let foundations = [[], [], [], []];
 let tableau = [[], [], [], [], [], [], []];
 let drawCount = 1;
 let score = 0;
-let selected = null;
+let selectedCard = null;
+let offsetX = 0;
+let offsetY = 0;
 
 function startGame(count) {
   drawCount = count;
@@ -20,7 +23,7 @@ function resetGame() {
   foundations = [[], [], [], []];
   tableau = [[], [], [], [], [], [], []];
   score = 0;
-  selected = null;
+  selectedCard = null;
   dealCards();
   draw();
   document.getElementById('score').innerText = score;
@@ -45,6 +48,7 @@ function createDeck() {
         x: 0,
         y: 0,
         pile: null,
+        index: -1,
       });
     }
   }
@@ -82,6 +86,8 @@ function draw() {
 function drawCard(card, x, y) {
   ctx.strokeStyle = '#000';
   ctx.strokeRect(x, y, 80, 100);
+  card.x = x;
+  card.y = y;
   if (card.faceUp) {
     ctx.fillStyle = card.color === 'red' ? '#fdd' : '#fff';
     ctx.fillRect(x, y, 80, 100);
@@ -130,17 +136,59 @@ function drawTableau() {
     for (let j = 0; j < tableau[i].length; j++) {
       const card = tableau[i][j];
       drawCard(card, x, y);
-      y += 30; // 縦にずらして重ね描画
+      y += card.faceUp ? 30 : 15;
     }
   }
 }
+
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  if (waste.length > 0) {
+    const card = waste[waste.length - 1];
+    if (x >= card.x && x <= card.x + 80 && y >= card.y && y <= card.y + 100) {
+      selectedCard = card;
+      offsetX = x - card.x;
+      offsetY = y - card.y;
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!selectedCard) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  for (let i = 0; i < tableau.length; i++) {
+    const pile = tableau[i];
+    const tx = 20 + i * 140;
+    const ty = 150 + (pile.length ? 30 * (pile.length - 1) : 0);
+    if (x >= tx && x <= tx + 80 && y >= ty && y <= ty + 100) {
+      if (pile.length === 0 ||
+          (pile[pile.length - 1].faceUp &&
+           pile[pile.length - 1].color !== selectedCard.color &&
+           pile[pile.length - 1].value === selectedCard.value + 1)) {
+        waste.pop();
+        selectedCard.pile = 'tableau';
+        tableau[i].push(selectedCard);
+        score += 10;
+        document.getElementById('score').innerText = score;
+        break;
+      }
+    }
+  }
+  selectedCard = null;
+  draw();
+});
 
 canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // デッキの範囲クリックで山札から drawCount 枚引いて waste に追加
   if (x >= 20 && x <= 100 && y >= 20 && y <= 120 && deck.length > 0) {
     for (let i = 0; i < drawCount && deck.length > 0; i++) {
       const card = deck.shift();
@@ -153,5 +201,4 @@ canvas.addEventListener('click', (e) => {
   }
 });
 
-// 初期化
 startGame(drawCount);
