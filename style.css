@@ -86,3 +86,63 @@ button:hover {
 #menu a:hover {
   color: #1b5e20;
 }
+
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(180deg); }
+  100% { transform: translateY(0px) rotate(360deg); }
+}
+
+.menu-container {
+  margin-top: 100vh;
+  padding: 40px 20px;
+  text-align: center;
+  background: #ffffffee;
+  border-radius: 16px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+  position: relative;
+}
+
+input[type="password"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  width: 60%;
+  margin-top: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background-color: #88b04b;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #6e993d;
+}
+
+#menu {
+  margin-top: 20px;
+}
+
+#menu a {
+  display: block;
+  margin: 10px auto;
+  color: #33691e;
+  font-size: 18px;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+#menu a:hover {
+  color: #1b5e20;
+}
