@@ -1,145 +1,81 @@
 let deck = [];
-let waste = [];
-let foundations = [[], [], [], []];
-let tableau = [[], [], [], [], [], [], []];
-let drawCount = 1;
+let stacks = [];
 let score = 0;
+let drawCount = 1;
 
-function startGame(count) {
-  drawCount = count;
-  document.querySelector(".difficulty-select").style.display = "none";
-  document.getElementById("gameContainer").style.display = "block";
-  initGame();
-}
-
-function initGame() {
-  deck = createDeck();
+function startGame(drawMode = 1) {
+  drawCount = drawMode;
+  deck = generateDeck();
   shuffle(deck);
-  waste = [];
-  foundations = [[], [], [], []];
-  tableau = [[], [], [], [], [], [], []];
+  stacks = createStacks(7);
   score = 0;
-  updateScore(0);
-
-  // Deal to tableau
-  for (let i = 0; i < 7; i++) {
-    for (let j = 0; j <= i; j++) {
-      let card = deck.pop();
-      card.faceUp = j === i;
-      tableau[i].push(card);
-    }
-  }
-
-  render();
+  document.getElementById("score").textContent = score;
+  renderGame();
 }
 
-function createDeck() {
+function generateDeck() {
   const suits = ["♠", "♥", "♦", "♣"];
-  const colors = ["black", "red", "red", "black"];
-  const deck = [];
-  for (let s = 0; s < 4; s++) {
-    for (let r = 1; r <= 13; r++) {
-      deck.push({
-        suit: suits[s],
-        color: colors[s],
-        rank: r,
-        faceUp: false,
-      });
-    }
-  }
-  return deck;
+  const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  return suits.flatMap(suit => ranks.map(rank => ({ suit, rank, faceUp: true })));
 }
 
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
-    let j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
 }
 
-function render() {
-  // Deck
-  const deckDiv = document.getElementById("deck");
-  deckDiv.innerText = deck.length > 0 ? "山札" : "なし";
-
-  // Waste
-  const wasteDiv = document.getElementById("waste");
-  wasteDiv.innerHTML = "";
-  const last = waste[waste.length - 1];
-  if (last) {
-    const el = createCardElement(last);
-    wasteDiv.appendChild(el);
+function createStacks(count) {
+  const stacks = [];
+  for (let i = 0; i < count; i++) {
+    stacks.push(deck.splice(0, i + 1));
   }
+  return stacks;
+}
 
-  // Foundations
-  const foundDiv = document.getElementById("foundations");
-  foundDiv.innerHTML = "";
-  for (let i = 0; i < 4; i++) {
-    const slot = document.createElement("div");
-    slot.className = "foundation-slot";
-    slot.innerText = foundations[i].length ? `${foundations[i].slice(-1)[0].suit}${foundations[i].slice(-1)[0].rank}` : "台札";
-    foundDiv.appendChild(slot);
-  }
+function renderGame() {
+  const game = document.getElementById("game");
+  game.innerHTML = "";
 
-  // Tableau
-  const tableDiv = document.getElementById("tableau");
-  tableDiv.innerHTML = "";
-  tableau.forEach(col => {
-    const colDiv = document.createElement("div");
-    colDiv.className = "column";
-    col.forEach(card => {
-      const el = createCardElement(card);
-      colDiv.appendChild(el);
+  stacks.forEach((stack, stackIndex) => {
+    const stackEl = document.createElement("div");
+    stackEl.className = "stack";
+    stack.forEach((card, i) => {
+      const cardEl = document.createElement("div");
+      cardEl.className = "card in-stack";
+      cardEl.textContent = `${card.suit} ${card.rank}`;
+      cardEl.style.setProperty('--index', i);
+      cardEl.draggable = true;
+      cardEl.addEventListener("dragstart", onDragStart);
+      cardEl.addEventListener("dragend", onDragEnd);
+      stackEl.appendChild(cardEl);
     });
-    tableDiv.appendChild(colDiv);
+    game.appendChild(stackEl);
   });
+}
 
-  // Check win
-  if (foundations.every(f => f.length === 13)) {
-    document.getElementById("winMessage").style.display = "block";
+let draggedCard = null;
+
+function onDragStart(e) {
+  draggedCard = e.target;
+  draggedCard.classList.add("dragging");
+}
+
+function onDragEnd(e) {
+  if (draggedCard) {
+    draggedCard.classList.remove("dragging");
+    draggedCard = null;
+    score += 10;
+    document.getElementById("score").textContent = score;
   }
 }
 
-function createCardElement(card) {
-  const div = document.createElement("div");
-  div.className = "card";
-  div.classList.add(card.color);
-  if (!card.faceUp) div.classList.add("hidden");
-  div.innerText = card.faceUp ? `${card.suit}${card.rank}` : "";
-  return div;
-}
-
-function drawCard() {
-  if (deck.length === 0) {
-    deck = waste.reverse();
-    waste = [];
-  } else {
-    for (let i = 0; i < drawCount && deck.length > 0; i++) {
-      let card = deck.pop();
-      card.faceUp = true;
-      waste.push(card);
-      updateScore(-1);
-    }
-  }
-  render();
-}
-
-function resetGame() {
-  if (confirm("やり直しますか？")) {
-    startGame(drawCount);
-  }
-}
-
-function showHint() {
-  alert("山札をクリックしてカードを引いてください");
-}
-
-function toggleRules() {
-  const panel = document.getElementById("rulePanel");
+// ルール表示切り替え
+document.getElementById("rulesToggle").addEventListener("click", () => {
+  const panel = document.getElementById("rulesPanel");
   panel.style.display = panel.style.display === "block" ? "none" : "block";
-}
+});
 
-function updateScore(change) {
-  score += change;
-  document.getElementById("score").innerText = score;
-}
+// ゲーム開始
+startGame(1);
