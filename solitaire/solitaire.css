@@ -1,89 +1,132 @@
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #bfe9c7, #76c893);
+  font-family: sans-serif;
+  background: linear-gradient(135deg, #d0e8c0, #a0cfa0);
   color: #333;
-  user-select: none;
-  overflow: hidden;
 }
 
-#start-screen {
+.controls {
+  padding: 10px;
   text-align: center;
-  padding-top: 150px;
-  animation: fadeIn 1s ease-in;
 }
 
-#start-screen h1 {
-  font-size: 3rem;
-  margin-bottom: 2rem;
-}
-
-#start-screen button {
-  padding: 1rem 2rem;
-  margin: 1rem;
-  font-size: 1.2rem;
-  border: none;
-  border-radius: 12px;
-  background: #4caf50;
-  color: white;
-  cursor: pointer;
-  transition: transform 0.3s ease, background 0.3s ease;
-}
-
-#start-screen button:hover {
-  background: #45a049;
-  transform: scale(1.1);
-}
-
-#game-container {
-  padding: 1rem;
-}
-
-#score-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  padding: 0 2rem;
-}
-
-#score {
-  font-size: 1.2rem;
-}
-
-#restart, #show-rules {
-  padding: 0.5rem 1rem;
-  margin-left: 0.5rem;
-  font-size: 1rem;
+button {
+  padding: 6px 12px;
+  margin: 5px;
   border: none;
   border-radius: 8px;
-  background: #4caf50;
+  background-color: #4a8f4a;
   color: white;
   cursor: pointer;
 }
 
-#rules-popup {
-  position: absolute;
-  top: 70px;
-  right: 20px;
-  background: white;
+button:hover {
+  background-color: #3c7f3c;
+}
+
+#gameBoard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.pile {
+  width: 80px;
+  height: 120px;
   border-radius: 10px;
-  padding: 1rem;
-  box-shadow: 0 0 10px rgba(0,0,0,0.2);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 10px;
+  position: relative;
+}
+
+.card {
+  width: 80px;
+  height: 120px;
+  border-radius: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  position: absolute;
+  top: 0;
+  left: 0;
+  text-align: center;
+  font-weight: bold;
+  font-size: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.card.red {
+  color: red;
+}
+.card.black {
+  color: black;
+}
+
+.foundation {
+  display: inline-block;
+  margin: 0 10px;
+}
+
+#foundations {
+  display: flex;
+  justify-content: center;
+  margin: 10px;
+}
+
+#tableau {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+#tableau .pile {
+  margin: 0 5px;
+  height: auto;
+  min-height: 120px;
+}
+
+.card.face-down {
+  background-color: #888;
+  border: 1px solid #555;
+  color: transparent;
+}
+
+.card.face-up {
+  z-index: 10;
+}
+
+.rules {
+  text-align: center;
+  margin: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 10px;
+  width: 300px;
+  margin: 0 auto;
+  transition: all 0.3s ease;
 }
 
 .hidden {
   display: none;
 }
 
-canvas {
-  display: block;
-  margin: auto;
-  background-color: transparent;
+.overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-30px); }
-  to { opacity: 1; transform: translateY(0); }
+.difficulty-container {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
 }
