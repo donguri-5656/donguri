@@ -107,3 +107,84 @@ button:hover {
 .hidden {
   display: none;
 }
+
+
+button:hover {
+  background: #3d8bb0;
+}
+
+#gameContainer {
+  padding: 20px;
+}
+
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.pile {
+  width: 80px;
+  height: 120px;
+  border: 2px dashed #aaa;
+  background-color: #ffffffaa;
+  border-radius: 8px;
+  position: relative;
+}
+
+.foundations {
+  display: flex;
+  gap: 10px;
+}
+
+.foundation {
+  width: 80px;
+  height: 120px;
+  border: 2px solid #444;
+  background-color: #fff;
+  border-radius: 8px;
+}
+
+#scoreArea {
+  text-align: center;
+}
+
+.tableau {
+  display: flex;
+  gap: 12px;
+}
+
+.tableau-column {
+  width: 80px;
+  min-height: 120px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.card {
+  width: 80px;
+  height: 120px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  position: absolute;
+  background-color: white;
+  text-align: center;
+  line-height: 120px;
+  font-size: 24px;
+  font-weight: bold;
+  user-select: none;
+  cursor: grab;
+}
+
+.card.red {
+  color: red;
+}
+
+.card.black {
+  color: black;
+}
+
+.hidden {
+  display: none;
+}
