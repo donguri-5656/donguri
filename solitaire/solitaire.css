@@ -1,44 +1,35 @@
 body {
   margin: 0;
   font-family: sans-serif;
-  background: linear-gradient(to bottom right, #ccffcc, #e6ffe6);
+  background: linear-gradient(to bottom right, #cce5cc, #e6ffe6);
 }
-
-.controls {
+.header {
   display: flex;
   gap: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  align-items: center;
+  background: #f4f4f4;
 }
-
-button {
-  padding: 5px 12px;
-  font-size: 16px;
-  cursor: pointer;
+canvas {
+  border: 2px solid #333;
+  display: block;
+  margin: 0 auto;
 }
-
+.hidden {
+  display: none;
+}
 #rules {
   background: #fff;
   padding: 10px;
+  border: 1px solid #aaa;
   margin: 10px;
-  border: 2px solid #aaa;
-  border-radius: 5px;
-  animation: slideDown 0.3s ease-in-out;
+  width: 300px;
 }
-
-#rules.hidden {
-  display: none;
+#winMessage {
+  text-align: center;
+  font-size: 24px;
+  color: green;
+  margin-top: 20px;
 }
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-canvas {
-  display: block;
-  margin: 0 auto;
-  border: 2px solid #444;
-  background: transparent;
+.highlight {
+  outline: 3px solid yellow;
 }
