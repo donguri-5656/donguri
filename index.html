@@ -12,14 +12,35 @@
     <h2>パスワードを入力してください</h2>
     <input type="password" id="passwordInput" placeholder="パスワード">
     <button onclick="checkPassword()">送信</button>
+
     <div id="menu" style="display:none;">
       <a href="status.html">サーバーステータス</a>
       <a href="video.html">動画を見る</a>
       <a href="solitaire/index.html">ソリティア</a>
+      
+      <!-- チャットボットの埋め込み -->
+      <h3>チャットボット</h3>
+      <iframe 
+        src="https://huggingface.co/spaces/donguri5656-a/your-chatbot"
+        width="100%" 
+        height="600" 
+        style="border: none;">
+      </iframe>
     </div>
   </div>
 
   <!-- JavaScriptは最後で読み込む！ -->
-  <script src="script.js"></script>
+  <script>
+    function checkPassword() {
+      const correctPassword = "pass1234"; // 任意のパスワードに変更してください
+      const input = document.getElementById("passwordInput").value;
+
+      if (input === correctPassword) {
+        document.getElementById("menu").style.display = "block";
+      } else {
+        alert("パスワードが違います");
+      }
+    }
+  </script>
 </body>
 </html>
