@@ -2,24 +2,25 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>Google風ソリティア</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ソリティア</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="header">
-    <button onclick="startGame(1)">簡単</button>
-    <button onclick="startGame(3)">難しい</button>
-    <button onclick="toggleRules()">スコアルール</button>
-    <button onclick="showHint()">ヒント</button>
-    <span id="score">0</span>
-  </div>
+  <h1>ソリティア</h1>
   <canvas id="gameCanvas" width="1000" height="600"></canvas>
-  <div id="rules" class="hidden">
-    <p>• カードを赤黒交互・1つ小さい数字の順に重ねていきます。<br>
-       • スコア: 移動 +5, 戻す -15。<br>
-       • 山札: 簡単=1枚, 難しい=3枚引き。</p>
+  <div class="controls">
+    <button onclick="startGame(1)">簡単（1枚ドロー）</button>
+    <button onclick="startGame(3)">難しい（3枚ドロー）</button>
+    <button onclick="resetGame()">やり直し</button>
+    <button onclick="showHint()">ヒント</button>
+    <span id="score">0</span>点
   </div>
-  <div id="winMessage" class="hidden">🎉 クリアしました！ 🎉</div>
-  <script src="solitaire.js"></script>
+  <div id="rules" class="hidden">
+    <h2>ルール</h2>
+    <p>赤と黒を交互に、数字が1つ小さいカードのみ重ねられます。</p>
+    <p>全てのカードを表向きにして、完成列にKからAまで積み上げましょう。</p>
+  </div>
+  <script src="script.js"></script>
 </body>
 </html>
