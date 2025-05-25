@@ -2,40 +2,31 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ﾄﾞﾝｸﾞﾘサイト</title>
-  <link rel="stylesheet" href="style.css">
+  <title>ドングリAIチャット</title>
 </head>
 <body>
-  <div class="donguri-container" id="donguriContainer"></div>
+  <h2>パスワードを入力してください</h2>
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button onclick="checkPassword()">送信</button>
 
-  <div class="menu-container" id="menuContainer">
-    <h2>パスワードを入力してください</h2>
-    <input type="password" id="passwordInput" placeholder="パスワード">
-    <button onclick="checkPassword()">送信</button>
+  <div id="chatContainer" style="display: none; margin-top: 20px;">
+    <!-- Webコンポーネントの読み込み -->
+    <script
+      type="module"
+      src="https://gradio.s3-us-west-2.amazonaws.com/5.31.0/gradio.js"
+    ></script>
 
-    <div id="menu" style="display:none;">
-      <a href="status.html">サーバーステータス</a>
-      <a href="video.html">動画を見る</a>
-      <a href="solitaire/index.html">ソリティア</a>
-
-      <!-- チャットボットの埋め込み -->
-      <h3>チャットボット</h3>
-      <iframe 
-        src="https://huggingface.co/spaces/donguri5656-a/my-chatbot"
-        width="100%" 
-        height="600" 
-        style="border: none;">
-      </iframe>
-    </div>
+    <!-- 埋め込みチャットボット -->
+    <gradio-app src="https://donguri5656-a-my-chatbot.hf.space"></gradio-app>
   </div>
 
   <script>
     function checkPassword() {
-      const correctPassword = "pass1234"; // ← パスワードを変更可能
+      const correctPassword = "pass1234"; // パスワードを変更してOK
       const input = document.getElementById("passwordInput").value;
 
       if (input === correctPassword) {
-        document.getElementById("menu").style.display = "block";
+        document.getElementById("chatContainer").style.display = "block";
       } else {
         alert("パスワードが違います");
       }
