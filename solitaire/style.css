@@ -33,3 +33,6 @@ canvas {
   background-color: #fefefe;
   border: 1px solid #aaa;
 }
+#menu button {
+  margin: 0 5px;
+}
