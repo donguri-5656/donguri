@@ -1,36 +1,122 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>ドングリAIチャット</title>
-</head>
-<body>
-  <h2>パスワードを入力してください</h2>
-  <input type="password" id="passwordInput" placeholder="パスワード">
-  <button onclick="checkPassword()">送信</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>どんぐりAIチャット</title>
 
-  <div id="chatContainer" style="display: none; margin-top: 20px;">
-    <!-- Webコンポーネントの読み込み -->
+    <!-- ====== Google Fonts (Optional) ====== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ====== Reset & Base Styles ====== -->
+    <style>
+      :root {
+        --bg: #f5f6fa;
+        --fg: #202124;
+        --primary: #4b7bec;
+        --card-bg: #ffffff;
+        --radius: 1rem;
+        --shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+
+      .wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      header {
+        padding: 1.5rem 1rem;
+        background: var(--card-bg);
+        box-shadow: var(--shadow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        text-align: center;
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem 4rem;
+      }
+
+      .chat-card {
+        width: 100%;
+        max-width: 900px;
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1rem;
+      }
+
+      footer {
+        text-align: center;
+        padding: 1rem 0;
+        font-size: 0.85rem;
+        color: #888;
+      }
+
+      @media (min-width: 768px) {
+        header h1 {
+          font-size: 1.75rem;
+        }
+      }
+    </style>
+
+    <!-- ====== Gradio Web Component ====== -->
     <script
       type="module"
       src="https://gradio.s3-us-west-2.amazonaws.com/5.31.0/gradio.js"
     ></script>
+  </head>
 
-    <!-- 埋め込みチャットボット -->
-    <gradio-app src="https://donguri5656-a-my-chatbot.hf.space"></gradio-app>
-  </div>
+  <body>
+    <div class="wrapper">
+      <!-- ====== Header ====== -->
+      <header>
+        <h1>どんぐりAIチャット</h1>
+      </header>
 
-  <script>
-    function checkPassword() {
-      const correctPassword = "pass1234"; // パスワードを変更してOK
-      const input = document.getElementById("passwordInput").value;
+      <!-- ====== Main Content ====== -->
+      <main>
+        <div class="chat-card">
+          <!-- Hugging Face Space 埋め込み -->
+          <gradio-app src="https://donguri5656-a-donguri-gpt.hf.space"></gradio-app>
+        </div>
+      </main>
 
-      if (input === correctPassword) {
-        document.getElementById("chatContainer").style.display = "block";
-      } else {
-        alert("パスワードが違います");
-      }
-    }
-  </script>
-</body>
+      <!-- ====== Footer ====== -->
+      <footer>
+        © 2025 Donguri · Powered by Hugging Face & Gradio
+      </footer>
+    </div>
+  </body>
 </html>
