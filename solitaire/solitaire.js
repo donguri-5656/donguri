@@ -1,27 +1,12 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let deck = [];
-let waste = [];
-let foundations = [[], [], [], []];
-let tableau = [[], [], [], [], [], [], []];
-let drawCount = 1;
-let score = 0;
-let selectedCard = null;
-let offsetX = 0;
-let offsetY = 0;
-let dragging = false;
-
-canvas.addEventListener('mousedown', onMouseDown);
-canvas.addEventListener('mousemove', onMouseMove);
-canvas.addEventListener('mouseup', onMouseUp);
+let deck = [], waste = [], foundations = [[], [], [], []], tableau = [[], [], [], [], [], [], []];
+let drawCount = 1, score = 0, selected = null;
+let dragOffsetX = 0, dragOffsetY = 0;
 
 function startGame(count) {
   drawCount = count;
   resetGame();
-}
-
-function toggleRules() {
-  document.getElementById('rules').classList.toggle('hidden');
 }
 
 function resetGame() {
@@ -30,10 +15,46 @@ function resetGame() {
   waste = [];
   foundations = [[], [], [], []];
   tableau = [[], [], [], [], [], [], []];
-  selectedCard = null;
   score = 0;
+  selected = null;
+  dealCards();
+  draw();
+  document.getElementById('score').innerText = score;
+  document.getElementById('winMessage').classList.add('hidden');
+}
 
-  // Deal cards
+function toggleRules() {
+  document.getElementById('rules').classList.toggle('hidden');
+}
+
+function createDeck() {
+  const suits = ['♠', '♥', '♦', '♣'];
+  const colors = ['black', 'red', 'red', 'black'];
+  let cards = [];
+  for (let s = 0; s < 4; s++) {
+    for (let v = 1; v <= 13; v++) {
+      cards.push({
+        suit: suits[s],
+        color: colors[s],
+        value: v,
+        faceUp: false,
+        pile: null,
+        x: 0,
+        y: 0
+      });
+    }
+  }
+  return cards;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function dealCards() {
   let index = 0;
   for (let i = 0; i < tableau.length; i++) {
     for (let j = 0; j <= i; j++) {
@@ -43,235 +64,141 @@ function resetGame() {
     }
   }
   deck = deck.slice(index);
-
-  draw();
-  updateScore(0);
-}
-
-function createDeck() {
-  const suits = ['♠', '♥', '♦', '♣'];
-  const colors = ['black', 'red', 'red', 'black'];
-  const cards = [];
-
-  for (let s = 0; s < 4; s++) {
-    for (let v = 1; v <= 13; v++) {
-      cards.push({
-        suit: suits[s],
-        color: colors[s],
-        value: v,
-        faceUp: false,
-        x: 0,
-        y: 0,
-        pile: null,
-        index: -1,
-      });
-    }
-  }
-
-  return cards;
-}
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-function updateScore(delta) {
-  score += delta;
-  document.getElementById('score').innerText = score;
-}
-
-function drawCard(card, x, y) {
-  ctx.strokeStyle = '#000';
-  ctx.strokeRect(x, y, 80, 100);
-  if (card.faceUp) {
-    ctx.fillStyle = card.color === 'red' ? '#fee' : '#fff';
-    ctx.fillRect(x, y, 80, 100);
-    ctx.fillStyle = card.color;
-    ctx.font = '18px sans-serif';
-    const label = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'][card.value - 1];
-    ctx.fillText(`${label}${card.suit}`, x + 10, y + 25);
-    card.x = x;
-    card.y = y;
-  } else {
-    ctx.fillStyle = '#888';
-    ctx.fillRect(x, y, 80, 100);
-    card.x = x;
-    card.y = y;
-  }
 }
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   drawDeck();
   drawWaste();
   drawFoundations();
   drawTableau();
 }
 
-function drawDeck() {
-  if (deck.length > 0) {
-    drawCard({ faceUp: false }, 20, 20);
-  } else {
-    ctx.clearRect(20, 20, 80, 100);
-    ctx.strokeStyle = '#aaa';
-    ctx.strokeRect(20, 20, 80, 100);
+function drawCard(card, x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = card.faceUp ? (card.color === 'red' ? '#fdd' : '#fff') : '#888';
+  ctx.fillRect(0, 0, 80, 100);
+  ctx.strokeStyle = '#000';
+  ctx.strokeRect(0, 0, 80, 100);
+
+  if (card.faceUp) {
+    ctx.fillStyle = card.color;
+    ctx.font = '18px sans-serif';
+    const label = card.value === 11 ? 'J' : card.value === 12 ? 'Q' : card.value === 13 ? 'K' : card.value;
+    ctx.fillText(`${label}${card.suit}`, 10, 25);
   }
+  ctx.restore();
+}
+
+function drawDeck() {
+  if (deck.length > 0) drawCard({ faceUp: false }, 20, 20);
 }
 
 function drawWaste() {
-  if (waste.length > 0) {
-    const card = waste[waste.length - 1];
-    drawCard(card, 120, 20);
-  } else {
-    ctx.strokeStyle = '#aaa';
-    ctx.strokeRect(120, 20, 80, 100);
-  }
+  if (waste.length > 0) drawCard(waste[waste.length - 1], 120, 20);
 }
 
 function drawFoundations() {
   for (let i = 0; i < 4; i++) {
     const x = 400 + i * 100;
-    const y = 20;
-    const pile = foundations[i];
-    if (pile.length > 0) {
-      drawCard(pile[pile.length - 1], x, y);
+    if (foundations[i].length > 0) {
+      drawCard(foundations[i][foundations[i].length - 1], x, 20);
     } else {
-      ctx.strokeStyle = '#aaa';
-      ctx.strokeRect(x, y, 80, 100);
+      ctx.strokeRect(x, 20, 80, 100);
     }
   }
 }
 
 function drawTableau() {
-  for (let i = 0; i < tableau.length; i++) {
-    const x = 20 + i * 140;
+  for (let i = 0; i < 7; i++) {
     let y = 150;
+    const x = 20 + i * 130;
     for (let j = 0; j < tableau[i].length; j++) {
       const card = tableau[i][j];
+      card.x = x;
+      card.y = y;
       drawCard(card, x, y);
       y += card.faceUp ? 30 : 10;
     }
   }
 }
-canvas.addEventListener('click', function (e) {
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
 
-  // デッキクリック
-  if (mouseX >= 20 && mouseX <= 100 && mouseY >= 20 && mouseY <= 120) {
-    drawFromDeck();
+canvas.addEventListener('mousedown', (e) => {
+  const { offsetX, offsetY } = e;
+  for (let col = 0; col < 7; col++) {
+    const stack = tableau[col];
+    for (let i = 0; i < stack.length; i++) {
+      const card = stack[i];
+      if (card.faceUp && offsetX > card.x && offsetX < card.x + 80 && offsetY > card.y && offsetY < card.y + 100) {
+        selected = { cards: stack.slice(i), from: col };
+        dragOffsetX = offsetX - card.x;
+        dragOffsetY = offsetY - card.y;
+        return;
+      }
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!selected) return;
+  const { offsetX, offsetY } = e;
+  for (let col = 0; col < 7; col++) {
+    const stack = tableau[col];
+    if (stack.length === 0 || (offsetX > 20 + col * 130 && offsetX < 100 + col * 130)) {
+      const target = stack[stack.length - 1];
+      const top = selected.cards[0];
+      if (
+        stack.length === 0 && top.value === 13 ||
+        (target && target.faceUp &&
+         top.color !== target.color &&
+         top.value === target.value - 1)
+      ) {
+        tableau[selected.from] = tableau[selected.from].slice(0, -selected.cards.length);
+        tableau[col] = tableau[col].concat(selected.cards);
+        if (tableau[selected.from].length > 0) tableau[selected.from].at(-1).faceUp = true;
+        score += 5;
+        break;
+      }
+    }
+  }
+  selected = null;
+  draw();
+  document.getElementById('score').innerText = score;
+  checkWin();
+});
+
+canvas.addEventListener('click', (e) => {
+  const { offsetX, offsetY } = e;
+  if (offsetX > 20 && offsetX < 100 && offsetY > 20 && offsetY < 120 && deck.length > 0) {
+    for (let i = 0; i < drawCount && deck.length > 0; i++) {
+      const card = deck.shift();
+      card.faceUp = true;
+      waste.push(card);
+      score += 5;
+    }
+    document.getElementById('score').innerText = score;
     draw();
   }
 });
 
-function drawFromDeck() {
-  if (deck.length === 0) {
-    deck = waste.reverse();
-    waste = [];
-    deck.forEach(c => c.faceUp = false);
-  } else {
-    for (let i = 0; i < drawCount && deck.length > 0; i++) {
-      const card = deck.pop();
-      card.faceUp = true;
-      waste.push(card);
-    }
-    updateScore(-1);
+function checkWin() {
+  if (foundations.every(f => f.length === 13)) {
+    document.getElementById('winMessage').classList.remove('hidden');
   }
 }
 
-// マウスドラッグ用イベント
-function onMouseDown(e) {
-  const { offsetX, offsetY } = e;
-  const card = findCardAt(offsetX, offsetY);
-  if (card && card.faceUp) {
-    selectedCard = card;
-    dragging = true;
-    offsetX -= card.x;
-    offsetY -= card.y;
-  }
-}
-
-function onMouseMove(e) {
-  if (dragging && selectedCard) {
-    selectedCard.x = e.offsetX - offsetX;
-    selectedCard.y = e.offsetY - offsetY;
-    draw();
-    drawCard(selectedCard, selectedCard.x, selectedCard.y);
-  }
-}
-
-function onMouseUp(e) {
-  if (dragging && selectedCard) {
-    const { offsetX, offsetY } = e;
-    // どの山に置いたか判定
-    for (let i = 0; i < tableau.length; i++) {
-      const x = 20 + i * 140;
-      if (offsetX >= x && offsetX <= x + 80) {
-        tableau[i].push(selectedCard);
-        removeFromSource(selectedCard);
-        updateScore(5);
-        break;
-      }
-    }
-    selectedCard = null;
-    dragging = false;
-    draw();
-  }
-}
-
-function removeFromSource(card) {
-  // waste or tableau から削除
-  let idx = waste.indexOf(card);
-  if (idx !== -1) {
-    waste.splice(idx, 1);
-    return;
-  }
-
-  for (let pile of tableau) {
-    idx = pile.indexOf(card);
-    if (idx !== -1) {
-      pile.splice(idx, 1);
-      if (pile.length && !pile[pile.length - 1].faceUp) {
-        pile[pile.length - 1].faceUp = true;
-        updateScore(5);
-      }
-      return;
+function showHint() {
+  // とりあえず tableau の移動可能なカードを黄色でハイライト（簡易実装）
+  draw();
+  for (let i = 0; i < 7; i++) {
+    const stack = tableau[i];
+    const top = stack.at(-1);
+    if (top && top.faceUp) {
+      ctx.strokeStyle = 'yellow';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(top.x, top.y, 80, 100);
+      break;
     }
   }
-}
-
-function findCardAt(x, y) {
-  // tableau優先で検索
-  for (let pile of tableau) {
-    for (let i = pile.length - 1; i >= 0; i--) {
-      const card = pile[i];
-      if (
-        x >= card.x &&
-        x <= card.x + 80 &&
-        y >= card.y &&
-        y <= card.y + 100
-      ) {
-        return card;
-      }
-    }
-  }
-
-  // waste
-  if (waste.length > 0) {
-    const card = waste[waste.length - 1];
-    if (
-      x >= card.x &&
-      x <= card.x + 80 &&
-      y >= card.y &&
-      y <= card.y + 100
-    ) {
-      return card;
-    }
-  }
-
-  return null;
 }
