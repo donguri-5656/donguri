@@ -26,13 +26,13 @@
 
     .flying-img {
       position: absolute;
+      left: -100px;
       width: 80px;
       opacity: 0.7;
       pointer-events: none;
       z-index: 0;
     }
 
-    /* アニメーションパターン（すべて変数で制御） */
     @keyframes fly-random {
       0% {
         transform: translate(0, 0) rotate(0deg);
@@ -115,32 +115,30 @@
       img.src = flyingImages[Math.floor(Math.random() * flyingImages.length)];
       img.classList.add('flying-img');
 
-      // ランダムな top の位置
-      const top = Math.random() * 80;
+      // ランダムな縦位置（画面内）
+      const top = Math.random() * 100;
       img.style.top = `${top}%`;
 
-      // ランダムな飛び先の方向と回転
-      const tx = `${Math.random() * 120 + 80}vw`;    // 横方向
-      const ty = `${(Math.random() - 0.5) * 200}px`; // 上下に振れ幅
-      const rot = `${Math.floor(Math.random() * 720 - 360)}deg`;
+      // ランダムな飛び先（横：右へ、縦：±400pxの振れ幅）
+      const tx = `${Math.random() * 150 + 100}vw`; // 100〜250vw
+      const ty = `${(Math.random() - 0.5) * 800}px`; // -400〜+400px
+      const rot = `${Math.floor(Math.random() * 1080 - 540)}deg`; // -540〜540°
 
       img.style.setProperty('--tx', tx);
       img.style.setProperty('--ty', ty);
       img.style.setProperty('--rot', rot);
 
-      // ランダムなスピード
       const duration = Math.random() * 5 + 5; // 5～10秒
-      img.style.animation = `fly-random ${duration}s linear forwards`;
+      img.style.animation = `fly-random ${duration}s ease-in forwards`;
 
       document.body.appendChild(img);
 
-      // 一定時間後に削除
       setTimeout(() => {
         img.remove();
       }, duration * 1000 + 1000);
     }
 
-    // 出現頻度を10倍：200msごとに1つ生成
+    // 200msごとに生成（出現頻度10倍）
     setInterval(createFlyingImage, 200);
   </script>
 </body>
