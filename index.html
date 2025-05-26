@@ -2,55 +2,76 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Fun GitHub Page</title>
   <style>
     body {
       margin: 0;
       font-family: "Arial", sans-serif;
       background-color: #d0f0ff;
-      color: #333;
       overflow-x: hidden;
+      color: #333;
     }
 
     .hero {
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-end;
-      background-color: #d0f0ff;
       position: relative;
       overflow: hidden;
+      background-color: #d0f0ff;
     }
 
+    /* 飛ぶ画像の共通設定 */
     .flying-img {
       position: absolute;
       width: 80px;
-      left: -100px;
-      opacity: 0.5;
-      z-index: 0;
+      opacity: 0.7;
       pointer-events: none;
-      animation: fly 8s linear forwards;
+      z-index: 0;
     }
 
-    @keyframes fly {
-      0%   { transform: translateX(0vw) translateY(0) rotate(0deg); opacity: 0.5; }
-      25%  { transform: translateX(25vw) translateY(-30px) rotate(10deg); }
-      50%  { transform: translateX(50vw) translateY(30px) rotate(-15deg); }
-      75%  { transform: translateX(75vw) translateY(-20px) rotate(5deg); }
-      100% { transform: translateX(120vw) translateY(0) rotate(20deg); opacity: 0; }
+    /* アニメーションパターン */
+    @keyframes fly1 {
+      0%   { transform: translateX(-100px) translateY(0); opacity: 1; }
+      50%  { transform: translateX(50vw) translateY(-30px) rotate(20deg); }
+      100% { transform: translateX(110vw) translateY(0); opacity: 0; }
     }
+
+    @keyframes fly2 {
+      0%   { transform: translateX(-100px) translateY(0); opacity: 1; }
+      25%  { transform: translateX(25vw) translateY(20px) rotate(-10deg); }
+      75%  { transform: translateX(75vw) translateY(-40px) rotate(20deg); }
+      100% { transform: translateX(110vw) translateY(10px); opacity: 0; }
+    }
+
+    @keyframes fly3 {
+      0%   { transform: translateX(-100px) translateY(30px) rotate(0deg); opacity: 1; }
+      50%  { transform: translateX(60vw) translateY(-60px) rotate(360deg); }
+      100% { transform: translateX(110vw) translateY(10px); opacity: 0; }
+    }
+
+    @keyframes fly4 {
+      0%   { transform: translateX(-100px) translateY(20px) scale(1); opacity: 1; }
+      50%  { transform: translateX(55vw) translateY(-30px) scale(1.2); }
+      100% { transform: translateX(110vw) translateY(10px) scale(0.8); opacity: 0; }
+    }
+
+    .pattern1 { animation: fly1 8s linear forwards; }
+    .pattern2 { animation: fly2 9s ease-in-out forwards; }
+    .pattern3 { animation: fly3 10s linear forwards; }
+    .pattern4 { animation: fly4 7s ease-in-out forwards; }
 
     .menu-section {
+      z-index: 1;
       padding: 30px 20px;
       background-color: #ffffff;
       border-top-left-radius: 30px;
       border-top-right-radius: 30px;
       width: 100%;
       box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-      z-index: 1;
-      position: relative;
     }
 
     .menu-title {
@@ -62,31 +83,31 @@
     .menu-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 15px;
+      gap: 20px;
       max-width: 800px;
       margin: 0 auto;
     }
 
     .menu-button {
-      background: linear-gradient(to right, #a0e0ff, #c0f5ff); /* グラデーション */
+      background: linear-gradient(to right, #a0e0ff, #c0f5ff);
       border: none;
       padding: 20px 30px;
-      border-radius: 50px; /* 丸くする */
+      border-radius: 50px;
       font-size: 1em;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* やさしい影 */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
     .menu-button:hover {
       background: linear-gradient(to right, #87d4f2, #b5ecff);
-      transform: translateY(-7px) scale(1.05); /* 浮き上がる動き */
+      transform: translateY(-7px) scale(1.05);
       box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
     }
   </style>
 </head>
 <body>
-  <div class="hero" id="hero">
+  <div class="hero">
     <!-- メニュー -->
     <div class="menu-section">
       <div class="menu-title">メニュー</div>
@@ -104,36 +125,32 @@
   </div>
 
   <script>
-    // menu_images フォルダ内の画像ファイル名リスト
     const flyingImages = [
       'menu_images/flying1.png',
       'menu_images/flying2.png',
       'menu_images/flying3.png'
     ];
 
-    function launchFlyingImage() {
+    function createFlyingImage() {
       const img = document.createElement('img');
       img.src = flyingImages[Math.floor(Math.random() * flyingImages.length)];
-      img.className = 'flying-img';
+      img.classList.add('flying-img');
 
-      // ランダムな top 位置
-      img.style.top = Math.floor(5 + Math.random() * 70) + '%';
+      const patternNumber = Math.floor(Math.random() * 4) + 1;
+      img.classList.add(`pattern${patternNumber}`);
 
-      // ランダムな初期回転角度
-      const rotateStart = Math.floor(-20 + Math.random() * 40);
-      img.style.transform = `rotate(${rotateStart}deg)`;
+      const top = Math.random() * 80;
+      img.style.top = `${top}%`;
 
-      // アニメーション開始
-      document.getElementById('hero').appendChild(img);
+      document.body.appendChild(img);
 
-      // 8秒後に削除
       setTimeout(() => {
         img.remove();
-      }, 8000);
+      }, 12000);
     }
 
-    // 1.5秒ごとに画像を飛ばす
-    setInterval(launchFlyingImage, 100);
+    // 出現頻度
+    setInterval(createFlyingImage, 100);
   </script>
 </body>
 </html>
