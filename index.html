@@ -26,10 +26,22 @@
 
     .flying-img {
       position: absolute;
+      left: -100px;
       width: 80px;
       opacity: 0.7;
       pointer-events: none;
       z-index: 0;
+    }
+
+    @keyframes fly-random {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--tx, 100vw), var(--ty, -50px)) rotate(var(--rot, 360deg));
+        opacity: 0;
+      }
     }
 
     .menu-section {
@@ -98,47 +110,36 @@
       'menu_images/flying3.png'
     ];
 
-    function createSpiralImage() {
+    function createFlyingImage() {
       const img = document.createElement('img');
       img.src = flyingImages[Math.floor(Math.random() * flyingImages.length)];
       img.classList.add('flying-img');
 
-      const startTop = Math.random() * 80; // 出発地点の高さ（％）
-      const startLeft = -100;
-      img.style.top = `${startTop}%`;
-      img.style.left = `${startLeft}px`;
+      // ランダムな縦位置（画面内）
+      const top = Math.random() * 100;
+      img.style.top = `${top}%`;
+
+      // ランダムな飛び先（横：右へ、縦：±400pxの振れ幅）
+      const tx = `${Math.random() * 150 + 100}vw`; // 100〜250vw
+      const ty = `${(Math.random() - 0.5) * 800}px`; // -400〜+400px
+      const rot = `${Math.floor(Math.random() * 1080 - 540)}deg`; // -540〜540°
+
+      img.style.setProperty('--tx', tx);
+      img.style.setProperty('--ty', ty);
+      img.style.setProperty('--rot', rot);
+
+      const duration = Math.random() * 5 + 5; // 5～10秒
+      img.style.animation = `fly-random ${duration}s ease-in forwards`;
 
       document.body.appendChild(img);
 
-      const centerY = window.innerHeight * (startTop / 100);
-      const centerX = -100; // 画面外の左端
-      let angle = 0;
-      const maxAngle = 6 * Math.PI;
-      const radiusStep = 2 + Math.random() * 2; // 螺旋の広がり
-      const speed = 0.05 + Math.random() * 0.02; // 回転スピード
-
-      function animate() {
-        angle += speed;
-        const radius = angle * radiusStep;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-
-        img.style.transform = `translate(${x}px, ${y}px) rotate(${angle * 20}deg)`;
-
-        // 範囲外になったら削除
-        if (x > window.innerWidth + 150 || y < -200 || y > window.innerHeight + 200) {
-          img.remove();
-          return;
-        }
-
-        requestAnimationFrame(animate);
-      }
-
-      animate();
+      setTimeout(() => {
+        img.remove();
+      }, duration * 1000 + 1000);
     }
 
-    // 出現頻度（200msごと = 高頻度）
-    setInterval(createSpiralImage, 200);
+    // 200msごとに生成（出現頻度10倍）
+    setInterval(createFlyingImage, 200);
   </script>
 </body>
 </html>
