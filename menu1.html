@@ -1,22 +1,83 @@
-<h2>じゃんけんゲーム</h2>
-<button onclick="play('グー')">グー</button>
-<button onclick="play('チョキ')">チョキ</button>
-<button onclick="play('パー')">パー</button>
-<p id="result"></p>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>じゃんけんゲーム</title>
+  <style>
+    body {
+      font-family: "Arial", sans-serif;
+      text-align: center;
+      background-color: #d0f0ff;
+      padding: 50px;
+      color: #333;
+    }
 
-<script>
-function play(player) {
-  const hands = ['グー', 'チョキ', 'パー'];
-  const cpu = hands[Math.floor(Math.random() * 3)];
-  let result;
-  if (player === cpu) result = 'あいこ！';
-  else if ((player === 'グー' && cpu === 'チョキ') ||
-           (player === 'チョキ' && cpu === 'パー') ||
-           (player === 'パー' && cpu === 'グー')) {
-    result = '勝ち！';
-  } else {
-    result = '負け…';
-  }
-  document.getElementById('result').innerText = `あなた: ${player} / 相手: ${cpu} → ${result}`;
-}
-</script>
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
+
+    .buttons {
+      margin: 20px 0;
+    }
+
+    .btn {
+      background: linear-gradient(to right, #a0e0ff, #c0f2ff);
+      border: none;
+      border-radius: 50px;
+      padding: 15px 30px;
+      font-size: 1.2em;
+      cursor: pointer;
+      margin: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: scale(1.1);
+      background: linear-gradient(to right, #87d4f2, #b0ebff);
+    }
+
+    #result {
+      font-size: 1.8em;
+      margin-top: 30px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>じゃんけんゲーム</h1>
+
+  <div class="buttons">
+    <button class="btn" onclick="play('グー')">✊ グー</button>
+    <button class="btn" onclick="play('チョキ')">✌️ チョキ</button>
+    <button class="btn" onclick="play('パー')">🖐️ パー</button>
+  </div>
+
+  <div id="result">勝負しよう！</div>
+
+  <script>
+    function play(userHand) {
+      const hands = ['グー', 'チョキ', 'パー'];
+      const computerHand = hands[Math.floor(Math.random() * 3)];
+
+      let result = '';
+
+      if (userHand === computerHand) {
+        result = 'あいこ！';
+      } else if (
+        (userHand === 'グー' && computerHand === 'チョキ') ||
+        (userHand === 'チョキ' && computerHand === 'パー') ||
+        (userHand === 'パー' && computerHand === 'グー')
+      ) {
+        result = 'あなたの勝ち！ 🎉';
+      } else {
+        result = 'あなたの負け… 😢';
+      }
+
+      document.getElementById('result').innerHTML =
+        `あなた：${userHand}<br>コンピューター：${computerHand}<br><strong>${result}</strong>`;
+    }
+  </script>
+</body>
+</html>
