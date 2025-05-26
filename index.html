@@ -1,122 +1,93 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>どんぐりAIチャット</title>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Fun GitHub Page</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Arial", sans-serif;
+      background-color: #d0f0ff; /* 優しい水色 */
+      color: #333;
+      scroll-behavior: smooth;
+    }
 
-    <!-- ====== Google Fonts (Optional) ====== -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    .hero {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #d0f0ff;
+      position: relative;
+      overflow: hidden;
+    }
 
-    <!-- ====== Reset & Base Styles ====== -->
-    <style>
-      :root {
-        --bg: #f5f6fa;
-        --fg: #202124;
-        --primary: #4b7bec;
-        --card-bg: #ffffff;
-        --radius: 1rem;
-        --shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-      }
+    .hero img {
+      width: 300px;
+      animation: float 3s ease-in-out infinite;
+    }
 
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+      100% { transform: translateY(0); }
+    }
 
-      html,
-      body {
-        height: 100%;
-        font-family: "Inter", sans-serif;
-        background: var(--bg);
-        color: var(--fg);
-      }
+    .menu-section {
+      padding: 50px 20px;
+      background-color: #ffffff;
+      border-top-left-radius: 30px;
+      border-top-right-radius: 30px;
+      margin-top: -30px;
+    }
 
-      .wrapper {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
+    .menu-title {
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 30px;
+    }
 
-      header {
-        padding: 1.5rem 1rem;
-        background: var(--card-bg);
-        box-shadow: var(--shadow);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
 
-      header h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--primary);
-        text-align: center;
-      }
+    .menu-button {
+      background-color: #a0e0ff;
+      border: none;
+      padding: 20px;
+      border-radius: 15px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
 
-      main {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem 1rem 4rem;
-      }
+    .menu-button:hover {
+      background-color: #87d4f2;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <img src="your-image.gif" alt="アニメーション画像">
+  </div>
 
-      .chat-card {
-        width: 100%;
-        max-width: 900px;
-        background: var(--card-bg);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        padding: 1rem;
-      }
-
-      footer {
-        text-align: center;
-        padding: 1rem 0;
-        font-size: 0.85rem;
-        color: #888;
-      }
-
-      @media (min-width: 768px) {
-        header h1 {
-          font-size: 1.75rem;
-        }
-      }
-    </style>
-
-    <!-- ====== Gradio Web Component ====== -->
-    <script
-      type="module"
-      src="https://gradio.s3-us-west-2.amazonaws.com/5.31.0/gradio.js"
-    ></script>
-  </head>
-
-  <body>
-    <div class="wrapper">
-      <!-- ====== Header ====== -->
-      <header>
-        <h1>どんぐりAIチャット</h1>
-      </header>
-
-      <!-- ====== Main Content ====== -->
-      <main>
-        <div class="chat-card">
-          <!-- Hugging Face Space 埋め込み -->
-          <gradio-app src="https://donguri5656-a-donguri-gpt.hf.space"></gradio-app>
-        </div>
-      </main>
-
-      <!-- ====== Footer ====== -->
-      <footer>
-        © 2025 Donguri · Powered by Hugging Face & Gradio
-      </footer>
+  <div class="menu-section">
+    <div class="menu-title">メニュー</div>
+    <div class="menu-grid">
+      <button class="menu-button" onclick="location.href='menu1.html'">メニュー1</button>
+      <button class="menu-button" onclick="location.href='menu2.html'">メニュー2</button>
+      <button class="menu-button" onclick="location.href='menu3.html'">メニュー3</button>
+      <button class="menu-button" onclick="location.href='menu4.html'">メニュー4</button>
+      <button class="menu-button" onclick="location.href='menu5.html'">メニュー5</button>
+      <button class="menu-button" onclick="location.href='menu6.html'">メニュー6</button>
+      <button class="menu-button" onclick="location.href='menu7.html'">メニュー7</button>
+      <button class="menu-button" onclick="location.href='menu8.html'">メニュー8</button>
     </div>
-  </body>
+  </div>
+</body>
 </html>
