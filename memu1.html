@@ -1,0 +1,22 @@
+<h2>じゃんけんゲーム</h2>
+<button onclick="play('グー')">グー</button>
+<button onclick="play('チョキ')">チョキ</button>
+<button onclick="play('パー')">パー</button>
+<p id="result"></p>
+
+<script>
+function play(player) {
+  const hands = ['グー', 'チョキ', 'パー'];
+  const cpu = hands[Math.floor(Math.random() * 3)];
+  let result;
+  if (player === cpu) result = 'あいこ！';
+  else if ((player === 'グー' && cpu === 'チョキ') ||
+           (player === 'チョキ' && cpu === 'パー') ||
+           (player === 'パー' && cpu === 'グー')) {
+    result = '勝ち！';
+  } else {
+    result = '負け…';
+  }
+  document.getElementById('result').innerText = `あなた: ${player} / 相手: ${cpu} → ${result}`;
+}
+</script>
