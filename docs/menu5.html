@@ -12,26 +12,22 @@
       margin: 0;
       padding: 0;
     }
-
     #wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-
     canvas {
       background: #ffffff;
       border: 4px solid #a0e0ff;
       box-shadow: 0 0 20px rgba(0,0,0,0.1);
     }
-
     #ui {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
       margin-top: 10px;
     }
-
     .btn {
       margin: 5px;
       padding: 10px 20px;
@@ -40,9 +36,7 @@
       border-radius: 10px;
       background: #a0e0ff;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      touch-action: manipulation;
     }
-
     .info {
       display: flex;
       justify-content: center;
@@ -65,17 +59,15 @@
         <canvas id="hold" width="80" height="80"></canvas>
       </div>
     </div>
-
     <div id="ui">
-      <button class="btn" ontouchstart="startMove(-1)" ontouchend="stopMove()" onmousedown="startMove(-1)" onmouseup="stopMove()">←</button>
-      <button class="btn" ontouchstart="startMove(1)" ontouchend="stopMove()" onmousedown="startMove(1)" onmouseup="stopMove()">→</button>
+      <button class="btn" ontouchstart="moveLeft()" onmousedown="moveLeft()">←</button>
+      <button class="btn" ontouchstart="moveRight()" onmousedown="moveRight()">→</button>
       <button class="btn" onclick="playerRotate()">回転</button>
       <button class="btn" onclick="playerDrop()">↓</button>
       <button class="btn" onclick="hardDrop()">↑</button>
       <button class="btn" onclick="holdPiece()">HOLD</button>
     </div>
   </div>
-
   <script>
     const canvas = document.getElementById('tetris');
     const context = canvas.getContext('2d');
@@ -106,6 +98,12 @@
       });
     }
 
+    function drawMatrixCentered(matrix, ctx, canvas) {
+      const offsetX = Math.floor((canvas.width / 20 - matrix[0].length) / 2);
+      const offsetY = Math.floor((canvas.height / 20 - matrix.length) / 2);
+      drawMatrix(matrix, {x: offsetX, y: offsetY}, ctx);
+    }
+
     function merge(arena, player) {
       player.matrix.forEach((row, y) => {
         row.forEach((value, x) => {
@@ -128,10 +126,6 @@
         }
       }
       return false;
-    }
-
-    function cloneMatrix(matrix) {
-      return matrix.map(row => row.slice());
     }
 
     function playerDrop() {
@@ -164,19 +158,24 @@
       }
     }
 
+    function moveLeft() {
+      playerMove(-1);
+    }
+
+    function moveRight() {
+      playerMove(1);
+    }
+
     function playerRotate() {
       const m = player.matrix;
-      const cloned = cloneMatrix(m);
-      for (let y = 0; y < cloned.length; ++y) {
-        for (let x = 0; x < y; ++x) {
-          [cloned[x][y], cloned[y][x]] = [cloned[y][x], cloned[x][y]];
-        }
-      }
-      cloned.forEach(row => row.reverse());
-      const oldMatrix = player.matrix;
-      player.matrix = cloned;
+      const len = m.length;
+      const rotated = Array.from({length: len}, (_, y) =>
+        Array.from({length: m[0].length}, (_, x) => m[len - x - 1][y])
+      );
+      const prev = player.matrix;
+      player.matrix = rotated;
       if (collide(arena, player)) {
-        player.matrix = oldMatrix;
+        player.matrix = prev;
       }
     }
 
@@ -211,16 +210,16 @@
 
     function drawNext() {
       nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-      drawMatrix(next.matrix, {x:1, y:1}, nextCtx);
+      drawMatrixCentered(next.matrix, nextCtx, nextCanvas);
     }
 
     function drawHold() {
       holdCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
-      if (hold.matrix) drawMatrix(hold.matrix, {x:1, y:1}, holdCtx);
+      if (hold.matrix) drawMatrixCentered(hold.matrix, holdCtx, holdCanvas);
     }
 
     function playerReset() {
-      player.matrix = cloneMatrix(next.matrix);
+      player.matrix = JSON.parse(JSON.stringify(next.matrix));
       player.pos.y = 0;
       player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       next.matrix = createPiece(randomPiece());
@@ -238,11 +237,11 @@
     function holdPiece() {
       if (!canHold) return;
       if (!hold.matrix) {
-        hold.matrix = cloneMatrix(player.matrix);
+        hold.matrix = JSON.parse(JSON.stringify(player.matrix));
         playerReset();
       } else {
-        const temp = cloneMatrix(player.matrix);
-        player.matrix = cloneMatrix(hold.matrix);
+        const temp = player.matrix;
+        player.matrix = hold.matrix;
         hold.matrix = temp;
         player.pos.y = 0;
         player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
@@ -286,15 +285,6 @@
       else if (event.key === 'c') holdPiece();
       else if (event.key === 'z') playerRotate();
     });
-
-    let moveInterval;
-    function startMove(dir) {
-      playerMove(dir);
-      moveInterval = setInterval(() => playerMove(dir), 150);
-    }
-    function stopMove() {
-      clearInterval(moveInterval);
-    }
 
     playerReset();
     update();
