@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>テトリス</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       background: #d0f0ff;
@@ -12,22 +12,26 @@
       margin: 0;
       padding: 0;
     }
+
     #wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+
     canvas {
       background: #ffffff;
       border: 4px solid #a0e0ff;
       box-shadow: 0 0 20px rgba(0,0,0,0.1);
     }
+
     #ui {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
       margin-top: 10px;
     }
+
     .btn {
       margin: 5px;
       padding: 10px 20px;
@@ -37,11 +41,21 @@
       background: #a0e0ff;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+
     .info {
       display: flex;
       justify-content: center;
       gap: 20px;
       margin-top: 10px;
+    }
+
+    .canvas-wrapper {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 2px solid #a0e0ff;
     }
   </style>
 </head>
@@ -51,23 +65,29 @@
     <div class="info">
       <div>
         <p>NEXT</p>
-        <canvas id="next" width="80" height="80"></canvas>
+        <div class="canvas-wrapper">
+          <canvas id="next" width="80" height="80"></canvas>
+        </div>
       </div>
       <canvas id="tetris" width="240" height="400"></canvas>
       <div>
         <p>HOLD</p>
-        <canvas id="hold" width="80" height="80"></canvas>
+        <div class="canvas-wrapper">
+          <canvas id="hold" width="80" height="80"></canvas>
+        </div>
       </div>
     </div>
+
     <div id="ui">
-      <button class="btn" ontouchstart="moveLeft()" onmousedown="moveLeft()">←</button>
-      <button class="btn" ontouchstart="moveRight()" onmousedown="moveRight()">→</button>
+      <button class="btn" onclick="playerMove(-1)">←</button>
+      <button class="btn" onclick="playerMove(1)">→</button>
       <button class="btn" onclick="playerRotate()">回転</button>
       <button class="btn" onclick="playerDrop()">↓</button>
       <button class="btn" onclick="hardDrop()">↑</button>
       <button class="btn" onclick="holdPiece()">HOLD</button>
     </div>
   </div>
+
   <script>
     const canvas = document.getElementById('tetris');
     const context = canvas.getContext('2d');
@@ -96,12 +116,6 @@
           }
         });
       });
-    }
-
-    function drawMatrixCentered(matrix, ctx, canvas) {
-      const offsetX = Math.floor((canvas.width / 20 - matrix[0].length) / 2);
-      const offsetY = Math.floor((canvas.height / 20 - matrix.length) / 2);
-      drawMatrix(matrix, {x: offsetX, y: offsetY}, ctx);
     }
 
     function merge(arena, player) {
@@ -158,25 +172,30 @@
       }
     }
 
-    function moveLeft() {
-      playerMove(-1);
-    }
-
-    function moveRight() {
-      playerMove(1);
+    function rotate(matrix) {
+      const clone = matrix.map(row => [...row]);
+      for (let y = 0; y < clone.length; ++y) {
+        for (let x = 0; x < y; ++x) {
+          [clone[x][y], clone[y][x]] = [clone[y][x], clone[x][y]];
+        }
+      }
+      clone.forEach(row => row.reverse());
+      return clone;
     }
 
     function playerRotate() {
-      const m = player.matrix;
-      const len = m.length;
-      const rotated = Array.from({length: len}, (_, y) =>
-        Array.from({length: m[0].length}, (_, x) => m[len - x - 1][y])
-      );
-      const prev = player.matrix;
-      player.matrix = rotated;
-      if (collide(arena, player)) {
-        player.matrix = prev;
+      const rotated = rotate(player.matrix);
+      const pos = player.pos.x;
+      let offset = 1;
+      while (collide(arena, {...player, matrix: rotated})) {
+        player.pos.x += offset;
+        offset = -(offset + (offset > 0 ? 1 : -1));
+        if (offset > player.matrix[0].length) {
+          player.pos.x = pos;
+          return;
+        }
       }
+      player.matrix = rotated;
     }
 
     function createPiece(type) {
@@ -186,7 +205,7 @@
       if (type === 'J') return [[1,0,0],[1,1,1]];
       if (type === 'S') return [[0,1,1],[1,1,0]];
       if (type === 'Z') return [[1,1,0],[0,1,1]];
-      if (type === 'I') return [[1,1,1,1]];
+      if (type === 'I') return [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
     }
 
     function arenaSweep() {
@@ -210,16 +229,27 @@
 
     function drawNext() {
       nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-      drawMatrixCentered(next.matrix, nextCtx, nextCanvas);
+      const offset = getCenterOffset(next.matrix);
+      drawMatrix(next.matrix, offset, nextCtx);
     }
 
     function drawHold() {
       holdCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
-      if (hold.matrix) drawMatrixCentered(hold.matrix, holdCtx, holdCanvas);
+      if (hold.matrix) {
+        const offset = getCenterOffset(hold.matrix);
+        drawMatrix(hold.matrix, offset, holdCtx);
+      }
+    }
+
+    function getCenterOffset(matrix) {
+      return {
+        x: Math.floor((4 - matrix[0].length) / 2),
+        y: Math.floor((4 - matrix.length) / 2)
+      };
     }
 
     function playerReset() {
-      player.matrix = JSON.parse(JSON.stringify(next.matrix));
+      player.matrix = next.matrix;
       player.pos.y = 0;
       player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       next.matrix = createPiece(randomPiece());
@@ -237,12 +267,10 @@
     function holdPiece() {
       if (!canHold) return;
       if (!hold.matrix) {
-        hold.matrix = JSON.parse(JSON.stringify(player.matrix));
+        hold.matrix = player.matrix;
         playerReset();
       } else {
-        const temp = player.matrix;
-        player.matrix = hold.matrix;
-        hold.matrix = temp;
+        [hold.matrix, player.matrix] = [player.matrix, hold.matrix];
         player.pos.y = 0;
         player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       }
