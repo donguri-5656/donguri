@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>テトリス</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     body {
       background: #d0f0ff;
@@ -40,6 +40,7 @@
       border-radius: 10px;
       background: #a0e0ff;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      touch-action: manipulation;
     }
 
     .info {
@@ -94,7 +95,11 @@
       return matrix;
     }
 
-    function drawMatrix(matrix, offset, ctx, color='skyblue') {
+    function cloneMatrix(matrix) {
+      return matrix.map(row => row.slice());
+    }
+
+    function drawMatrix(matrix, offset, ctx, color = 'skyblue') {
       matrix.forEach((row, y) => {
         row.forEach((value, x) => {
           if (value !== 0) {
@@ -214,7 +219,7 @@
     }
 
     function playerReset() {
-      player.matrix = next.matrix;
+      player.matrix = cloneMatrix(next.matrix);
       player.pos.y = 0;
       player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       next.matrix = createPiece(randomPiece());
@@ -232,10 +237,12 @@
     function holdPiece() {
       if (!canHold) return;
       if (!hold.matrix) {
-        hold.matrix = player.matrix;
+        hold.matrix = cloneMatrix(player.matrix);
         playerReset();
       } else {
-        [hold.matrix, player.matrix] = [player.matrix, hold.matrix];
+        const temp = cloneMatrix(player.matrix);
+        player.matrix = cloneMatrix(hold.matrix);
+        hold.matrix = temp;
         player.pos.y = 0;
         player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       }
