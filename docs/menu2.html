@@ -44,30 +44,38 @@
       gap: 20px;
       margin-top: 10px;
     }
-    .side {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    #score {
+      margin: 10px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    #ranking {
+      display: none;
+      background: white;
+      border: 2px solid #ccc;
+      padding: 10px;
+      margin: 10px auto;
+      width: 90%;
+      max-width: 400px;
+      text-align: left;
     }
   </style>
 </head>
 <body>
   <h1>テトリス</h1>
+  <div id="score">スコア: 0</div>
   <div id="wrapper">
     <div class="info">
-      <div class="side">
+      <div>
         <p>NEXT</p>
         <canvas id="next" width="80" height="80"></canvas>
       </div>
       <canvas id="tetris" width="240" height="400"></canvas>
-      <div class="side">
+      <div>
         <p>HOLD</p>
         <canvas id="hold" width="80" height="80"></canvas>
       </div>
     </div>
-
-    <p>スコア: <span id="score">0</span></p>
-
     <div id="ui">
       <button class="btn" onmousedown="startMove(-1)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(-1)" ontouchend="stopMove()">←</button>
       <button class="btn" onmousedown="startMove(1)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(1)" ontouchend="stopMove()">→</button>
@@ -75,21 +83,40 @@
       <button class="btn" onclick="playerDrop()">↓</button>
       <button class="btn" onclick="hardDrop()">↑</button>
       <button class="btn" onclick="holdPiece()">HOLD</button>
+      <button class="btn" onclick="toggleRanking()">ランキング表示</button>
     </div>
   </div>
 
+  <div id="ranking"></div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script>
+    // TODO: Firebase設定を記入
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const canvas = document.getElementById('tetris');
     const context = canvas.getContext('2d');
     context.scale(20, 20);
-
     const nextCanvas = document.getElementById('next');
     const nextCtx = nextCanvas.getContext('2d');
     nextCtx.scale(20, 20);
-
     const holdCanvas = document.getElementById('hold');
     const holdCtx = holdCanvas.getContext('2d');
     holdCtx.scale(20, 20);
+
+    let score = 0;
+    const scoreElem = document.getElementById('score');
 
     function createMatrix(w, h) {
       const matrix = [];
@@ -131,30 +158,15 @@
     }
 
     function rotate(matrix) {
-      const N = matrix.length;
-      const result = matrix.map((_, i) => matrix.map(row => row[i])).reverse();
-      return result;
-    }
-
-    function clone(matrix) {
-      return matrix.map(row => [...row]);
+      return matrix[0].map((_, i) => matrix.map(row => row[i])).reverse();
     }
 
     function playerRotate() {
-      const original = clone(player.matrix);
+      const cloned = player.matrix.map(row => [...row]);
       const rotated = rotate(player.matrix);
-      const pos = player.pos.x;
-      let offset = 1;
       player.matrix = rotated;
-
-      while (collide(arena, player)) {
-        player.pos.x += offset;
-        offset = -(offset + (offset > 0 ? 1 : -1));
-        if (offset > player.matrix[0].length) {
-          player.matrix = original;
-          player.pos.x = pos;
-          return;
-        }
+      if (collide(arena, player)) {
+        player.matrix = cloned;
       }
     }
 
@@ -163,8 +175,8 @@
       if (collide(arena, player)) {
         player.pos.y--;
         merge(arena, player);
-        playerReset();
         arenaSweep();
+        playerReset();
         canHold = true;
       }
       dropCounter = 0;
@@ -176,8 +188,8 @@
       }
       player.pos.y--;
       merge(arena, player);
-      playerReset();
       arenaSweep();
+      playerReset();
       canHold = true;
     }
 
@@ -198,26 +210,30 @@
     }
 
     function createPiece(type) {
-      if (type === 'T') return [[0,1,0],[1,1,1]];
-      if (type === 'O') return [[1,1],[1,1]];
-      if (type === 'L') return [[0,0,1],[1,1,1]];
-      if (type === 'J') return [[1,0,0],[1,1,1]];
-      if (type === 'S') return [[0,1,1],[1,1,0]];
-      if (type === 'Z') return [[1,1,0],[0,1,1]];
-      if (type === 'I') return [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
+      const shapes = {
+        T: [[0,1,0],[1,1,1]],
+        O: [[1,1],[1,1]],
+        L: [[0,0,1],[1,1,1]],
+        J: [[1,0,0],[1,1,1]],
+        S: [[0,1,1],[1,1,0]],
+        Z: [[1,1,0],[0,1,1]],
+        I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]]
+      };
+      return shapes[type];
     }
 
     function arenaSweep() {
-      let rowCount = 1;
+      let rowCount = 0;
       outer: for (let y = arena.length - 1; y >= 0; --y) {
         for (let x = 0; x < arena[y].length; ++x) {
           if (arena[y][x] === 0) continue outer;
         }
         arena.splice(y, 1);
         arena.unshift(new Array(arena[0].length).fill(0));
-        score += rowCount * 10;
-        rowCount *= 2;
+        rowCount++;
       }
+      score += rowCount * 10;
+      scoreElem.textContent = `スコア: ${score}`;
     }
 
     function draw() {
@@ -227,7 +243,6 @@
       drawMatrix(player.matrix, player.pos, context);
       drawNext();
       drawHold();
-      document.getElementById('score').textContent = score;
     }
 
     function drawNext() {
@@ -241,14 +256,17 @@
     }
 
     function playerReset() {
-      player.matrix = clone(next.matrix);
+      player.matrix = next.matrix.map(row => [...row]);
       player.pos.y = 0;
       player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-      next.matrix = createPiece(randomPiece());
+      const newPiece = createPiece(randomPiece());
+      next.matrix = newPiece.map(row => [...row]);
       if (collide(arena, player)) {
         arena.forEach(row => row.fill(0));
-        score = 0;
+        saveScore(score);
         alert('ゲームオーバー');
+        score = 0;
+        scoreElem.textContent = `スコア: ${score}`;
       }
     }
 
@@ -260,10 +278,12 @@
     function holdPiece() {
       if (!canHold) return;
       if (!hold.matrix) {
-        hold.matrix = clone(player.matrix);
+        hold.matrix = player.matrix.map(row => [...row]);
         playerReset();
       } else {
-        [hold.matrix, player.matrix] = [clone(player.matrix), clone(hold.matrix)];
+        const temp = hold.matrix.map(row => [...row]);
+        hold.matrix = player.matrix.map(row => [...row]);
+        player.matrix = temp;
         player.pos.y = 0;
         player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
       }
@@ -274,19 +294,11 @@
     let dropInterval = 1000;
     let lastTime = 0;
     let canHold = true;
-    let score = 0;
 
     const arena = createMatrix(12, 20);
-    const player = {
-      pos: {x: 0, y: 0},
-      matrix: null
-    };
-    const next = {
-      matrix: createPiece(randomPiece())
-    };
-    const hold = {
-      matrix: null
-    };
+    const player = { pos: {x: 0, y: 0}, matrix: null };
+    const next = { matrix: createPiece(randomPiece()).map(row => [...row]) };
+    const hold = { matrix: null };
 
     function update(time = 0) {
       const deltaTime = time - lastTime;
@@ -297,6 +309,39 @@
       }
       draw();
       requestAnimationFrame(update);
+    }
+
+    function saveScore(score) {
+      const name = prompt("名前を入力してください:");
+      if (name) {
+        db.collection("tetris-scores").add({
+          name,
+          score,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    function toggleRanking() {
+      const rankingDiv = document.getElementById("ranking");
+      if (rankingDiv.style.display === "none") {
+        db.collection("tetris-scores")
+          .orderBy("score", "desc")
+          .limit(10)
+          .get()
+          .then(snapshot => {
+            let html = "<h2>ランキング</h2><ol>";
+            snapshot.forEach(doc => {
+              const d = doc.data();
+              html += `<li>${d.name} - ${d.score}</li>`;
+            });
+            html += "</ol>";
+            rankingDiv.innerHTML = html;
+            rankingDiv.style.display = "block";
+          });
+      } else {
+        rankingDiv.style.display = "none";
+      }
     }
 
     document.addEventListener('keydown', event => {
