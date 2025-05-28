@@ -42,6 +42,16 @@
             border-radius: 5px;
             margin: 20px auto;
             width: fit-content; /* 内容に合わせて幅を調整 */
+            position: relative; /* 子要素のabsolute配置の基準 */
+        }
+
+        /* 各列の上部に配置するクリックエリア */
+        .column-click-area {
+            grid-row: 1 / span 6; /* 1行目から6行目まで全体をカバー */
+            z-index: 10; /* セルより手前に表示 */
+            cursor: pointer;
+            /* デバッグ用: クリックエリアの範囲を見たい場合にコメントアウトを外す */
+            /* background-color: rgba(0, 255, 0, 0.1); */
         }
 
         .cell {
@@ -52,15 +62,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer; /* クリック可能であることを示す */
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
             transition: background-color 0.2s ease-in-out;
+            position: relative; /* ディスクの色変更を重ねるため */
+            z-index: 5; /* column-click-areaより奥 */
         }
-
-        /* ホバー時の水色を削除 */
-        /* .cell:hover {
-            background-color: #cceeff;
-        } */
 
         .cell.player1 {
             background-color: #ff4500; /* プレイヤー1 (赤) */
@@ -160,26 +166,20 @@
 
         // ボードの描画
         function renderBoard() {
-            gameBoardElement.innerHTML = ''; // 既存のセルをクリア
-            // 各列の上部（見えない部分）にクリック可能なエリアを追加
+            gameBoardElement.innerHTML = ''; // 既存の要素をクリア
+
+            // 各列の上部にクリック可能なエリアを作成し、イベントリスナーを追加
             for (let c = 0; c < COLS; c++) {
                 const columnClickArea = document.createElement('div');
                 columnClickArea.classList.add('column-click-area');
                 columnClickArea.dataset.col = c;
-                columnClickArea.style.gridColumn = `${c + 1}`; // CSS Gridの列指定
-                columnClickArea.style.gridRow = '1 / span 6'; // 6行全体に広げる
-                columnClickArea.style.cursor = 'pointer';
-                columnClickArea.style.position = 'absolute'; // 各セルに重ねるため
-                columnClickArea.style.width = '60px';
-                columnClickArea.style.height = '100%';
-                columnClickArea.style.zIndex = '10'; // セルより手前に表示
-                // デバッグ用: 背景色を付けるとクリックエリアが見える
-                // columnClickArea.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                // CSS Gridで正しい列に配置
+                columnClickArea.style.gridColumn = `${c + 1}`;
                 columnClickArea.addEventListener('click', handleColumnClick);
                 gameBoardElement.appendChild(columnClickArea);
             }
 
-
+            // ゲームセルを描画
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const cell = document.createElement('div');
@@ -189,8 +189,11 @@
                     } else if (board[r][c] === PLAYER2) {
                         cell.classList.add('player2');
                     }
-                    cell.dataset.row = r; // 行番号もデータ属性として保持
-                    cell.dataset.col = c; // 列番号をデータ属性として保持
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    // CSS Gridで正しい行と列に配置
+                    cell.style.gridRow = `${r + 1}`;
+                    cell.style.gridColumn = `${c + 1}`;
                     gameBoardElement.appendChild(cell);
                 }
             }
