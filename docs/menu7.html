@@ -1,1 +1,881 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four Solver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 上部に寄せる */
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            touch-action: manipulation; /* モバイルでのピンチズームを防ぐ */
+        }
 
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 60px); /* 7列 */
+            grid-template-rows: repeat(6, 60px);    /* 6行 */
+            gap: 5px;
+            background-color: #007bff; /* 青色の盤面 */
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px auto;
+            width: fit-content; /* 内容に合わせて幅を調整 */
+            position: relative; /* 子要素のabsolute配置の基準 */
+        }
+
+        /* 各列の上部に配置するクリックエリア */
+        .column-click-area {
+            grid-row: 1 / span 6; /* 1行目から6行目まで全体をカバー */
+            z-index: 10; /* セルより手前に表示 */
+            cursor: pointer;
+            /* デバッグ用: クリックエリアの範囲を見たい場合にコメントアウトを外す */
+            /* background-color: rgba(0, 255, 0, 0.1); */
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: #f0f8ff; /* 穴の初期色（薄い青） */
+            border-radius: 50%; /* 丸い穴 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.2s ease-in-out;
+            position: relative; /* ディスクの色変更を重ねるため */
+            z-index: 5; /* column-click-areaより奥 */
+            cursor: pointer; /* ディスク削除のためにカーソルをポインタに */
+        }
+
+        .cell.player1 {
+            background-color: #ff4500; /* プレイヤー1 (赤) */
+        }
+
+        .cell.player2 {
+            background-color: #000000; /* プレイヤー2 (黒) */
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-selection button {
+            padding: 8px 15px;
+            font-size: 15px;
+            border: 2px solid;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .player-selection button.selected {
+            font-weight: bold;
+        }
+
+        #select-player1 {
+            background-color: #ffcccc;
+            border-color: #ff4500;
+        }
+        #select-player1.selected {
+            background-color: #ff4500;
+            color: white;
+        }
+
+        #select-player2 {
+            background-color: #cccccc;
+            border-color: #000000;
+            color: black;
+        }
+        #select-player2.selected {
+            background-color: #000000;
+            color: white;
+        }
+
+        #reset-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+
+        #reset-button:hover {
+            background-color: #218838;
+        }
+
+        .message {
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .solver-suggestion {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .solver-suggestion h2 {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        #solver-advice {
+            font-size: 1.1em;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        #solver-advice ul {
+            list-style: none; /* デフォルトのリストスタイルを削除 */
+            padding-left: 0;
+            margin-top: 10px;
+        }
+
+        #solver-advice li {
+            margin-bottom: 8px;
+            padding-left: 25px; /* アイコンのためのスペース */
+            position: relative;
+        }
+
+        #solver-advice li::before {
+            content: '👉'; /* デフォルトのアイコン */
+            position: absolute;
+            left: 0;
+            color: #007bff;
+            font-size: 1.1em;
+            line-height: 1; /* 行の高さに合わせる */
+        }
+
+        #solver-advice li.best::before {
+            content: '👑'; /* 最適解 */
+            color: #ffd700; /* 金色 */
+        }
+
+        #solver-advice li.win::before {
+            content: '✨'; /* 勝利手 */
+            color: #28a745;
+        }
+
+        #solver-advice li.block::before {
+            content: '🛡️'; /* ブロック手 */
+            color: #ffc107;
+        }
+
+        #solver-advice li.opportunity::before {
+            content: '📈'; /* チャンス手 */
+            color: #17a2b8;
+        }
+
+        #solver-advice li.danger::before {
+            content: '⚠️'; /* 危険な手 */
+            color: #dc3545;
+        }
+
+        #solver-advice li.neutral::before {
+            content: '⚪'; /* その他の手 */
+            color: #6c757d;
+        }
+
+        #solver-advice li.info::before {
+            content: 'ℹ️'; /* 情報 */
+            color: #6c757d;
+        }
+
+        .advice-history {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e3f2fd; /* 薄い青 */
+            border-radius: 8px;
+            text-align: left;
+            max-height: 200px; /* 高さを制限してスクロール可能に */
+            overflow-y: auto;
+            border: 1px solid #bbdefb;
+        }
+
+        .advice-history h3 {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .advice-history .history-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #a7d9ff;
+            font-size: 0.95em;
+        }
+        .advice-history .history-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .history-item strong {
+            color: #333;
+        }
+        .history-item p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connect Four Solver</h1>
+        <div class="controls">
+            <div class="player-selection">
+                <p>配置するプレイヤーを選択:</p>
+                <button id="select-player1" class="selected">プレイヤー1 (赤)</button>
+                <button id="select-player2">プレイヤー2 (黒)</button>
+            </div>
+            <button id="reset-button">盤面をリセット</button>
+            <div class="message" id="message"></div>
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <div class="solver-suggestion">
+            <h2>ソルバーの提案</h2>
+            <div id="solver-advice">盤面を入力してください...</div>
+        </div>
+        <div class="advice-history">
+            <h3>過去のアドバイス履歴</h3>
+            <div id="history-content">
+                <p class="info">ここに過去のアドバイスが表示されます。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 7;
+        const EMPTY = 0;
+        const PLAYER1 = 1; // 赤
+        const PLAYER2 = 2; // 黒
+
+        let board = [];
+        let selectedPlayer = PLAYER1; // 現在配置するプレイヤー
+        const adviceHistory = []; // アドバイス履歴を保存する配列
+
+        const gameBoardElement = document.getElementById('game-board');
+        const resetButton = document.getElementById('reset-button');
+        const messageElement = document.getElementById('message');
+        const solverAdviceElement = document.getElementById('solver-advice');
+        const selectPlayer1Button = document.getElementById('select-player1');
+        const selectPlayer2Button = document.getElementById('select-player2');
+        const historyContentElement = document.getElementById('history-content');
+
+        // ゲームボードの初期化
+        function initializeBoard() {
+            board = Array(ROWS).fill(0).map(() => Array(COLS).fill(EMPTY));
+            selectedPlayer = PLAYER1; // リセット時は赤を選択
+            adviceHistory.length = 0; // 履歴をクリア
+            updatePlayerSelectionButtons();
+            renderBoard();
+            updateMessage(`プレイヤー1 (赤) のディスクを配置できます`);
+            updateSolverAdvice();
+            renderHistory(); // 履歴も初期化
+        }
+
+        // ボードの描画
+        function renderBoard() {
+            gameBoardElement.innerHTML = ''; // 既存の要素をクリア
+
+            // 各列の上部にクリック可能なエリアを作成（ディスクを置くため）
+            for (let c = 0; c < COLS; c++) {
+                const columnClickArea = document.createElement('div');
+                columnClickArea.classList.add('column-click-area');
+                columnClickArea.dataset.col = c;
+                columnClickArea.style.gridColumn = `${c + 1}`;
+                columnClickArea.addEventListener('click', handleColumnClick);
+                gameBoardElement.appendChild(columnClickArea);
+            }
+
+            // ゲームセルを描画
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (board[r][c] === PLAYER1) {
+                        cell.classList.add('player1');
+                    } else if (board[r][c] === PLAYER2) {
+                        cell.classList.add('player2');
+                    }
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.style.gridRow = `${r + 1}`;
+                    cell.style.gridColumn = `${c + 1}`;
+                    // ディスク削除のためのイベントリスナーを追加
+                    cell.addEventListener('click', handleCellClick);
+                    gameBoardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // 列全体がクリックされた時の処理（ディスクを置く）
+        function handleColumnClick(event) {
+            const col = parseInt(event.target.dataset.col);
+            if (dropDisc(col, selectedPlayer)) {
+                updateMessage(`列 ${col + 1} に${selectedPlayer === PLAYER1 ? '赤' : '黒'}のディスクを配置しました。`);
+                updateSolverAdvice(); // アドバイス更新
+            } else {
+                updateMessage('その列は満杯です。別の列を選んでください。');
+            }
+        }
+
+        // セル（ディスク）がクリックされた時の処理（ディスクを消す）
+        function handleCellClick(event) {
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+
+            if (board[row][col] !== EMPTY) {
+                const originalPlayer = board[row][col]; // どのプレイヤーのディスクだったか
+                board[row][col] = EMPTY; // ディスクを空にする
+
+                // 消したディスクの上にあるディスクを落とす（重力ルール）
+                // 消した行より上にあるディスクをすべてチェックし、再配置する
+                for (let rCheck = row - 1; rCheck >= 0; rCheck--) {
+                    if (board[rCheck][col] !== EMPTY) {
+                        const discToMove = board[rCheck][col];
+                        board[rCheck][col] = EMPTY; // 一度削除
+                        // 再度、そのディスクを同じ列の最も低い位置にドロップ
+                        dropDisc(col, discToMove);
+                    }
+                }
+                renderBoard();
+                updateMessage(`列 ${col + 1}, 行 ${row + 1} の${originalPlayer === PLAYER1 ? '赤' : '黒'}のディスクを削除しました。`);
+                updateSolverAdvice(); // アドバイス更新
+            }
+        }
+
+
+        // ディスクをドロップする
+        function dropDisc(col, player, currentBoard = board) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (currentBoard[r][col] === EMPTY) {
+                    currentBoard[r][col] = player;
+                    // 実際のゲームボードにのみ描画を反映
+                    if (currentBoard === board) {
+                        renderBoard();
+                    }
+                    return true;
+                }
+            }
+            return false; // その列は満杯
+        }
+
+        // 勝敗判定
+        function checkWin(player, currentBoard = board) {
+            // 水平方向
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r][c+1] === player &&
+                        currentBoard[r][c+2] === player &&
+                        currentBoard[r][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 垂直方向
+            for (let r = 0; r <= ROWS - 4; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r+1][c] === player &&
+                        currentBoard[r+2][c] === player &&
+                        currentBoard[r+3][c] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右下がり斜め
+            for (let r = 0; r <= ROWS - 4; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r+1][c+1] === player &&
+                        currentBoard[r+2][c+2] === player &&
+                        currentBoard[r+3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = 3; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r-1][c+1] === player &&
+                        currentBoard[r-2][c+2] === player &&
+                        currentBoard[r-3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // ボードが満杯かチェック
+        function isBoardFull(currentBoard = board) {
+            return currentBoard[0].every(cell => cell !== EMPTY);
+        }
+
+        // メッセージの更新
+        function updateMessage(msg) {
+            messageElement.textContent = msg;
+        }
+
+        // ソルバーのアドバイスを更新
+        function updateSolverAdvice() {
+            const currentBoardString = JSON.stringify(board); // 現在の盤面を文字列化して履歴に追加
+            const currentAdvice = getSolverAdvice(selectedPlayer);
+            solverAdviceElement.innerHTML = currentAdvice;
+
+            // 履歴に追加
+            const timestamp = new Date().toLocaleTimeString();
+            adviceHistory.unshift({ // 最新のアドバイスを先頭に追加
+                time: timestamp,
+                player: selectedPlayer,
+                advice: currentAdvice,
+                boardState: currentBoardString // 盤面の状態も保存（オプション）
+            });
+            renderHistory();
+        }
+
+        // 指定した列で次にディスクを置ける行を取得
+        function getNextAvailableRow(col, currentBoard = board) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (currentBoard[r][col] === EMPTY) {
+                    return r;
+                }
+            }
+            return -1; // その列は満杯
+        }
+
+        // N個連続をカウントする補助関数（特定のプレイヤーの全てのN個連続パターンを数える）
+        // 相手のディスクが間にある場合は連続とみなさない
+        function countNInARow(currentBoard, player, count) {
+            let totalCount = 0;
+            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
+
+            // 水平
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let currentPlayerCount = 0;
+                    let opponentCount = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r][c + i] === player) {
+                            currentPlayerCount++;
+                        } else if (currentBoard[r][c + i] === opponent) {
+                            opponentCount++;
+                        }
+                    }
+                    if (currentPlayerCount === count && opponentCount === 0) totalCount++;
+                }
+            }
+
+            // 垂直
+            for (let r = 0; r <= ROWS - count; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let currentPlayerCount = 0;
+                    let opponentCount = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r + i][c] === player) {
+                            currentPlayerCount++;
+                        } else if (currentBoard[r + i][c] === opponent) {
+                            opponentCount++;
+                        }
+                    }
+                    if (currentPlayerCount === count && opponentCount === 0) totalCount++;
+                }
+            }
+
+            // 右下がり斜め
+            for (let r = 0; r <= ROWS - count; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let currentPlayerCount = 0;
+                    let opponentCount = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r + i][c + i] === player) {
+                            currentPlayerCount++;
+                        } else if (currentBoard[r + i][c + i] === opponent) {
+                            opponentCount++;
+                        }
+                    }
+                    if (currentPlayerCount === count && opponentCount === 0) totalCount++;
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = count - 1; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let currentPlayerCount = 0;
+                    let opponentCount = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r - i][c + i] === player) {
+                            currentPlayerCount++;
+                        } else if (currentBoard[r - i][c + i] === opponent) {
+                            opponentCount++;
+                        }
+                    }
+                    if (currentPlayerCount === count && opponentCount === 0) totalCount++;
+                }
+            }
+            return totalCount;
+        }
+
+        // 開いているN個並び（間にディスクが置けるスロットがあるN個並び）を数える
+        function countOpenNInARow(currentBoard, player, targetLength) {
+            let totalCount = 0;
+            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
+
+            // 水平
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - targetLength; c++) {
+                    let playerCount = 0;
+                    let emptyCount = 0;
+                    let isValidPath = true;
+                    for (let i = 0; i < targetLength; i++) {
+                        if (currentBoard[r][c + i] === player) {
+                            playerCount++;
+                        } else if (currentBoard[r][c + i] === EMPTY) {
+                            // 空きマスが「置ける」位置にあるかチェック
+                            if (r === ROWS - 1 || currentBoard[r + 1][c + i] !== EMPTY) {
+                                emptyCount++;
+                            } else {
+                                isValidPath = false; // 空きマスの下に空きがあるため、このパスは無効
+                                break;
+                            }
+                        } else { // 相手のディスク
+                            isValidPath = false; // 相手のディスクがあるため、このパスは無効
+                            break;
+                        }
+                    }
+                    if (isValidPath && playerCount === targetLength - 1 && emptyCount === 1) {
+                        totalCount++;
+                    }
+                }
+            }
+
+            // 垂直
+            for (let r = 0; r <= ROWS - targetLength; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let playerCount = 0;
+                    let emptyCount = 0;
+                    let isValidPath = true;
+                    for (let i = 0; i < targetLength; i++) {
+                        if (currentBoard[r + i][c] === player) {
+                            playerCount++;
+                        } else if (currentBoard[r + i][c] === EMPTY) {
+                            // 空きマスが「置ける」位置にあるかチェック
+                            if (r + i === ROWS - 1 || currentBoard[r + i + 1][c] !== EMPTY) {
+                                emptyCount++;
+                            } else {
+                                isValidPath = false;
+                                break;
+                            }
+                        } else {
+                            isValidPath = false;
+                            break;
+                        }
+                    }
+                    if (isValidPath && playerCount === targetLength - 1 && emptyCount === 1) {
+                        totalCount++;
+                    }
+                }
+            }
+
+            // 右下がり斜め
+            for (let r = 0; r <= ROWS - targetLength; r++) {
+                for (let c = 0; c <= COLS - targetLength; c++) {
+                    let playerCount = 0;
+                    let emptyCount = 0;
+                    let isValidPath = true;
+                    for (let i = 0; i < targetLength; i++) {
+                        if (currentBoard[r + i][c + i] === player) {
+                            playerCount++;
+                        } else if (currentBoard[r + i][c + i] === EMPTY) {
+                            if (r + i === ROWS - 1 || currentBoard[r + i + 1][c + i] !== EMPTY) {
+                                emptyCount++;
+                            } else {
+                                isValidPath = false;
+                                break;
+                            }
+                        } else {
+                            isValidPath = false;
+                            break;
+                        }
+                    }
+                    if (isValidPath && playerCount === targetLength - 1 && emptyCount === 1) {
+                        totalCount++;
+                    }
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = targetLength - 1; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - targetLength; c++) {
+                    let playerCount = 0;
+                    let emptyCount = 0;
+                    let isValidPath = true;
+                    for (let i = 0; i < targetLength; i++) {
+                        if (currentBoard[r - i][c + i] === player) {
+                            playerCount++;
+                        } else if (currentBoard[r - i][c + i] === EMPTY) {
+                            if (r - i === ROWS - 1 || currentBoard[r - i + 1][c + i] !== EMPTY) {
+                                emptyCount++;
+                            } else {
+                                isValidPath = false;
+                                break;
+                            }
+                        } else {
+                            isValidPath = false;
+                            break;
+                        }
+                    }
+                    if (isValidPath && playerCount === targetLength - 1 && emptyCount === 1) {
+                        totalCount++;
+                    }
+                }
+            }
+            return totalCount;
+        }
+
+
+        // ボードのコピーを作成するヘルパー関数
+        function copyBoard(originalBoard) {
+            return originalBoard.map(row => [...row]);
+        }
+
+        // プレイヤー選択ボタンのスタイル更新
+        function updatePlayerSelectionButtons() {
+            selectPlayer1Button.classList.remove('selected');
+            selectPlayer2Button.classList.remove('selected');
+            if (selectedPlayer === PLAYER1) {
+                selectPlayer1Button.classList.add('selected');
+            } else {
+                selectPlayer2Button.classList.add('selected');
+            }
+            updateMessage(`現在、プレイヤー${selectedPlayer === PLAYER1 ? '1 (赤)' : '2 (黒)'} のディスクを配置できます`);
+        }
+
+        // ソルバーのロジック（改良版）
+        function getSolverAdvice(player) {
+            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
+            let adviceHtml = '<ul>'; // リスト形式でアドバイスを構成
+            const playerColorName = player === PLAYER1 ? '赤' : '黒';
+            const opponentColorName = opponent === PLAYER1 ? '赤' : '黒';
+
+            const possibleMoves = []; // { col: int, score: int, description: string, type: string }
+
+            // ゲーム終了判定
+            if (checkWin(PLAYER1, board)) {
+                return `<p class="info">ゲームは<strong style="color: #ff4500;">プレイヤー1 (赤)</strong>の勝利で終了しています。リセットボタンで新しいゲームを開始できます。</p>`;
+            }
+            if (checkWin(PLAYER2, board)) {
+                return `<p class="info">ゲームは<strong style="color: #000000;">プレイヤー2 (黒)</strong>の勝利で終了しています。リセットボタンで新しいゲームを開始できます。</p>`;
+            }
+            if (isBoardFull(board)) {
+                return `<p class="info">盤面が満杯です。引き分けです。リセットボタンで新しいゲームを開始できます。</p>`;
+            }
+
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r === -1) {
+                    possibleMoves.push({ col: c, score: -Infinity, description: `列 ${c + 1} は満杯です。`, type: 'info' });
+                    continue;
+                }
+
+                const tempBoard = copyBoard(board);
+                tempBoard[r][c] = player;
+
+                let score = 0;
+                let desc = `列 ${c + 1}`;
+                let type = 'neutral'; // デフォルトのタイプ
+
+                // 1. 自分の勝利手
+                if (checkWin(player, tempBoard)) {
+                    score += 100000; // 非常に高いスコア
+                    desc += ` - この手で**${playerColorName}の勝利が確定します！**`;
+                    type = 'win';
+                }
+                // 2. 相手の勝利をブロック
+                else {
+                    const opponentTempBoard = copyBoard(tempBoard); // 自分が置いた後の盤面
+                    let foundOpponentWin = false;
+                    for (let oc = 0; oc < COLS; oc++) {
+                        const or = getNextAvailableRow(oc, opponentTempBoard);
+                        if (or !== -1) {
+                            opponentTempBoard[or][oc] = opponent; // 相手が置いたと仮定
+                            if (checkWin(opponent, opponentTempBoard)) {
+                                foundOpponentWin = true;
+                                break;
+                            }
+                            opponentTempBoard[or][oc] = EMPTY; // 元に戻す
+                        }
+                    }
+                    if (foundOpponentWin) {
+                        score += 50000; // ブロックは高得点
+                        desc += ` - 相手（${opponentColorName}）の**勝利を防ぐ**ことができます。`;
+                        type = 'block';
+                    }
+                }
+
+                // 3. 自分の3つ並びチャンス (次の手で4つになる可能性)
+                const playerOpenThrees = countOpenNInARow(tempBoard, player, 4); // 4つ並びが作れる場所 (3つ＋空き)
+                if (playerOpenThrees > 0) {
+                    // 既に勝利手やブロック手でない場合のみタイプを更新
+                    if (type === 'neutral') type = 'opportunity';
+                    score += playerOpenThrees * 1000;
+                    desc += ` - ${playerColorName}の**4つ並びのチャンス** (${playerOpenThrees}か所) が生まれます。`;
+                }
+
+                // 4. 相手の3つ並びチャンス (相手が次の手で4つになる可能性) - これは自分がブロックすべきもの
+                const opponentOpenThrees = countOpenNInARow(tempBoard, opponent, 4);
+                if (opponentOpenThrees > 0) {
+                    if (type === 'neutral' || type === 'opportunity') type = 'danger'; // 危険度が上がればタイプ更新
+                    score -= opponentOpenThrees * 800; // 相手にチャンスを与えると減点
+                    desc += ` - この手を置くと、相手に**4つ並びのチャンス** (${opponentOpenThrees}か所) を与える可能性があります。`;
+                }
+
+                // 5. 中央の列を優先 (戦略的な利点)
+                const centerColumnScore = [0, 1, 2, 3, 2, 1, 0]; // 中央に近いほど高いスコア
+                score += centerColumnScore[c] * 10;
+                if (centerColumnScore[c] === 3 && type === 'neutral') { // 他の優先度が高い手でなければ
+                    desc += ` - 中央の列で有利な位置です。`;
+                }
+
+                possibleMoves.push({ col: c, score: score, description: desc, type: type });
+            }
+
+            // スコアに基づいてソート (高いスコアが上位)
+            possibleMoves.sort((a, b) => b.score - a.score);
+
+            if (possibleMoves.length === 0 || possibleMoves[0].score === -Infinity) {
+                return '<p class="info">現在、ディスクを置ける場所がありません。</p>';
+            }
+
+            // --- ソルバーの提案の表示 ---
+            const bestMove = possibleMoves[0];
+
+            adviceHtml += `<li class="best"><strong>最適な一手:</strong> 列 ${bestMove.col + 1} に置くことを強く推奨します。${bestMove.description.replace(`列 ${bestMove.col + 1} - `, '')}</li>`;
+
+            adviceHtml += `<li><strong style="color: #0056b3;">その他の考慮すべき手:</strong></li>`;
+            let otherMovesCount = 0;
+            for (let i = 1; i < possibleMoves.length; i++) {
+                const move = possibleMoves[i];
+                if (move.score > -Infinity) { // 満杯でない列のみ
+                    adviceHtml += `<li class="${move.type}">${move.description} (スコア: ${move.score})</li>`;
+                    otherMovesCount++;
+                    if (otherMovesCount >= 3) break; // 上位3つ程度で十分
+                }
+            }
+            if (otherMovesCount === 0) {
+                adviceHtml += `<li class="info">他に目立った推奨手はありません。</li>`;
+            }
+
+            // --- 相手の視点での追加情報 ---
+            adviceHtml += `<br><li><strong style="color: #0056b3;">相手プレイヤー（${opponentColorName}）の視点:</strong></li>`;
+            let opponentNextMoves = [];
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    const tempBoard = copyBoard(board);
+                    tempBoard[r][c] = opponent; // 相手が置いたと仮定
+                    if (checkWin(opponent, tempBoard)) {
+                        opponentNextMoves.push(`列 ${c + 1} (勝利手)`);
+                    } else if (countOpenNInARow(tempBoard, opponent, 4) > 0) {
+                        opponentNextMoves.push(`列 ${c + 1} (4つ並びのチャンス)`);
+                    }
+                }
+            }
+            if (opponentNextMoves.length > 0) {
+                adviceHtml += `<li class="danger">もし相手の番だったら、**${opponentNextMoves.join(', ')}**のような手を考えてくる可能性があります。</li>`;
+            } else {
+                adviceHtml += `<li class="info">相手は次の手で直接的な勝利手や明確な4つ並びのチャンスは少ないようです。</li>`;
+            }
+
+            adviceHtml += `<li class="info"><em>※このソルバーは簡易的なヒューリスティックに基づいており、すべての最適解を保証するものではありません。より複雑な状況では、Minimaxなどの高度なアルゴリズムが必要です。</em></li>`;
+            adviceHtml += '</ul>';
+
+            return adviceHtml;
+        }
+
+        // 履歴をレンダリングする関数
+        function renderHistory() {
+            historyContentElement.innerHTML = '';
+            if (adviceHistory.length === 0) {
+                historyContentElement.innerHTML = '<p class="info">ここに過去のアドバイスが表示されます。</p>';
+                return;
+            }
+
+            // 最新の3つ程度だけ表示するように制限
+            const maxHistoryItems = 3;
+            for (let i = 0; i < Math.min(adviceHistory.length, maxHistoryItems); i++) {
+                const item = adviceHistory[i];
+                const historyItemDiv = document.createElement('div');
+                historyItemDiv.classList.add('history-item');
+                historyItemDiv.innerHTML = `
+                    <p><strong>${item.time} - プレイヤー${item.player === PLAYER1 ? '1 (赤)' : '2 (黒)'} の番:</strong></p>
+                    ${item.advice}
+                `;
+                historyContentElement.appendChild(historyItemDiv);
+            }
+        }
+
+
+        // イベントリスナー
+        resetButton.addEventListener('click', initializeBoard);
+        selectPlayer1Button.addEventListener('click', () => {
+            selectedPlayer = PLAYER1;
+            updatePlayerSelectionButtons();
+            updateSolverAdvice(); // プレイヤー変更時にアドバイス更新
+        });
+        selectPlayer2Button.addEventListener('click', () => {
+            selectedPlayer = PLAYER2;
+            updatePlayerSelectionButtons();
+            updateSolverAdvice(); // プレイヤー変更時にアドバイス更新
+        });
+
+        // 初期描画
+        initializeBoard();
+    </script>
+</body>
+</html>
