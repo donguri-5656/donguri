@@ -15,6 +15,8 @@
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
+            /* モバイルでのピンチズームを防ぐ */
+            touch-action: manipulation;
         }
 
         .container {
@@ -162,6 +164,7 @@
             renderBoard();
             updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黒)'} の番です`);
             updateSolverAdvice();
+            enableClicks(); // リセット時にクリックを再度有効化
         }
 
         // ボードの描画
@@ -232,14 +235,14 @@
         }
 
         // 勝敗判定
-        function checkWin(player) {
+        function checkWin(player, currentBoard = board) {
             // 水平方向
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === player &&
-                        board[r][c+1] === player &&
-                        board[r][c+2] === player &&
-                        board[r][c+3] === player) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r][c+1] === player &&
+                        currentBoard[r][c+2] === player &&
+                        currentBoard[r][c+3] === player) {
                         return true;
                     }
                 }
@@ -248,10 +251,10 @@
             // 垂直方向
             for (let r = 0; r <= ROWS - 4; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    if (board[r][c] === player &&
-                        board[r+1][c] === player &&
-                        board[r+2][c] === player &&
-                        board[r+3][c] === player) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r+1][c] === player &&
+                        currentBoard[r+2][c] === player &&
+                        currentBoard[r+3][c] === player) {
                         return true;
                     }
                 }
@@ -260,10 +263,10 @@
             // 右下がり斜め
             for (let r = 0; r <= ROWS - 4; r++) {
                 for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === player &&
-                        board[r+1][c+1] === player &&
-                        board[r+2][c+2] === player &&
-                        board[r+3][c+3] === player) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r+1][c+1] === player &&
+                        currentBoard[r+2][c+2] === player &&
+                        currentBoard[r+3][c+3] === player) {
                         return true;
                     }
                 }
@@ -272,10 +275,10 @@
             // 右上がり斜め
             for (let r = 3; r < ROWS; r++) {
                 for (let c = 0; c <= COLS - 4; c++) {
-                    if (board[r][c] === player &&
-                        board[r-1][c+1] === player &&
-                        board[r-2][c+2] === player &&
-                        board[r-3][c+3] === player) {
+                    if (currentBoard[r][c] === player &&
+                        currentBoard[r-1][c+1] === player &&
+                        currentBoard[r-2][c+2] === player &&
+                        currentBoard[r-3][c+3] === player) {
                         return true;
                     }
                 }
@@ -285,8 +288,8 @@
         }
 
         // ボードが満杯かチェック
-        function isBoardFull() {
-            return board[0].every(cell => cell !== EMPTY);
+        function isBoardFull(currentBoard = board) {
+            return currentBoard[0].every(cell => cell !== EMPTY);
         }
 
         // クリックを無効化する
@@ -298,6 +301,15 @@
             });
         }
 
+        // クリックを有効化する
+        function enableClicks() {
+            const clickAreas = document.querySelectorAll('.column-click-area');
+            clickAreas.forEach(area => {
+                area.addEventListener('click', handleColumnClick);
+                area.style.cursor = 'pointer';
+            });
+        }
+
         // メッセージの更新
         function updateMessage(msg) {
             messageElement.textContent = msg;
@@ -306,124 +318,231 @@
         // ソルバーのアドバイスを更新
         function updateSolverAdvice() {
             const advice = getSolverAdvice(currentPlayer);
-            solverAdviceElement.textContent = advice;
-        }
-
-        // ソルバーのロジック（簡易版）
-        // 次の一手で勝てる場所、相手が次の一手で勝つのを防ぐ場所などを優先的に探す
-        function getSolverAdvice(player) {
-            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
-            const possibleMoves = [];
-
-            // 1. 勝利手を探す
-            for (let c = 0; c < COLS; c++) {
-                const r = getNextAvailableRow(c);
-                if (r !== -1) {
-                    board[r][c] = player;
-                    if (checkWin(player)) {
-                        board[r][c] = EMPTY; // 元に戻す
-                        return `プレイヤー${player === PLAYER1 ? '1 (赤)' : '2 (黒)'} は、列 ${c + 1} に置けば勝利できます！`;
-                    }
-                    board[r][c] = EMPTY; // 元に戻す
-                }
-            }
-
-            // 2. 相手の勝利をブロックする手を探す
-            for (let c = 0; c < COLS; c++) {
-                const r = getNextAvailableRow(c);
-                if (r !== -1) {
-                    board[r][c] = opponent; // 相手が置いたと仮定
-                    if (checkWin(opponent)) {
-                        board[r][c] = EMPTY; // 元に戻す
-                        return `相手の勝利を防ぐために、列 ${c + 1} に置くことを検討してください。`;
-                    }
-                    board[r][c] = EMPTY; // 元に戻す
-                }
-            }
-
-            // 3. 次の勝利に繋がる可能性のある手を探す（簡単なパターン認識）
-            // 例えば、3つ並んでいる状態の隣に置く、など
-            for (let c = 0; c < COLS; c++) {
-                const r = getNextAvailableRow(c);
-                if (r !== -1) {
-                    // ここで一旦ディスクを仮置きして、その後の盤面をチェック
-                    board[r][c] = player;
-                    if (checkNInARow(board, r, c, player, 3) || // 水平に3つ
-                        (r + 1 < ROWS && checkNInARow(board, r + 1, c, player, 3)) || // 垂直に3つ（この手で4つになる場合）
-                        checkNInARowDiagonal(board, r, c, player, 3, 1) || // 右下がり3つ
-                        checkNInARowDiagonal(board, r, c, player, 3, -1)) { // 右上がり3つ
-                        possibleMoves.push(c + 1);
-                    }
-                    board[r][c] = EMPTY; // 元に戻す
-                }
-            }
-
-            if (possibleMoves.length > 0) {
-                return `列 ${possibleMoves.join(', ')} は良い手かもしれません（3つ並びなど）。`;
-            }
-
-            // 4. 中央に近い列を優先する
-            const preferredCols = [3, 2, 4, 1, 5, 0, 6];
-            for (const col of preferredCols) {
-                if (getNextAvailableRow(col) !== -1) {
-                    return `中央に近い列 ${col + 1} がおすすめです。`;
-                }
-            }
-
-            return '盤面を分析中...'; // デフォルトメッセージ
+            solverAdviceElement.innerHTML = advice; // innerHTMLを使うことでHTMLタグを反映
         }
 
         // 指定した列で次にディスクを置ける行を取得
-        function getNextAvailableRow(col) {
+        function getNextAvailableRow(col, currentBoard = board) {
             for (let r = ROWS - 1; r >= 0; r--) {
-                if (board[r][col] === EMPTY) {
+                if (currentBoard[r][col] === EMPTY) {
                     return r;
                 }
             }
             return -1; // その列は満杯
         }
 
-        // N個連続をチェックする補助関数（簡単なもの）
-        function checkNInARow(currentBoard, row, col, player, count) {
+        // N個連続をカウントする補助関数（特定のプレイヤーの全てのN個連続パターンを数える）
+        function countNInARow(currentBoard, player, count) {
+            let totalCount = 0;
+
             // 水平
-            let horizontalCount = 0;
-            for (let c = Math.max(0, col - count + 1); c <= Math.min(COLS - 1, col + count - 1); c++) {
-                if (currentBoard[row][c] === player) {
-                    horizontalCount++;
-                    if (horizontalCount >= count) return true;
-                } else {
-                    horizontalCount = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let streak = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r][c + i] === player) {
+                            streak++;
+                        } else {
+                            streak = 0;
+                            break; // 連続が途切れたら次のチェックへ
+                        }
+                    }
+                    if (streak === count) totalCount++;
                 }
             }
-            // 垂直 (上方向のみ確認)
-            let verticalCount = 0;
-            for (let r = row; r >= 0 && r > row - count; r--) {
-                if (currentBoard[r][col] === player) {
-                    verticalCount++;
-                    if (verticalCount >= count) return true;
-                } else {
-                    break; // 連続が途切れたら終了
+
+            // 垂直
+            for (let r = 0; r <= ROWS - count; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let streak = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r + i][c] === player) {
+                            streak++;
+                        } else {
+                            streak = 0;
+                            break;
+                        }
+                    }
+                    if (streak === count) totalCount++;
                 }
             }
-            return false;
+
+            // 右下がり斜め
+            for (let r = 0; r <= ROWS - count; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let streak = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r + i][c + i] === player) {
+                            streak++;
+                        } else {
+                            streak = 0;
+                            break;
+                        }
+                    }
+                    if (streak === count) totalCount++;
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = count - 1; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - count; c++) {
+                    let streak = 0;
+                    for (let i = 0; i < count; i++) {
+                        if (currentBoard[r - i][c + i] === player) {
+                            streak++;
+                        } else {
+                            streak = 0;
+                            break;
+                        }
+                    }
+                    if (streak === count) totalCount++;
+                }
+            }
+            return totalCount;
         }
 
-        function checkNInARowDiagonal(currentBoard, row, col, player, count, direction) { // direction: 1 for down-right, -1 for up-right
-            // 斜め
-            let diagCount = 0;
-            for (let i = -count + 1; i < count; i++) {
-                const r = row + i;
-                const c = col + i * direction;
-                if (r >= 0 && r < ROWS && c >= 0 && c < COLS && currentBoard[r][c] === player) {
-                    diagCount++;
-                    if (diagCount >= count) return true;
-                } else {
-                    diagCount = 0;
+        // ソルバーのロジック（簡易版）
+        function getSolverAdvice(player) {
+            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
+            let adviceHtml = '';
+            const playerColorName = player === PLAYER1 ? '赤' : '黒';
+            const opponentColorName = opponent === PLAYER1 ? '赤' : '黒';
+
+            // --- 現在のプレイヤー (自分の番) の視点 ---
+            adviceHtml += `**現在のプレイヤー（${playerColorName}）の視点:**<br>`;
+
+            // 1. 自分の勝利手を探す
+            let foundWinningMove = false;
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = player; // 仮置き
+                    if (checkWin(player)) {
+                        board[r][c] = EMPTY; // 元に戻す
+                        adviceHtml += `&emsp;・**列 ${c + 1} に置けば、${playerColorName}の勝利です！**<br>`;
+                        foundWinningMove = true;
+                        // 勝利手が見つかったら、これ以上の複雑な分析は不要なのでここで終了
+                        return adviceHtml;
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
                 }
             }
-            return false;
-        }
 
+            // 2. 相手の勝利をブロックする手を探す
+            let foundBlockingMove = false;
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = opponent; // 相手が置いたと仮定
+                    if (checkWin(opponent)) {
+                        board[r][c] = EMPTY; // 元に戻す
+                        adviceHtml += `&emsp;・**列 ${c + 1} は相手（${opponentColorName}）の勝利を防ぐために重要です。**<br>`;
+                        foundBlockingMove = true;
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+
+            // 3. 自分の3つ並びチャンスを探す（次の手で4つになる可能性）
+            let playerOpportunities = [];
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = player; // 仮置き
+                    if (countNInARow(board, player, 3) > 0) {
+                        playerOpportunities.push(`列 ${c + 1}`);
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+            if (playerOpportunities.length > 0) {
+                adviceHtml += `&emsp;・${playerColorName}は**列 ${playerOpportunities.join(', ')}**に置くことで、次の勝利につながる3つ並びの形を作れます。<br>`;
+            }
+
+            // 4. 中央に近い列を優先する (他の優先度が高い手がない場合)
+            if (!foundWinningMove && !foundBlockingMove && playerOpportunities.length === 0) {
+                const preferredCols = [3, 2, 4, 1, 5, 0, 6]; // 中央に近い列
+                let centralMoveSuggested = false;
+                for (const col of preferredCols) {
+                    if (getNextAvailableRow(col) !== -1) {
+                        adviceHtml += `&emsp;・他に目立った手がない場合、中央に近い**列 ${col + 1}**は一般的に有利な位置です。<br>`;
+                        centralMoveSuggested = true;
+                        break;
+                    }
+                }
+                if (!centralMoveSuggested) {
+                    adviceHtml += `&emsp;・現在の盤面では、特に推奨される手はありません。好きな空いている列に置いてみましょう。<br>`;
+                }
+            }
+
+            // --- 相手プレイヤーの視点 ---
+            adviceHtml += `<br>**相手プレイヤー（${opponentColorName}）の視点:**<br>`;
+
+            // 1. 相手の勝利手を探す（もし自分の番が相手だったら）
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = opponent; // 相手が置いたと仮定
+                    if (checkWin(opponent)) {
+                        board[r][c] = EMPTY; // 元に戻す
+                        adviceHtml += `&emsp;・もし相手の番だったら、**列 ${c + 1}**に置くことで${opponentColorName}が勝利できます。注意が必要です！<br>`;
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+
+            // 2. 相手が自分の勝利をブロックする可能性
+            // ここでは、自分が置いた後、相手がブロックしないと自分が勝てるような場所（危険な場所）を指摘
+            let dangerousColumnsForOpponent = [];
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = player; // 自分が仮に置いた場合
+                    // その後、相手がその列に置かないと自分が勝てるかチェック
+                    // このロジックはより複雑なMinimaxでないと完全には難しいが、簡易的に
+                    // 自分が置いた後、その列に空きがあり、相手がそこを放置すると自分が勝てる状況
+                    let opponentCanBlock = false;
+                    const nextR = getNextAvailableRow(c, board); // 自分が置いた後の次の空き
+                    if (nextR !== -1) {
+                         board[nextR][c] = opponent; // 相手がその場所をブロックした場合
+                         if (checkWin(player, board) === false) { // 自分が勝てなくなるならブロック成功
+                             opponentCanBlock = true;
+                         }
+                         board[nextR][c] = EMPTY; // 元に戻す
+                    }
+
+                    if (checkWin(player) && !opponentCanBlock) { // 自分が勝てるが、相手がブロックできない場合
+                         // このパターンは稀で、通常は直接的な勝利手として上部で検出される
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+
+
+            // 3. 相手の3つ並びチャンス（もし相手の番だったら）
+            let opponentOpportunities = [];
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = opponent; // 相手が仮置き
+                    if (countNInARow(board, opponent, 3) > 0) {
+                        opponentOpportunities.push(`列 ${c + 1}`);
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+            if (opponentOpportunities.length > 0) {
+                adviceHtml += `&emsp;・もし相手の番だったら、**列 ${opponentOpportunities.join(', ')}**で3つ並びの形を作れます。<br>`;
+            }
+
+            // アドバイスが少ない場合の補足
+            if (adviceHtml.indexOf('勝利です！') === -1 && adviceHtml.split('<br>').length < 6) { // 勝利アドバイスがなく、行数が少ない場合
+                adviceHtml += `<br>その他のアドバイス:<br>&emsp;・より詳細な分析には、本格的なAI（Minimaxなど）が必要です。このソルバーは、現在の盤面での直接的な脅威やチャンスを重点的に分析しています。<br>`;
+            }
+
+
+            return adviceHtml;
+        }
 
         // イベントリスナー
         resetButton.addEventListener('click', initializeBoard);
@@ -432,3 +551,4 @@
         initializeBoard();
     </script>
 </body>
+</html>
