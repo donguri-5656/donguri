@@ -52,21 +52,22 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: pointer;
+            cursor: pointer; /* クリック可能であることを示す */
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
             transition: background-color 0.2s ease-in-out;
         }
+
+        /* ホバー時の水色を削除 */
+        /* .cell:hover {
+            background-color: #cceeff;
+        } */
 
         .cell.player1 {
             background-color: #ff4500; /* プレイヤー1 (赤) */
         }
 
         .cell.player2 {
-            background-color: #ffd700; /* プレイヤー2 (黄) */
-        }
-
-        .cell:hover {
-            background-color: #cceeff; /* ホバー時の色 */
+            background-color: #000000; /* プレイヤー2 (黒) */
         }
 
         .controls {
@@ -137,11 +138,11 @@
         const ROWS = 6;
         const COLS = 7;
         const EMPTY = 0;
-        const PLAYER1 = 1; // 赤
-        const PLAYER2 = 2; // 黄
+        const PLAYER1 = 1; // 赤 (先行)
+        const PLAYER2 = 2; // 黒 (後攻)
 
         let board = [];
-        let currentPlayer = PLAYER1; // プレイヤー1が先行
+        let currentPlayer = PLAYER1; // プレイヤー1 (赤) が先行
 
         const gameBoardElement = document.getElementById('game-board');
         const resetButton = document.getElementById('reset-button');
@@ -153,13 +154,32 @@
             board = Array(ROWS).fill(0).map(() => Array(COLS).fill(EMPTY));
             currentPlayer = PLAYER1;
             renderBoard();
-            updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の番です`);
+            updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黒)'} の番です`);
             updateSolverAdvice();
         }
 
         // ボードの描画
         function renderBoard() {
             gameBoardElement.innerHTML = ''; // 既存のセルをクリア
+            // 各列の上部（見えない部分）にクリック可能なエリアを追加
+            for (let c = 0; c < COLS; c++) {
+                const columnClickArea = document.createElement('div');
+                columnClickArea.classList.add('column-click-area');
+                columnClickArea.dataset.col = c;
+                columnClickArea.style.gridColumn = `${c + 1}`; // CSS Gridの列指定
+                columnClickArea.style.gridRow = '1 / span 6'; // 6行全体に広げる
+                columnClickArea.style.cursor = 'pointer';
+                columnClickArea.style.position = 'absolute'; // 各セルに重ねるため
+                columnClickArea.style.width = '60px';
+                columnClickArea.style.height = '100%';
+                columnClickArea.style.zIndex = '10'; // セルより手前に表示
+                // デバッグ用: 背景色を付けるとクリックエリアが見える
+                // columnClickArea.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                columnClickArea.addEventListener('click', handleColumnClick);
+                gameBoardElement.appendChild(columnClickArea);
+            }
+
+
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const cell = document.createElement('div');
@@ -169,27 +189,26 @@
                     } else if (board[r][c] === PLAYER2) {
                         cell.classList.add('player2');
                     }
-                    // クリックイベントリスナーを追加（列のトップにドロップする）
+                    cell.dataset.row = r; // 行番号もデータ属性として保持
                     cell.dataset.col = c; // 列番号をデータ属性として保持
-                    cell.addEventListener('click', handleCellClick);
                     gameBoardElement.appendChild(cell);
                 }
             }
         }
 
-        // セルがクリックされた時の処理
-        function handleCellClick(event) {
+        // 列全体がクリックされた時の処理
+        function handleColumnClick(event) {
             const col = parseInt(event.target.dataset.col);
             if (dropDisc(col, currentPlayer)) {
                 if (checkWin(currentPlayer)) {
-                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の勝利！`);
+                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黒)'} の勝利！`);
                     disableClicks(); // ゲーム終了後はクリック無効化
                 } else if (isBoardFull()) {
                     updateMessage('引き分け！');
                     disableClicks();
                 } else {
                     currentPlayer = (currentPlayer === PLAYER1) ? PLAYER2 : PLAYER1;
-                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の番です`);
+                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黒)'} の番です`);
                     updateSolverAdvice();
                 }
             } else {
@@ -202,7 +221,7 @@
             for (let r = ROWS - 1; r >= 0; r--) {
                 if (board[r][col] === EMPTY) {
                     board[r][col] = player;
-                    renderBoard();
+                    renderBoard(); // ディスクを置いた後にボードを再描画
                     return true;
                 }
             }
@@ -269,10 +288,10 @@
 
         // クリックを無効化する
         function disableClicks() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
-                cell.removeEventListener('click', handleCellClick);
-                cell.style.cursor = 'default';
+            const clickAreas = document.querySelectorAll('.column-click-area');
+            clickAreas.forEach(area => {
+                area.removeEventListener('click', handleColumnClick);
+                area.style.cursor = 'default';
             });
         }
 
@@ -300,7 +319,7 @@
                     board[r][c] = player;
                     if (checkWin(player)) {
                         board[r][c] = EMPTY; // 元に戻す
-                        return `プレイヤー${player === PLAYER1 ? '1 (赤)' : '2 (黄)'} は、列 ${c + 1} に置けば勝利できます！`;
+                        return `プレイヤー${player === PLAYER1 ? '1 (赤)' : '2 (黒)'} は、列 ${c + 1} に置けば勝利できます！`;
                     }
                     board[r][c] = EMPTY; // 元に戻す
                 }
@@ -324,13 +343,15 @@
             for (let c = 0; c < COLS; c++) {
                 const r = getNextAvailableRow(c);
                 if (r !== -1) {
-                    // 例: 自分の2つ並びに隣接して置ける場所
-                    if (checkNInARow(board, r, c, player, 2) || // 水平
-                        (r + 1 < ROWS && checkNInARow(board, r + 1, c, player, 2)) || // 垂直
-                        (checkNInARowDiagonal(board, r, c, player, 2, 1)) || // 右下がり
-                        (checkNInARowDiagonal(board, r, c, player, 2, -1))) { // 右上がり
+                    // ここで一旦ディスクを仮置きして、その後の盤面をチェック
+                    board[r][c] = player;
+                    if (checkNInARow(board, r, c, player, 3) || // 水平に3つ
+                        (r + 1 < ROWS && checkNInARow(board, r + 1, c, player, 3)) || // 垂直に3つ（この手で4つになる場合）
+                        checkNInARowDiagonal(board, r, c, player, 3, 1) || // 右下がり3つ
+                        checkNInARowDiagonal(board, r, c, player, 3, -1)) { // 右上がり3つ
                         possibleMoves.push(c + 1);
                     }
+                    board[r][c] = EMPTY; // 元に戻す
                 }
             }
 
