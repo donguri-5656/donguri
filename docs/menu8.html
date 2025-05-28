@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four AI攻略ガイド</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        ul {
+            list-style: disc;
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        ol {
+            list-style: decimal;
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        .advice-section {
+            background-color: #e9f7ff;
+            border-left: 5px solid #007bff;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        .advice-section strong {
+            color: #0056b3;
+        }
+        .example-board {
+            display: grid;
+            grid-template-columns: repeat(7, 40px);
+            grid-template-rows: repeat(6, 40px);
+            border: 1px solid #ccc;
+            width: fit-content;
+            margin: 20px auto;
+            background-color: #007bff; /* コネクトフォーのボードの色 */
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .cell {
+            width: 38px;
+            height: 38px;
+            background-color: #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #555;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            margin: 1px; /* セル間の隙間 */
+        }
+        .cell.player1 {
+            background-color: #ff4500; /* プレイヤー1の色 (赤) */
+        }
+        .cell.player2 {
+            background-color: #ffd700; /* プレイヤー2の色 (黄) */
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #simulationOutput {
+            white-space: pre-wrap;
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connect Four AI攻略ガイド</h1>
+        <p>このページでは、<a href="https://kenrick95.github.io/c4/" target="_blank">kenrick95.github.io/c4/</a> のConnect Four AIに勝つための戦略とヒントを提供します。</p>
+
+        <div class="advice-section">
+            <h2>AI攻略の基本戦略</h2>
+            <ul>
+                <li><strong>先手を有利に進める:</strong> Connect Fourでは、中央を最初に取るプレイヤーが有利になることが多いです。</li>
+                <li><strong>フォースムーブ (強制手) を見つける:</strong> 相手に特定の列に置かざるを得ない状況を作り出すことで、勝利に近づけます。</li>
+                <li><strong>二重脅威 (Two-way threat) の作成:</strong> 2ヶ所以上で同時に勝利の形を作ることを目指します。AIは片方の脅威しか防げない場合があります。</li>
+                <li><strong>奇数・偶数列の利用:</strong> コネクトフォーでは、列の高さ（駒の数）が奇数か偶数かによって、次の手番の優位性が変わることがあります。特に終盤で重要になります。</li>
+                <li><strong>AIのパターンを学ぶ:</strong> 何度かプレイしてみて、AIがどのような状況でどのように反応するかを観察しましょう。AIは特定のパターンに強く、別のパターンに弱いことがあります。</li>
+            </ul>
+        </div>
+
+        <div class="advice-section">
+            <h2>具体的なヒント</h2>
+            <ol>
+                <li><strong>中央の列を意識する:</strong> 最も多くの勝利ラインが通る中央の列（4列目）を初期から確保することを目指しましょう。</li>
+                <li><strong>防御を怠らない:</strong> 自分の勝利形を作るだけでなく、相手の勝利形を阻止することも同じくらい重要です。</li>
+                <li><strong>「3つ並び」に注意:</strong> 相手が3つ並びを作っている場合、次の一手で負ける可能性があるので、必ず防ぎましょう。</li>
+                <li><strong>「2つ並び」から脅威を育てる:</strong> 自分の駒が2つ並んでいる場所を、将来的に3つ並びや4つ並びへと発展させることを計画します。</li>
+                <li><strong>序盤の定石を学ぶ:</strong> 特定の開始手とその後の展開について、いくつかパターンを覚えておくと有利です。</li>
+                <li><strong>詰み筋の発見:</strong> 最終盤で、相手が何を置いても自分の勝利が確定する「詰み」の形を見つける練習をしましょう。</li>
+                <li><strong>心理戦:</strong> AI相手にはあまり関係ありませんが、人間相手なら相手を誘い込む手も有効です。AIに対しても、AIが予測しやすい手をあえて打つことで、その後の展開を有利に運ぶこともできます。</li>
+            </ol>
+        </div>
+
+        <h2>盤面シミュレーション (簡易版)</h2>
+        <p>AIの反応を予測する練習に役立つかもしれない、簡易的な盤面シミュレーションです。ボタンを押すたびに、ランダムな手のシミュレーションが行われます。</p>
+        <div class="example-board" id="simulationBoard">
+            </div>
+        <button id="simulateButton">次の手をシミュレート</button>
+        <div id="simulationOutput"></div>
+
+        <p>より深く学びたい場合は、Connect Fourの「力戦定石」や「オープニング理論」について調べてみてください。</p>
+
+        <p>幸運を祈ります！</p>
+    </div>
+
+    <script>
+        const boardElement = document.getElementById('simulationBoard');
+        const simulateButton = document.getElementById('simulateButton');
+        const simulationOutput = document.getElementById('simulationOutput');
+
+        const rows = 6;
+        const cols = 7;
+        let board = Array(rows).fill(0).map(() => Array(cols).fill(0)); // 0:空, 1:プレイヤー1, 2:プレイヤー2
+
+        function createBoardCells() {
+            boardElement.innerHTML = '';
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (board[r][c] === 1) {
+                        cell.classList.add('player1');
+                    } else if (board[r][c] === 2) {
+                        cell.classList.add('player2');
+                    }
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        function dropPiece(col, player) {
+            for (let r = rows - 1; r >= 0; r--) {
+                if (board[r][col] === 0) {
+                    board[r][col] = player;
+                    return true;
+                }
+            }
+            return false; // 列が満杯
+        }
+
+        function isWinningMove(row, col, player) {
+            // 水平方向
+            let count = 0;
+            for (let c = 0; c < cols; c++) {
+                if (board[row][c] === player) {
+                    count++;
+                    if (count >= 4) return true;
+                } else {
+                    count = 0;
+                }
+            }
+
+            // 垂直方向
+            count = 0;
+            for (let r = 0; r < rows; r++) {
+                if (board[r][col] === player) {
+                    count++;
+                    if (count >= 4) return true;
+                } else {
+                    count = 0;
+                }
+            }
+
+            // 右上がり斜め
+            count = 0;
+            let r = row - Math.min(row, col);
+            let c = col - Math.min(row, col);
+            while (r < rows && c < cols) {
+                if (board[r][c] === player) {
+                    count++;
+                    if (count >= 4) return true;
+                } else {
+                    count = 0;
+                }
+                r++;
+                c++;
+            }
+
+            // 右下がり斜め
+            count = 0;
+            r = row + Math.min(rows - 1 - row, col);
+            c = col - Math.min(rows - 1 - row, col);
+            while (r >= 0 && c < cols) {
+                if (board[r][c] === player) {
+                    count++;
+                    if (count >= 4) return true;
+                } else {
+                    count = 0;
+                }
+                r--;
+                c++;
+            }
+
+            return false;
+        }
+
+        function getAvailableMoves() {
+            const moves = [];
+            for (let c = 0; c < cols; c++) {
+                if (board[0][c] === 0) { // 最上段が空ならその列はまだ置ける
+                    moves.push(c);
+                }
+            }
+            return moves;
+        }
+
+        function simulateGame() {
+            board = Array(rows).fill(0).map(() => Array(cols).fill(0));
+            createBoardCells();
+            simulationOutput.textContent = '';
+
+            let currentPlayer = 1;
+            let movesMade = 0;
+            const maxMoves = rows * cols; // 42手
+
+            while (movesMade < maxMoves) {
+                const availableMoves = getAvailableMoves();
+                if (availableMoves.length === 0) {
+                    simulationOutput.textContent += `\n引き分けです。`;
+                    break;
+                }
+
+                // AIの「次の一手」を模倣する (ここではランダムに選択)
+                const moveCol = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+                let droppedRow = -1;
+                for (let r = rows - 1; r >= 0; r--) {
+                    if (board[r][moveCol] === 0) {
+                        board[r][moveCol] = currentPlayer;
+                        droppedRow = r;
+                        break;
+                    }
+                }
+
+                if (droppedRow !== -1 && isWinningMove(droppedRow, moveCol, currentPlayer)) {
+                    createBoardCells();
+                    simulationOutput.textContent += `\nプレイヤー${currentPlayer}が勝利しました！`;
+                    break;
+                }
+
+                currentPlayer = (currentPlayer === 1) ? 2 : 1; // プレイヤー交代
+                movesMade++;
+                createBoardCells(); // 盤面を更新
+            }
+
+            if (movesMade === maxMoves && !simulationOutput.textContent.includes('勝利')) {
+                simulationOutput.textContent += `\nゲーム終了、引き分けです。`;
+            }
+        }
+
+        // 初期盤面表示
+        createBoardCells();
+        simulateButton.addEventListener('click', simulateGame);
+    </script>
+</body>
+</html>
