@@ -1,1 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four AI最適解シミュレーター</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        ul {
+            list-style: disc;
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        ol {
+            list-style: decimal;
+            margin-left: 20px;
+            margin-bottom: 20px;
+        }
+        .advice-section {
+            background-color: #e9f7ff;
+            border-left: 5px solid #007bff;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        .advice-section strong {
+            color: #0056b3;
+        }
+        .game-area {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .board-container {
+            display: inline-block;
+            background-color: #007bff; /* コネクトフォーのボードの色 */
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(7, 60px); /* 縦のサイズを少し大きく */
+            grid-template-rows: repeat(6, 60px);
+            border: 1px solid #ccc;
+            width: fit-content;
+            margin: 0 auto;
+        }
+        .cell {
+            width: 58px; /* 隙間を考慮して小さく */
+            height: 58px;
+            background-color: #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #555;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            margin: 1px; /* セル間の隙間 */
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .cell.empty:hover {
+            background-color: #e0e0e0;
+        }
+        .cell.player1 {
+            background-color: #ff4500; /* プレイヤー1の色 (赤) */
+        }
+        .cell.player2 {
+            background-color: #ffd700; /* プレイヤー2の色 (黄) */
+        }
+        .player-turn {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #0056b3;
+        }
+        .button-group button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #findOptimalMoveButton {
+            background-color: #28a745;
+            color: white;
+        }
+        #findOptimalMoveButton:hover {
+            background-color: #218838;
+        }
+        #resetBoardButton {
+            background-color: #dc3545;
+            color: white;
+        }
+        #resetBoardButton:hover {
+            background-color: #c82333;
+        }
+        #optimalMoveOutput {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border: 1px solid #cce5ff;
+            border-radius: 5px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #0056b3;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connect Four AI最適解シミュレーター</h1>
+        <p>このシミュレーターでは、<a href="https://kenrick95.github.io/c4/" target="_blank">kenrick95.github.io/c4/</a> のConnect Four AIに勝つための「次の一手」の最適解を探すお手伝いをします。</p>
+        <p>現在の盤面を入力し、「最適解を探す」ボタンを押してください。AIが次の最適な手を計算して提示します。</p>
 
+        <div class="advice-section">
+            <h2>AI攻略の基本戦略</h2>
+            <ul>
+                <li><strong>先手を有利に進める:</strong> Connect Fourでは、中央を最初に取るプレイヤーが有利になることが多いです。</li>
+                <li><strong>フォースムーブ (強制手) を見つける:</strong> 相手に特定の列に置かざるを得ない状況を作り出すことで、勝利に近づけます。</li>
+                <li><strong>二重脅威 (Two-way threat) の作成:</strong> 2ヶ所で同時に勝利の形を作ることを目指します。AIは片方の脅威しか防げない場合があります。</li>
+                <li><strong>奇数・偶数列の利用:</strong> 列の高さ（駒の数）が奇数か偶数かによって、次の手番の優位性が変わることがあります。特に終盤で重要になります。</li>
+                <li><strong>AIのパターンを学ぶ:</strong> 何度かプレイしてみて、AIがどのような状況でどのように反応するかを観察しましょう。AIは特定のパターンに強く、別のパターンに弱いことがあります。</li>
+            </ul>
+        </div>
+
+        <div class="game-area">
+            <div class="player-turn" id="playerTurn">現在のプレイヤー: プレイヤー1 (赤)</div>
+            <div class="board-container">
+                <div class="board" id="gameBoard">
+                    </div>
+            </div>
+            <div class="button-group">
+                <button id="findOptimalMoveButton">最適解を探す</button>
+                <button id="resetBoardButton">盤面をリセット</button>
+            </div>
+            <div id="optimalMoveOutput">ここにAIの最適解が表示されます。</div>
+        </div>
+
+        <p>より深く学びたい場合は、Connect Fourの「力戦定石」や「オープニング理論」について調べてみてください。</p>
+    </div>
+
+    <script>
+        const rows = 6;
+        const cols = 7;
+        const boardElement = document.getElementById('gameBoard');
+        const playerTurnElement = document.getElementById('playerTurn');
+        const findOptimalMoveButton = document.getElementById('findOptimalMoveButton');
+        const resetBoardButton = document.getElementById('resetBoardButton');
+        const optimalMoveOutput = document.getElementById('optimalMoveOutput');
+
+        let board = Array(rows).fill(0).map(() => Array(cols).fill(0)); // 0:空, 1:プレイヤー1(赤), 2:プレイヤー2(黄)
+        let currentPlayer = 1; // プレイヤー1が先行
+
+        // 盤面を初期化・描画する関数
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    updateCell(cell, board[r][c]);
+                    cell.addEventListener('click', () => handleCellClick(c));
+                    boardElement.appendChild(cell);
+                }
+            }
+            updatePlayerTurnDisplay();
+        }
+
+        // セルの表示を更新する関数
+        function updateCell(cellElement, player) {
+            cellElement.classList.remove('player1', 'player2', 'empty');
+            if (player === 1) {
+                cellElement.classList.add('player1');
+            } else if (player === 2) {
+                cellElement.classList.add('player2');
+            } else {
+                cellElement.classList.add('empty');
+            }
+        }
+
+        // プレイヤーのターン表示を更新する関数
+        function updatePlayerTurnDisplay() {
+            playerTurnElement.textContent = `現在のプレイヤー: プレイヤー${currentPlayer} (${currentPlayer === 1 ? '赤' : '黄'})`;
+        }
+
+        // セルがクリックされた時の処理 (駒を落とす)
+        function handleCellClick(col) {
+            for (let r = rows - 1; r >= 0; r--) {
+                if (board[r][col] === 0) {
+                    board[r][col] = currentPlayer;
+                    const cellElement = boardElement.querySelector(`[data-row="${r}"][data-col="${col}"]`);
+                    updateCell(cellElement, currentPlayer);
+                    
+                    // 勝利判定
+                    if (checkWin(board, currentPlayer)) {
+                        optimalMoveOutput.textContent = `プレイヤー${currentPlayer}の勝利です！`;
+                        disableBoardClicks();
+                        return;
+                    }
+                    
+                    // 引き分け判定
+                    if (getAvailableMoves(board).length === 0) {
+                        optimalMoveOutput.textContent = `引き分けです！`;
+                        disableBoardClicks();
+                        return;
+                    }
+
+                    currentPlayer = (currentPlayer === 1) ? 2 : 1;
+                    updatePlayerTurnDisplay();
+                    optimalMoveOutput.textContent = 'ここにAIの最適解が表示されます。'; // 盤面変更でリセット
+                    return;
+                }
+            }
+            optimalMoveOutput.textContent = `列 ${col + 1} は満杯です。`;
+        }
+
+        // ボードのクリックを無効にする
+        function disableBoardClicks() {
+            const cells = boardElement.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.style.pointerEvents = 'none';
+            });
+        }
+
+        // ボードのクリックを有効にする
+        function enableBoardClicks() {
+            const cells = boardElement.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.style.pointerEvents = 'auto';
+            });
+        }
+
+        // 盤面をリセットする
+        resetBoardButton.addEventListener('click', () => {
+            board = Array(rows).fill(0).map(() => Array(cols).fill(0));
+            currentPlayer = 1;
+            createBoard();
+            optimalMoveOutput.textContent = 'ここにAIの最適解が表示されます。';
+            enableBoardClicks();
+        });
+
+        // =========================================================================
+        // AI (Minimax with Alpha-Beta Pruning) ロジック
+        // =========================================================================
+
+        const WIN_SCORE = 1000000; // 勝利の評価点
+        const LOSE_SCORE = -WIN_SCORE; // 敗北の評価点
+
+        // ボードのコピーを作成するヘルパー関数
+        function copyBoard(board) {
+            return board.map(row => [...row]);
+        }
+
+        // 駒を落とせる行を見つける
+        function getNextEmptyRow(board, col) {
+            for (let r = rows - 1; r >= 0; r--) {
+                if (board[r][col] === 0) {
+                    return r;
+                }
+            }
+            return -1; // 列が満杯
+        }
+
+        // 利用可能な手（駒を置ける列）を取得する
+        function getAvailableMoves(board) {
+            const moves = [];
+            for (let c = 0; c < cols; c++) {
+                if (board[0][c] === 0) { // 最上段が空ならその列はまだ置ける
+                    moves.push(c);
+                }
+            }
+            return moves;
+        }
+
+        // 勝利判定
+        function checkWin(boardState, player) {
+            // 水平方向
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    if (boardState[r][c] === player &&
+                        boardState[r][c+1] === player &&
+                        boardState[r][c+2] === player &&
+                        boardState[r][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 垂直方向
+            for (let r = 0; r <= rows - 4; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (boardState[r][c] === player &&
+                        boardState[r+1][c] === player &&
+                        boardState[r+2][c] === player &&
+                        boardState[r+3][c] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = 3; r < rows; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    if (boardState[r][c] === player &&
+                        boardState[r-1][c+1] === player &&
+                        boardState[r-2][c+2] === player &&
+                        boardState[r-3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右下がり斜め
+            for (let r = 0; r <= rows - 4; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    if (boardState[r][c] === player &&
+                        boardState[r+1][c+1] === player &&
+                        boardState[r+2][c+2] === player &&
+                        boardState[r+3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 盤面評価関数 (Connect Four AIの賢さの鍵)
+        function evaluateBoard(boardState, player) {
+            let score = 0;
+            const opponent = (player === 1) ? 2 : 1;
+
+            // 各方向に4つの連続する駒のパターンを評価
+            function scoreWindow(window) {
+                let p1Count = 0;
+                let p2Count = 0;
+                let emptyCount = 0;
+
+                for (let piece of window) {
+                    if (piece === player) {
+                        p1Count++;
+                    } else if (piece === opponent) {
+                        p2Count++;
+                    } else {
+                        emptyCount++;
+                    }
+                }
+
+                if (p1Count === 4) return WIN_SCORE; // 4つ揃い
+                if (p2Count === 4) return LOSE_SCORE; // 相手の4つ揃い
+
+                if (p1Count === 3 && emptyCount === 1) return 100; // 3つ揃い (オープン)
+                if (p2Count === 3 && emptyCount === 1) return -90; // 相手の3つ揃い (オープン)
+
+                if (p1Count === 2 && emptyCount === 2) return 10; // 2つ揃い (オープン)
+                if (p2Count === 2 && emptyCount === 2) return -9; // 相手の2つ揃い (オープン)
+                
+                return 0;
+            }
+
+            // 中央の列を優先する (経験則)
+            for (let r = 0; r < rows; r++) {
+                if (boardState[r][3] === player) score += 3;
+                else if (boardState[r][3] === opponent) score -= 3;
+            }
+
+            // 水平方向の評価
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    const window = [boardState[r][c], boardState[r][c+1], boardState[r][c+2], boardState[r][c+3]];
+                    score += scoreWindow(window);
+                }
+            }
+
+            // 垂直方向の評価
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r <= rows - 4; r++) {
+                    const window = [boardState[r][c], boardState[r+1][c], boardState[r+2][c], boardState[r+3][c]];
+                    score += scoreWindow(window);
+                }
+            }
+
+            // 右上がり斜め方向の評価
+            for (let r = 3; r < rows; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    const window = [boardState[r][c], boardState[r-1][c+1], boardState[r-2][c+2], boardState[r-3][c+3]];
+                    score += scoreWindow(window);
+                }
+            }
+
+            // 右下がり斜め方向の評価
+            for (let r = 0; r <= rows - 4; r++) {
+                for (let c = 0; c <= cols - 4; c++) {
+                    const window = [boardState[r][c], boardState[r+1][c+1], boardState[r+2][c+2], boardState[r+3][c+3]];
+                    score += scoreWindow(window);
+                }
+            }
+
+            return score;
+        }
+
+        // Minimaxアルゴリズム (再帰関数)
+        function minimax(boardState, depth, alpha, beta, maximizingPlayer, currentPlayerValue) {
+            const opponentPlayerValue = (currentPlayerValue === 1) ? 2 : 1;
+
+            // 終了条件: 深さ制限に達したか、勝敗が決まったか、引き分け
+            if (depth === 0 || checkWin(boardState, 1) || checkWin(boardState, 2) || getAvailableMoves(boardState).length === 0) {
+                // プレイヤー1 (赤) 視点での評価
+                if (checkWin(boardState, 1)) return WIN_SCORE;
+                if (checkWin(boardState, 2)) return LOSE_SCORE;
+                return evaluateBoard(boardState, currentPlayerValue); // 深さ制限に達した場合の評価
+            }
+
+            const availableMoves = getAvailableMoves(boardState);
+
+            if (maximizingPlayer) { // AI (maximizingPlayer) の番
+                let maxEval = -Infinity;
+                for (let col of availableMoves) {
+                    const newBoard = copyBoard(boardState);
+                    const row = getNextEmptyRow(newBoard, col);
+                    if (row !== -1) {
+                        newBoard[row][col] = currentPlayerValue;
+                        const evaluation = minimax(newBoard, depth - 1, alpha, beta, false, opponentPlayerValue); // 相手の番
+                        maxEval = Math.max(maxEval, evaluation);
+                        alpha = Math.max(alpha, evaluation);
+                        if (beta <= alpha) break; // アルファベータ枝刈り
+                    }
+                }
+                return maxEval;
+            } else { // 相手プレイヤー (minimizingPlayer) の番
+                let minEval = Infinity;
+                for (let col of availableMoves) {
+                    const newBoard = copyBoard(boardState);
+                    const row = getNextEmptyRow(newBoard, col);
+                    if (row !== -1) {
+                        newBoard[row][col] = opponentPlayerValue;
+                        const evaluation = minimax(newBoard, depth - 1, alpha, beta, true, currentPlayerValue); // AIの番
+                        minEval = Math.min(minEval, evaluation);
+                        beta = Math.min(beta, evaluation);
+                        if (beta <= alpha) break; // アルファベータ枝刈り
+                    }
+                }
+                return minEval;
+            }
+        }
+
+        // 最適な手を見つける関数
+        findOptimalMoveButton.addEventListener('click', () => {
+            optimalMoveOutput.innerHTML = '計算中... <span class="loading-spinner"></span>';
+            disableBoardClicks(); // 計算中は盤面操作を無効化
+
+            // 非同期で計算を実行し、UIをブロックしない
+            setTimeout(() => {
+                const availableMoves = getAvailableMoves(board);
+                if (availableMoves.length === 0) {
+                    optimalMoveOutput.textContent = 'ゲーム終了です。';
+                    enableBoardClicks();
+                    return;
+                }
+
+                let bestMove = -1;
+                let bestScore = -Infinity; // AIにとって最高のスコア
+                const depth = 4; // 探索の深さ (調整可能、深すぎると遅くなる)
+
+                // 可能な手を評価
+                for (let col of availableMoves) {
+                    const newBoard = copyBoard(board);
+                    const row = getNextEmptyRow(newBoard, col);
+                    if (row !== -1) {
+                        newBoard[row][col] = currentPlayer; // 仮にAIの駒を置く
+                        
+                        // この一手で勝利する場合
+                        if (checkWin(newBoard, currentPlayer)) {
+                            bestMove = col;
+                            bestScore = WIN_SCORE;
+                            break; // 勝利手が見つかればそれが最適解
+                        }
+
+                        // Minimaxで相手の最善手を考慮した上での評価
+                        const score = minimax(newBoard, depth - 1, -Infinity, Infinity, false, currentPlayer); // 相手の番としてMinimaxを呼び出す
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = col;
+                        }
+                    }
+                }
+
+                if (bestMove !== -1) {
+                    let message = `最適解は **列 ${bestMove + 1}** です。`;
+                    if (bestScore === WIN_SCORE) {
+                        message += ` (この一手で勝利します！ 🎉)`;
+                    } else if (bestScore === LOSE_SCORE) {
+                        message += ` (この一手でも負けは避けられません... 😥)`;
+                    } else if (bestScore >= 500) { // 高い評価だが勝利ではない
+                        message += ` (非常に有利な局面です！)`
+                    }
+                    optimalMoveOutput.innerHTML = message;
+                } else {
+                    optimalMoveOutput.textContent = '最適な手が見つかりませんでした。'; // これは通常起こらないはず
+                }
+                enableBoardClicks(); // 計算終了後、盤面操作を有効化
+            }, 10); // 短い遅延を入れてUIをブロックしないようにする
+        });
+
+        // 初期表示
+        createBoard();
+    </script>
+</body>
+</html>
