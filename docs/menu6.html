@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four Solver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 上部に寄せる */
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 60px); /* 7列 */
+            grid-template-rows: repeat(6, 60px);    /* 6行 */
+            gap: 5px;
+            background-color: #007bff; /* 青色の盤面 */
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px auto;
+            width: fit-content; /* 内容に合わせて幅を調整 */
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: #f0f8ff; /* 穴の初期色（薄い青） */
+            border-radius: 50%; /* 丸い穴 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .cell.player1 {
+            background-color: #ff4500; /* プレイヤー1 (赤) */
+        }
+
+        .cell.player2 {
+            background-color: #ffd700; /* プレイヤー2 (黄) */
+        }
+
+        .cell:hover {
+            background-color: #cceeff; /* ホバー時の色 */
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #reset-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #reset-button:hover {
+            background-color: #218838;
+        }
+
+        .message {
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .solver-suggestion {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .solver-suggestion h2 {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        #solver-advice {
+            font-size: 1.1em;
+            color: #333;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connect Four Solver</h1>
+        <div id="game-board" class="game-board"></div>
+        <div class="controls">
+            <button id="reset-button">リセット</button>
+            <div class="message" id="message"></div>
+        </div>
+        <div class="solver-suggestion">
+            <h2>ソルバーの提案</h2>
+            <p id="solver-advice">盤面を入力してください...</p>
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 6;
+        const COLS = 7;
+        const EMPTY = 0;
+        const PLAYER1 = 1; // 赤
+        const PLAYER2 = 2; // 黄
+
+        let board = [];
+        let currentPlayer = PLAYER1; // プレイヤー1が先行
+
+        const gameBoardElement = document.getElementById('game-board');
+        const resetButton = document.getElementById('reset-button');
+        const messageElement = document.getElementById('message');
+        const solverAdviceElement = document.getElementById('solver-advice');
+
+        // ゲームボードの初期化
+        function initializeBoard() {
+            board = Array(ROWS).fill(0).map(() => Array(COLS).fill(EMPTY));
+            currentPlayer = PLAYER1;
+            renderBoard();
+            updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の番です`);
+            updateSolverAdvice();
+        }
+
+        // ボードの描画
+        function renderBoard() {
+            gameBoardElement.innerHTML = ''; // 既存のセルをクリア
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (board[r][c] === PLAYER1) {
+                        cell.classList.add('player1');
+                    } else if (board[r][c] === PLAYER2) {
+                        cell.classList.add('player2');
+                    }
+                    // クリックイベントリスナーを追加（列のトップにドロップする）
+                    cell.dataset.col = c; // 列番号をデータ属性として保持
+                    cell.addEventListener('click', handleCellClick);
+                    gameBoardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // セルがクリックされた時の処理
+        function handleCellClick(event) {
+            const col = parseInt(event.target.dataset.col);
+            if (dropDisc(col, currentPlayer)) {
+                if (checkWin(currentPlayer)) {
+                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の勝利！`);
+                    disableClicks(); // ゲーム終了後はクリック無効化
+                } else if (isBoardFull()) {
+                    updateMessage('引き分け！');
+                    disableClicks();
+                } else {
+                    currentPlayer = (currentPlayer === PLAYER1) ? PLAYER2 : PLAYER1;
+                    updateMessage(`プレイヤー${currentPlayer === PLAYER1 ? '1 (赤)' : '2 (黄)'} の番です`);
+                    updateSolverAdvice();
+                }
+            } else {
+                updateMessage('その列には置けません。別の列を選んでください。');
+            }
+        }
+
+        // ディスクをドロップする
+        function dropDisc(col, player) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][col] === EMPTY) {
+                    board[r][col] = player;
+                    renderBoard();
+                    return true;
+                }
+            }
+            return false; // その列は満杯
+        }
+
+        // 勝敗判定
+        function checkWin(player) {
+            // 水平方向
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (board[r][c] === player &&
+                        board[r][c+1] === player &&
+                        board[r][c+2] === player &&
+                        board[r][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 垂直方向
+            for (let r = 0; r <= ROWS - 4; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === player &&
+                        board[r+1][c] === player &&
+                        board[r+2][c] === player &&
+                        board[r+3][c] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右下がり斜め
+            for (let r = 0; r <= ROWS - 4; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (board[r][c] === player &&
+                        board[r+1][c+1] === player &&
+                        board[r+2][c+2] === player &&
+                        board[r+3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            // 右上がり斜め
+            for (let r = 3; r < ROWS; r++) {
+                for (let c = 0; c <= COLS - 4; c++) {
+                    if (board[r][c] === player &&
+                        board[r-1][c+1] === player &&
+                        board[r-2][c+2] === player &&
+                        board[r-3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // ボードが満杯かチェック
+        function isBoardFull() {
+            return board[0].every(cell => cell !== EMPTY);
+        }
+
+        // クリックを無効化する
+        function disableClicks() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.removeEventListener('click', handleCellClick);
+                cell.style.cursor = 'default';
+            });
+        }
+
+        // メッセージの更新
+        function updateMessage(msg) {
+            messageElement.textContent = msg;
+        }
+
+        // ソルバーのアドバイスを更新
+        function updateSolverAdvice() {
+            const advice = getSolverAdvice(currentPlayer);
+            solverAdviceElement.textContent = advice;
+        }
+
+        // ソルバーのロジック（簡易版）
+        // 次の一手で勝てる場所、相手が次の一手で勝つのを防ぐ場所などを優先的に探す
+        function getSolverAdvice(player) {
+            const opponent = (player === PLAYER1) ? PLAYER2 : PLAYER1;
+            const possibleMoves = [];
+
+            // 1. 勝利手を探す
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = player;
+                    if (checkWin(player)) {
+                        board[r][c] = EMPTY; // 元に戻す
+                        return `プレイヤー${player === PLAYER1 ? '1 (赤)' : '2 (黄)'} は、列 ${c + 1} に置けば勝利できます！`;
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+
+            // 2. 相手の勝利をブロックする手を探す
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    board[r][c] = opponent; // 相手が置いたと仮定
+                    if (checkWin(opponent)) {
+                        board[r][c] = EMPTY; // 元に戻す
+                        return `相手の勝利を防ぐために、列 ${c + 1} に置くことを検討してください。`;
+                    }
+                    board[r][c] = EMPTY; // 元に戻す
+                }
+            }
+
+            // 3. 次の勝利に繋がる可能性のある手を探す（簡単なパターン認識）
+            // 例えば、3つ並んでいる状態の隣に置く、など
+            for (let c = 0; c < COLS; c++) {
+                const r = getNextAvailableRow(c);
+                if (r !== -1) {
+                    // 例: 自分の2つ並びに隣接して置ける場所
+                    if (checkNInARow(board, r, c, player, 2) || // 水平
+                        (r + 1 < ROWS && checkNInARow(board, r + 1, c, player, 2)) || // 垂直
+                        (checkNInARowDiagonal(board, r, c, player, 2, 1)) || // 右下がり
+                        (checkNInARowDiagonal(board, r, c, player, 2, -1))) { // 右上がり
+                        possibleMoves.push(c + 1);
+                    }
+                }
+            }
+
+            if (possibleMoves.length > 0) {
+                return `列 ${possibleMoves.join(', ')} は良い手かもしれません（3つ並びなど）。`;
+            }
+
+            // 4. 中央に近い列を優先する
+            const preferredCols = [3, 2, 4, 1, 5, 0, 6];
+            for (const col of preferredCols) {
+                if (getNextAvailableRow(col) !== -1) {
+                    return `中央に近い列 ${col + 1} がおすすめです。`;
+                }
+            }
+
+            return '盤面を分析中...'; // デフォルトメッセージ
+        }
+
+        // 指定した列で次にディスクを置ける行を取得
+        function getNextAvailableRow(col) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][col] === EMPTY) {
+                    return r;
+                }
+            }
+            return -1; // その列は満杯
+        }
+
+        // N個連続をチェックする補助関数（簡単なもの）
+        function checkNInARow(currentBoard, row, col, player, count) {
+            // 水平
+            let horizontalCount = 0;
+            for (let c = Math.max(0, col - count + 1); c <= Math.min(COLS - 1, col + count - 1); c++) {
+                if (currentBoard[row][c] === player) {
+                    horizontalCount++;
+                    if (horizontalCount >= count) return true;
+                } else {
+                    horizontalCount = 0;
+                }
+            }
+            // 垂直 (上方向のみ確認)
+            let verticalCount = 0;
+            for (let r = row; r >= 0 && r > row - count; r--) {
+                if (currentBoard[r][col] === player) {
+                    verticalCount++;
+                    if (verticalCount >= count) return true;
+                } else {
+                    break; // 連続が途切れたら終了
+                }
+            }
+            return false;
+        }
+
+        function checkNInARowDiagonal(currentBoard, row, col, player, count, direction) { // direction: 1 for down-right, -1 for up-right
+            // 斜め
+            let diagCount = 0;
+            for (let i = -count + 1; i < count; i++) {
+                const r = row + i;
+                const c = col + i * direction;
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS && currentBoard[r][c] === player) {
+                    diagCount++;
+                    if (diagCount >= count) return true;
+                } else {
+                    diagCount = 0;
+                }
+            }
+            return false;
+        }
+
+
+        // イベントリスナー
+        resetButton.addEventListener('click', initializeBoard);
+
+        // 初期描画
+        initializeBoard();
+    </script>
+</body>
+</html>
