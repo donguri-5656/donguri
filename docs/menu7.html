@@ -1,1 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汎用文字列スプリッター</title>
+    <style>
+        /* 全体的なスタイル */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+        }
 
+        /* コンテナ */
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ヘッダー */
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        /* ラベル */
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 1.1em;
+        }
+
+        /* テキストエリア */
+        textarea {
+            width: calc(100% - 20px); /* 左右のpaddingを考慮 */
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95em;
+            resize: vertical; /* 垂直方向にリサイズ可能 */
+            box-sizing: border-box; /* paddingとborderをwidthに含める */
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', monospace; /* コードに適したフォント */
+        }
+
+        /* ボタン */
+        button {
+            display: block;
+            width: 200px;
+            margin: 0 auto 30px auto;
+            padding: 12px 25px;
+            background-color: #007bff; /* 青系のボタン */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            background-color: #004085;
+            transform: translateY(0);
+        }
+
+        /* 結果表示エリア */
+        .results {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .results h2 {
+            color: #34495e;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ced4da;
+            padding-bottom: 10px;
+        }
+
+        .results h3 {
+            color: #495057;
+            font-size: 1.4em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .results pre {
+            background-color: #2d2d2d; /* ダークテーマのコードブロック */
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto; /* 横スクロールを可能に */
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap; /* 自動改行 */
+            word-break: break-all; /* 長い単語でも強制改行 */
+            position: relative; /* copyボタンの基準 */
+            margin-bottom: 20px; /* 各preブロックの下に余白 */
+        }
+
+        /* コピーボタン */
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #28a745; /* 緑系のコピーボタン */
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+        }
+
+        .no-content {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px dashed #ced4da;
+        }
+
+        /* フッター */
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #777;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>汎用文字列スプリッター</h1>
+
+        <p>ここに任意のテキスト（HTML、コード、文章など）をペーストしてください。入力された文字列を文字数でほぼ半分に分割します。</p>
+
+        <label for="textInput">テキストをここにペーストしてください:</label>
+        <textarea id="textInput" placeholder="例: これは非常に長い文字列です。これを半分に分割します。"></textarea>
+
+        <button onclick="splitAndDisplay()">分割して表示</button>
+
+        <div class="results">
+            <h2>分割結果</h2>
+            <h3>Part 1</h3>
+            <pre id="textPart1" class="no-content">ここに文字列のPart 1が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('textPart1')">コピー</button>
+
+            <h3>Part 2</h3>
+            <pre id="textPart2" class="no-content">ここに文字列のPart 2が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('textPart2')">コピー</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 汎用文字列スプリッター. All rights reserved.</p>
+    </footer>
+
+    <script>
+        function splitAndDisplay() {
+            const textInput = document.getElementById('textInput').value;
+
+            if (!textInput) {
+                alert("テキストが入力されていません。");
+                return;
+            }
+
+            // 初期状態をリセット
+            const idsToReset = ['textPart1', 'textPart2'];
+            idsToReset.forEach(id => {
+                const element = document.getElementById(id);
+                element.textContent = `ここに文字列の${id.includes('1') ? 'Part 1' : 'Part 2'}が表示されます。`;
+                element.classList.add('no-content');
+            });
+
+            const textHalfLength = Math.ceil(textInput.length / 2);
+            const textPart1 = textInput.substring(0, textHalfLength);
+            const textPart2 = textInput.substring(textHalfLength);
+
+            document.getElementById('textPart1').textContent = textPart1;
+            document.getElementById('textPart2').textContent = textPart2;
+
+            document.getElementById('textPart1').classList.remove('no-content');
+            document.getElementById('textPart2').classList.remove('no-content');
+        }
+
+        // クリップボードにコピーする関数
+        async function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const textToCopy = element.textContent;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                alert('コピーしました！');
+            } catch (err) {
+                console.error('コピーに失敗しました:', err);
+                alert('コピーに失敗しました。ブラウザのセキュリティ設定を確認してください。');
+            }
+        }
+    </script>
+</body>
+</html>
