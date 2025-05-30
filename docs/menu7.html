@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML/CSS/JS スプリッター</title>
+    <style>
+        /* 全体的なスタイル */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* コンテナ */
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ヘッダー */
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        /* ラベル */
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 1.1em;
+        }
+
+        /* テキストエリア */
+        textarea {
+            width: calc(100% - 20px); /* 左右のpaddingを考慮 */
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.95em;
+            resize: vertical; /* 垂直方向にリサイズ可能 */
+            box-sizing: border-box; /* paddingとborderをwidthに含める */
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', monospace; /* コードに適したフォント */
+        }
+
+        /* ボタン */
+        button {
+            display: block;
+            width: 200px;
+            margin: 0 auto 30px auto;
+            padding: 12px 25px;
+            background-color: #28a745; /* GitHubっぽい緑 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
+        }
+
+        button:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            background-color: #1e7e34;
+            transform: translateY(0);
+        }
+
+        /* 結果表示エリア */
+        .results {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .results h2 {
+            color: #34495e;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ced4da;
+            padding-bottom: 10px;
+        }
+
+        .results pre {
+            background-color: #2d2d2d; /* ダークテーマのコードブロック */
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto; /* 横スクロールを可能に */
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap; /* 自動改行 */
+            word-break: break-all; /* 長い単語でも強制改行 */
+            position: relative; /* copyボタンの基準 */
+        }
+
+        /* コピーボタン */
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+        }
+
+        .no-content {
+            color: #6c757d;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px dashed #ced4da;
+        }
+
+        /* フッター */
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #777;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HTML/CSS/JS スプリッター</h1>
+
+        <label for="htmlInput">HTMLコンテンツをここにペーストしてください:</label>
+        <textarea id="htmlInput" placeholder="例: <html>...</html>"></textarea>
+
+        <button onclick="splitAndDisplay()">分割して表示</button>
+
+        <div class="results">
+            <h2>分割されたCSS</h2>
+            <h3>CSS Part 1</h3>
+            <pre id="cssPart1" class="no-content">ここにCSS Part 1が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('cssPart1')">コピー</button>
+
+            <h3>CSS Part 2</h3>
+            <pre id="cssPart2" class="no-content">ここにCSS Part 2が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('cssPart2')">コピー</button>
+
+            <h2>分割されたJavaScript</h2>
+            <h3>JavaScript Part 1</h3>
+            <pre id="jsPart1" class="no-content">ここにJavaScript Part 1が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('jsPart1')">コピー</button>
+
+            <h3>JavaScript Part 2</h3>
+            <pre id="jsPart2" class="no-content">ここにJavaScript Part 2が表示されます。</pre>
+            <button class="copy-btn" onclick="copyToClipboard('jsPart2')">コピー</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 HTML/CSS/JS スプリッター. All rights reserved.</p>
+    </footer>
+
+    <script>
+        function splitAndDisplay() {
+            const htmlInput = document.getElementById('htmlInput').value;
+
+            if (!htmlInput) {
+                alert("HTMLコンテンツが入力されていません。");
+                return;
+            }
+
+            // 初期状態をリセット
+            const idsToReset = ['cssPart1', 'cssPart2', 'jsPart1', 'jsPart2'];
+            idsToReset.forEach(id => {
+                const element = document.getElementById(id);
+                element.textContent = `ここに${id.includes('css') ? 'CSS' : 'JavaScript'} ${id.includes('1') ? 'Part 1' : 'Part 2'}が表示されます。`;
+                element.classList.add('no-content');
+            });
+
+
+            // CSSの抽出と分割
+            const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+            let cssContent = '';
+            let match;
+            while ((match = styleRegex.exec(htmlInput)) !== null) {
+                cssContent += match[1].trim() + '\n';
+            }
+
+            if (cssContent) {
+                const cssHalfLength = Math.ceil(cssContent.length / 2);
+                document.getElementById('cssPart1').textContent = cssContent.substring(0, cssHalfLength);
+                document.getElementById('cssPart2').textContent = cssContent.substring(cssHalfLength);
+                document.getElementById('cssPart1').classList.remove('no-content');
+                document.getElementById('cssPart2').classList.remove('no-content');
+            } else {
+                document.getElementById('cssPart1').textContent = "HTML内にCSSが見つかりませんでした。";
+                document.getElementById('cssPart2').textContent = "HTML内にCSSが見つかりませんでした。";
+            }
+
+            // JavaScriptの抽出と分割
+            const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+            let jsContent = '';
+            while ((match = scriptRegex.exec(htmlInput)) !== null) {
+                if (!match[0].includes('src=')) { // src属性を持つ外部スクリプトは無視
+                    jsContent += match[1].trim() + '\n';
+                }
+            }
+
+            if (jsContent) {
+                const jsHalfLength = Math.ceil(jsContent.length / 2);
+                document.getElementById('jsPart1').textContent = jsContent.substring(0, jsHalfLength);
+                document.getElementById('jsPart2').textContent = jsContent.substring(jsHalfLength);
+                document.getElementById('jsPart1').classList.remove('no-content');
+                document.getElementById('jsPart2').classList.remove('no-content');
+            } else {
+                document.getElementById('jsPart1').textContent = "HTML内にJavaScriptが見つかりませんでした。";
+                document.getElementById('jsPart2').textContent = "HTML内にJavaScriptが見つかりませんでした。";
+            }
+        }
+
+        // クリップボードにコピーする関数
+        async function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const textToCopy = element.textContent;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                alert('コピーしました！');
+            } catch (err) {
+                console.error('コピーに失敗しました:', err);
+                alert('コピーに失敗しました。ブラウザのセキュリティ設定を確認してください。');
+            }
+        }
+    </script>
+</body>
+</html>
