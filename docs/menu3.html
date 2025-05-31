@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Mobile Maze</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+            -ms-touch-action: none;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+            pointer-events: auto;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .move-button {
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border-radius: 5px;
+            user-select: none;
+            touch-action: manipulation;
+            pointer-events: auto;
+        }
+        .move-button:active {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.8em;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+        #minimapCanvas {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border: 2px solid #333;
+            background-color: rgba(0, 0, 0, 1); /* 未探索部分を完全に真っ暗に */
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="moveLeft" class="move-button">←</button>
+        <button id="moveForward" class="move-button">↑</button>
+        <button id="moveBackward" class="move-button">↓</button>
+        <button id="moveRight" class="move-button">→</button>
+    </div>
+    <div id="message"></div>
+    <canvas id="minimapCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js シーンの設定
+        let scene, camera, renderer;
+        const CELL_SIZE = 10;
+        const WALL_HEIGHT = 5;
+        const PLAYER_HEIGHT = 1.8;
+        const PLAYER_RADIUS = CELL_SIZE * 0.05; 
+        const PLAYER_SPEED = 0.15;
+        const ROTATION_SPEED_DRAG = 0.005;
+
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        let rotationTouchId = -1;
+
+        const mazeWidth = 15;
+        const mazeHeight = 15;
+
+        let mazeCells;
+        let startX, startZ, endX, endZ;
+
+        // ミニマップ関連
+        let minimapCanvas, minimapCtx;
+        const MINIMAP_CELL_SIZE = 10;
+        const MINIMAP_WIDTH = mazeWidth * MINIMAP_CELL_SIZE;
+        const MINIMAP_HEIGHT = mazeHeight * MINIMAP_CELL_SIZE;
+        let visitedCells; // 訪れた通路を記録する配列（明確に表示）
+        let revealedCells; // 視界に入ったセル（壁も含む）を記録する配列（表示し続ける）
+
+        // ゲームの初期化と開始を直接呼び出す
+        window.onload = () => {
+            init();
+            initMinimap();
+            animate();
+        };
+
+        function showMessage(msg, duration = 2000) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = msg;
+            messageDiv.style.display = 'block';
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, duration);
+        }
+
+        // 迷路生成（プリム法をベースに）
+        function generateMaze(width, height) {
+            if (width % 2 === 0) width++;
+            if (height % 2 === 0) height++;
+            if (width < 3) width = 3;
+            if (height < 3) height = 3;
+
+            const grid = Array(height).fill(null).map(() => Array(width).fill(1)); // 1: 壁, 0: 通路
+
+            const startCell = { x: 1, y: 1 };
+            grid[startCell.y][startCell.x] = 0;
+
+            const frontiers = [];
+            const addFrontiers = (x, y) => {
+                const directions = [
+                    { nx: x - 2, ny: y, wallX: x - 1, wallY: y },
+                    { nx: x + 2, ny: y, wallX: x + 1, wallY: y },
+                    { nx: x, ny: y - 2, wallX: x, wallY: y - 1 },
+                    { nx: x, ny: y + 2, wallX: x, wallY: y + 1 }
+                ];
+                directions.forEach(dir => {
+                    if (dir.nx >= 0 && dir.nx < width && dir.ny >= 0 && dir.ny < height && grid[dir.ny][dir.nx] === 1) {
+                        frontiers.push({ x: dir.nx, y: dir.ny, wallX: dir.wallX, wallY: dir.wallY });
+                    }
+                });
+            };
+
+            addFrontiers(startCell.x, startCell.y);
+
+            while (frontiers.length > 0) {
+                const randIndex = Math.floor(Math.random() * frontiers.length);
+                const current = frontiers.splice(randIndex, 1)[0];
+
+                if (grid[current.y][current.x] === 1) {
+                    grid[current.y][current.x] = 0;
+                    grid[current.wallY][current.wallX] = 0;
+                    addFrontiers(current.x, current.y);
+                }
+            }
+
+            startX = 1;
+            startZ = 1;
+            endX = width - 2;
+            endZ = height - 2;
+
+            grid[startZ][startX] = 0;
+            grid[endZ][endX] = 0;
+
+            return grid;
+        }
+
+        // Three.jsの初期化
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // 空の色
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = PLAYER_HEIGHT;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            mazeCells = generateMaze(mazeWidth, mazeHeight);
+            drawMaze();
+
+            camera.position.set(startX * CELL_SIZE + CELL_SIZE / 2, PLAYER_HEIGHT, startZ * CELL_SIZE + CELL_SIZE / 2);
+
+            // 環境光と方向性光源を削除しました
+
+            window.addEventListener('resize', onWindowResize);
+
+            const moveButtons = document.querySelectorAll('.move-button');
+            moveButtons.forEach(button => {
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    switch(button.id) {
+                        case 'moveForward': moveForward = true; break;
+                        case 'moveBackward': moveBackward = true; break;
+                        case 'moveLeft': moveLeft = true; break;
+                        case 'moveRight': moveRight = true; break;
+                    }
+                }, { passive: false });
+
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    switch(button.id) {
+                        case 'moveForward': moveForward = false; break;
+                        case 'moveBackward': moveBackward = false; break;
+                        case 'moveLeft': moveLeft = false; break;
+                        case 'moveRight': moveRight = false; break;
+                    }
+                }, { passive: false });
+            });
+
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+            renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
+            renderer.domElement.addEventListener('pointerup', onPointerUp);
+            renderer.domElement.addEventListener('pointercancel', onPointerUp);
+        }
+
+        function drawMaze() {
+            // マテリアルを MeshBasicMaterial に変更
+            const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // 壁の色は茶色
+            const floorMaterial = new THREE.MeshBasicMaterial({ color: 0x6B8E23 }); // 床の色
+
+            const floorGeometry = new THREE.PlaneGeometry(mazeWidth * CELL_SIZE, mazeHeight * CELL_SIZE);
+            const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.position.set(mazeWidth * CELL_SIZE / 2, 0, mazeHeight * CELL_SIZE / 2);
+            scene.add(floorMesh);
+
+            for (let z = 0; z < mazeHeight; z++) {
+                for (let x = 0; x < mazeWidth; x++) {
+                    if (mazeCells[z][x] === 1) { // 壁
+                        const wallGeometry = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
+                        const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+                        wallMesh.position.set(x * CELL_SIZE + CELL_SIZE / 2, WALL_HEIGHT / 2, z * CELL_SIZE + CELL_SIZE / 2);
+                        scene.add(wallMesh);
+                    }
+                }
+            }
+
+            // スタートとゴールのマテリアルは元々 MeshBasicMaterial なので変更不要
+            const startGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.8, 0.1, CELL_SIZE * 0.8);
+            const startMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+            const startMesh = new THREE.Mesh(startGeometry, startMaterial);
+            startMesh.position.set(startX * CELL_SIZE + CELL_SIZE / 2, 0.05, startZ * CELL_SIZE + CELL_SIZE / 2);
+            scene.add(startMesh);
+
+            const endGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.8, 0.1, CELL_SIZE * 0.8);
+            const endMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+            const endMesh = new THREE.Mesh(endGeometry, endMaterial);
+            endMesh.position.set(endX * CELL_SIZE + CELL_SIZE / 2, 0.05, endZ * CELL_SIZE + CELL_SIZE / 2);
+            scene.add(endMesh);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onPointerDown(event) {
+            if (rotationTouchId === -1 && (event.pointerType === 'touch' || (event.pointerType === 'mouse' && event.button === 0))) {
+                rotationTouchId = event.pointerId;
+                prevTouch = { x: event.clientX, y: event.clientY };
+            }
+            event.preventDefault();
+        }
+
+        function onPointerMove(event) {
+            if (rotationTouchId === event.pointerId && prevTouch) {
+                const currentTouch = { x: event.clientX, y: event.clientY };
+
+                const deltaX = currentTouch.x - prevTouch.x;
+                const deltaY = currentTouch.y - prevTouch.y;
+
+                const currentEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                
+                currentEuler.y -= deltaX * ROTATION_SPEED_DRAG;
+                currentEuler.x -= deltaY * ROTATION_SPEED_DRAG;
+
+                const maxPitch = Math.PI / 2 * 0.9;
+                currentEuler.x = Math.max(-maxPitch, Math.min(maxPitch, currentEuler.x));
+
+                currentEuler.z = 0;
+
+                camera.quaternion.setFromEuler(currentEuler);
+
+                prevTouch = currentTouch;
+            }
+            event.preventDefault();
+        }
+
+        function onPointerUp(event) {
+            if (rotationTouchId === event.pointerId) {
+                rotationTouchId = -1;
+                prevTouch = null;
+            }
+        }
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = true;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = true;
+                    break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = false;
+                    break;
+            }
+        }
+
+        function checkCollision(targetX, targetZ) {
+            const playerMinX = targetX - PLAYER_RADIUS;
+            const playerMaxX = targetX + PLAYER_RADIUS;
+            const playerMinZ = targetZ - PLAYER_RADIUS;
+            const playerMaxZ = targetZ + PLAYER_RADIUS;
+
+            const minCheckX = Math.floor(playerMinX / CELL_SIZE);
+            const maxCheckX = Math.floor(playerMaxX / CELL_SIZE);
+            const minCheckZ = Math.floor(playerMinZ / CELL_SIZE);
+            const maxCheckZ = Math.floor(playerMaxZ / CELL_SIZE);
+
+            for (let checkZ = minCheckZ; checkZ <= maxCheckZ; checkZ++) {
+                for (let checkX = minCheckX; checkX <= maxCheckX; checkX++) {
+                    if (checkX < 0 || checkX >= mazeWidth || checkZ < 0 || checkZ >= mazeHeight) {
+                        return true;
+                    }
+                    
+                    if (mazeCells[checkZ][checkX] === 1) { // 壁
+                        const wallMinX = checkX * CELL_SIZE;
+                        const wallMaxX = (checkX + 1) * CELL_SIZE;
+                        const wallMinZ = checkZ * CELL_SIZE;
+                        const wallMaxZ = (checkZ + 1) * CELL_SIZE;
+
+                        const closestX = Math.max(wallMinX, Math.min(targetX, wallMaxX));
+                        const closestZ = Math.max(wallMinZ, Math.min(targetZ, wallMaxZ));
+
+                        const distanceX = targetX - closestX;
+                        const distanceZ = targetZ - closestZ;
+                        const distanceSquared = (distanceX * distanceX) + (distanceZ * distanceZ);
+
+                        if (distanceSquared < (PLAYER_RADIUS * PLAYER_RADIUS)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // ミニマップの初期化
+        function initMinimap() {
+            minimapCanvas = document.getElementById('minimapCanvas');
+            minimapCtx = minimapCanvas.getContext('2d');
+            minimapCanvas.width = MINIMAP_WIDTH;
+            minimapCanvas.height = MINIMAP_HEIGHT;
+
+            visitedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
+            revealedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
+
+            drawInitialMinimap();
+        }
+
+        // ミニマップの初期描画（スタート、ゴールのみ、背景は真っ暗）
+        function drawInitialMinimap() {
+            minimapCtx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+            minimapCtx.fillStyle = 'rgba(0,0,0,1)';
+            minimapCtx.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+
+            minimapCtx.fillStyle = '#00FF00'; // 緑
+            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+            revealedCells[startZ][startX] = true;
+
+            minimapCtx.fillStyle = '#FF0000'; // 赤
+            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+            revealedCells[endZ][endX] = true;
+        }
+
+        // ミニマップの更新（探索型表示）
+        function updateMinimap() {
+            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
+
+            if (currentMazeX >= 0 && currentMazeX < mazeWidth && currentMazeZ >= 0 && currentMazeZ < mazeHeight) {
+                visitedCells[currentMazeZ][currentMazeX] = true;
+                revealedCells[currentMazeZ][currentMazeX] = true;
+            }
+
+            const REVEAL_RADIUS = 2; // 周囲2マスまで表示
+
+            minimapCtx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+            minimapCtx.fillStyle = 'rgba(0,0,0,1)';
+            minimapCtx.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+
+            // プレイヤーの視界に入ったセルをrevealedCellsに記録
+            for (let zOffset = -REVEAL_RADIUS; zOffset <= REVEAL_RADIUS; zOffset++) {
+                for (let xOffset = -REVEAL_RADIUS; xOffset <= REVEAL_RADIUS; xOffset++) {
+                    const checkX = currentMazeX + xOffset;
+                    const checkZ = currentMazeZ + zOffset;
+
+                    if (checkX >= 0 && checkX < mazeWidth && checkZ >= 0 && checkZ < mazeHeight) {
+                        const distSq = xOffset * xOffset + zOffset * zOffset;
+                        const radiusSq = REVEAL_RADIUS * REVEAL_RADIUS;
+                        if (distSq <= radiusSq) {
+                            revealedCells[checkZ][checkX] = true;
+                        }
+                    }
+                }
+            }
+
+            // revealedCellsに記録されているセルのみを描画 (全て明確な色)
+            for (let z = 0; z < mazeHeight; z++) {
+                for (let x = 0; x < mazeWidth; x++) {
+                    if (revealedCells[z][x]) { // 過去に一度でも見えたセル
+                        if (mazeCells[z][x] === 1) { // 壁
+                            minimapCtx.fillStyle = '#8B4513'; // 3D空間の壁と同じ茶色
+                        } else { // 通路
+                            minimapCtx.fillStyle = '#ADD8E6'; // ライトブルー
+                        }
+                        minimapCtx.fillRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+                        minimapCtx.strokeStyle = '#999'; // グリッド線
+                        minimapCtx.strokeRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+                    }
+                }
+            }
+
+            // スタートとゴールは常に表示
+            minimapCtx.fillStyle = '#00FF00'; // 緑
+            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+
+            minimapCtx.fillStyle = '#FF0000'; // 赤
+            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+
+            // プレイヤー位置の描画
+            const playerMinimapX = (camera.position.x / CELL_SIZE) * MINIMAP_CELL_SIZE;
+            const playerMinimapZ = (camera.position.z / CELL_SIZE) * MINIMAP_CELL_SIZE;
+            minimapCtx.fillStyle = 'blue';
+            minimapCtx.beginPath();
+            minimapCtx.arc(playerMinimapX, playerMinimapZ, MINIMAP_CELL_SIZE * 0.4, 0, Math.PI * 2, false);
+            minimapCtx.fill();
+        }
+
+        // ゲームループ
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const prevPosition = camera.position.clone();
+            const moveDirection = new THREE.Vector3();
+
+            let targetPosition = camera.position.clone();
+
+            if (moveForward) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                targetPosition.addScaledVector(moveDirection, PLAYER_SPEED);
+            }
+            if (moveBackward) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                targetPosition.addScaledVector(moveDirection, -PLAYER_SPEED);
+            }
+
+            if (moveLeft) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                const left = new THREE.Vector3().crossVectors(camera.up, moveDirection);
+                targetPosition.addScaledVector(left, PLAYER_SPEED);
+            }
+            if (moveRight) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                const right = new THREE.Vector3().crossVectors(moveDirection, camera.up);
+                targetPosition.addScaledVector(right, PLAYER_SPEED);
+            }
+
+            if (targetPosition.x !== camera.position.x || targetPosition.z !== camera.position.z) {
+                if (checkCollision(targetPosition.x, targetPosition.z)) {
+                    camera.position.copy(prevPosition);
+                } else {
+                    camera.position.copy(targetPosition);
+                }
+            }
+            
+            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
+            
+            if (currentMazeX === endX && currentMazeZ === endZ) {
+                showMessage("ゴール！おめでとう！", 5000);
+                cancelAnimationFrame(animate);
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            }
+
+            renderer.render(scene, camera);
+            updateMinimap(); // ミニマップの更新
+        }
+    </script>
+</body>
+</html>
