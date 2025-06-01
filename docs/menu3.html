@@ -1,1 +1,896 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3Dモバイル迷路</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            touch-action: none; /* デフォルトのタッチアクションを無効にする */
+            -ms-touch-action: none;
+        }
+        canvas {
+            display: block;
+            touch-action: none; /* canvas上でのタッチアクションを無効にする */
+            pointer-events: auto; /* イベントを有効にする */
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: nowrap; /* ボタンが多いため折り返しを許可しない */
+            justify-content: space-between; /* 左右に配置 */
+            width: 95%; /* 画面幅に合わせて調整 */
+            max-width: 800px; /* 広がりすぎないように最大幅を設定 */
+            gap: 10px;
+            z-index: 10;
+            pointer-events: auto; /* ボタン上でのイベントを有効にする */
+        }
+        #left-controls, #right-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center; /* 内部で中央揃え */
+        }
+        #left-controls {
+            flex-direction: column; /* 縦に並べる */
+            align-items: flex-start; /* 左寄せ */
+        }
+        #right-controls {
+            flex-direction: column; /* 縦に並べる */
+            align-items: flex-end; /* 右寄せ */
+        }
 
+        /* 移動ボタンのレイアウトを調整 */
+        .movement-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 5px; /* ボタン間の隙間 */
+        }
+
+        #moveForward { grid-area: 1 / 2 / 2 / 3; } /* 1行目2列目 */
+        #moveLeft    { grid-area: 2 / 1 / 3 / 2; } /* 2行目1列目 */
+        #moveBackward{ grid-area: 2 / 2 / 3 / 3; } /* 2行目2列目 */
+        #moveRight   { grid-area: 2 / 3 / 3 / 4; } /* 2行目3列目 */
+        /* その他のセルは空けておく */
+
+        .move-button, .jump-button, #secretJumpToggle {
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border-radius: 5px;
+            user-select: none; /* テキスト選択を無効にする */
+            touch-action: manipulation; /* ダブルタップズームなどを防ぐ */
+            pointer-events: auto; /* イベントを有効にする */
+        }
+        .move-button:active, .jump-button:active, #secretJumpToggle:active {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.8em;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+        #minimapCanvas {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border: 2px solid #333;
+            background-color: rgba(0, 0, 0, 1); /* 未探索部分を完全に真っ暗に */
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div id="left-controls">
+            <div class="movement-grid">
+                <button id="moveForward" class="move-button">↑</button>
+                <button id="moveLeft" class="move-button">←</button>
+                <button id="moveBackward" class="move-button">↓</button>
+                <button id="moveRight" class="move-button">→</button>
+            </div>
+        </div>
+        <div id="right-controls">
+            <button id="jump" class="jump-button">ジャンプ</button>
+        </div>
+    </div>
+    <div id="message"></div>
+    <canvas id="minimapCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Three.js シーンの設定
+        let scene, camera, renderer;
+        const CELL_SIZE = 10; // 迷路の1マスのサイズ
+        const WALL_HEIGHT = 5; // 壁の高さ
+        const PLAYER_HEIGHT = 1.8; // プレイヤーの目の高さ (地面からの高さ)
+        // PLAYER_RADIUS をさらに小さくしました。
+        // これにより、道幅に十分な余裕ができ、広く感じられるはずです。
+        const PLAYER_RADIUS = CELL_SIZE * 0.1; // プレイヤーの当たり判定半径 (さらに調整)
+        const PLAYER_SPEED = 0.15; // プレイヤーの移動速度
+        const ROTATION_SPEED_DRAG = 0.005; // ドラッグによる視点回転速度
+
+        // ジャンプ関連の定数
+        const PLAYER_JUMP_VELOCITY = 1.2; // 隠しジャンプ初速度 (隠しジャンプを高く調整)
+        const NORMAL_JUMP_VELOCITY = 0.7; // 通常ジャンプの初速度 (もう少し高く調整)
+        const GRAVITY = 0.04; // 重力加速度 (少し緩やかに)
+
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let isJumping = false; // ジャンプ中フラグ
+        let verticalVelocity = 0; // 垂直方向の速度
+
+        let rotationTouchId = -1; // 視点操作用のタッチID
+        let prevTouch = null; // 視点操作用の前回のタッチ位置
+
+        const mazeWidth = 15; // 迷路の幅
+        const mazeHeight = 15; // 迷路の高さ
+
+        let mazeCells; // 迷路のデータ (1: 壁, 0: 通路)
+        let startX, startZ, endX, endZ; // スタートとゴールの座標
+
+        // ミニマップ関連
+        let minimapCanvas, minimapCtx;
+        const MINIMAP_CELL_SIZE = 10; // ミニマップの1マスのサイズ
+        const MINIMAP_WIDTH = mazeWidth * MINIMAP_CELL_SIZE;
+        const MINIMAP_HEIGHT = mazeHeight * MINIMAP_CELL_SIZE;
+        let visitedCells; // 訪れた通路を記録する配列（明確に表示）
+        let revealedCells; // 視界に入ったセル（壁も含む）を記録する配列（表示し続ける）
+
+        // 隠しコマンド関連
+        const commandSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight']; // キーボードコマンド
+        const mobileCommandSequence = ['Up', 'Up', 'Down', 'Down', 'Left', 'Right', 'Left', 'Right']; // モバイルボタンコマンド (内部表現)
+        let inputHistory = []; // 入力履歴
+        const COMMAND_MAX_LENGTH = 8; // コマンドの最大長
+        let secretJumpActive = false; // 隠しジャンプ有効フラグ
+
+        // ゲームの初期化と開始を直接呼び出す
+        window.onload = () => {
+            init();
+            initMinimap();
+            animate();
+        };
+
+        // メッセージ表示関数
+        function showMessage(msg, duration = 2000) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = msg;
+            messageDiv.style.display = 'block';
+            if (duration > 0) {
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, duration);
+            }
+        }
+
+        // 迷路生成（プリム法をベースに）
+        function generateMaze(width, height) {
+            // 幅と高さを奇数に調整し、最小値を設定
+            if (width % 2 === 0) width++;
+            if (height % 2 === 0) height++;
+            if (width < 3) width = 3;
+            if (height < 3) height = 3;
+
+            const grid = Array(height).fill(null).map(() => Array(width).fill(1)); // 1: 壁, 0: 通路
+
+            const startCell = { x: 1, y: 1 };
+            grid[startCell.y][startCell.x] = 0; // スタート地点を通路にする
+
+            const frontiers = []; // 未探索の隣接セル
+            const addFrontiers = (x, y) => {
+                const directions = [
+                    { nx: x - 2, ny: y, wallX: x - 1, wallY: y }, // 左
+                    { nx: x + 2, ny: y, wallX: x + 1, wallY: y }, // 右
+                    { nx: x, ny: y - 2, wallX: x, wallY: y - 1 }, // 上
+                    { nx: x, ny: y + 2, wallX: x, wallY: y + 1 }  // 下
+                ];
+                directions.forEach(dir => {
+                    // グリッド範囲内で、まだ壁のセルであれば未探索に追加
+                    if (dir.nx >= 0 && dir.nx < width && dir.ny >= 0 && dir.ny < height && grid[dir.ny][dir.nx] === 1) {
+                        frontiers.push({ x: dir.nx, y: dir.ny, wallX: dir.wallX, wallY: dir.wallY });
+                    }
+                });
+            };
+
+            addFrontiers(startCell.x, startCell.y);
+
+            while (frontiers.length > 0) {
+                const randIndex = Math.floor(Math.random() * frontiers.length);
+                const current = frontiers.splice(randIndex, 1)[0]; // ランダムに1つ選択し、削除
+
+                if (grid[current.y][current.x] === 1) { // まだ壁であれば通路にする
+                    grid[current.y][current.x] = 0;
+                    grid[current.wallY][current.wallX] = 0; // その間の壁も通路にする
+                    addFrontiers(current.x, current.y); // 新しく通路になったセルの隣接セルを未探索に追加
+                }
+            }
+
+            // スタートとゴールを設定
+            startX = 1;
+            startZ = 1;
+            endX = width - 2;
+            endZ = height - 2;
+
+            grid[startZ][startX] = 0; // スタートを通路にする
+            grid[endZ][endX] = 0;     // ゴールを通路にする
+
+            return grid;
+        }
+
+        // Three.jsの初期化
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // 空の色 (水色)
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = PLAYER_HEIGHT; // プレイヤーの目の高さにカメラを設置
+
+            renderer = new THREE.WebGLRenderer({ antialias: true }); // アンチエイリアスを有効に
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            mazeCells = generateMaze(mazeWidth, mazeHeight); // 迷路を生成
+            drawMaze(); // 迷路を3D空間に描画
+
+            // カメラの初期位置をスタート地点に設定
+            camera.position.set(startX * CELL_SIZE + CELL_SIZE / 2, PLAYER_HEIGHT, startZ * CELL_SIZE + CELL_SIZE / 2);
+
+            // 光源の追加 (壁の前後を明確にするため)
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6); // 半球光源 (空と地面からの光)
+            scene.add(hemisphereLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // 平行光源 (太陽のような光)
+            directionalLight.position.set(10, 20, 10); // 光源の位置
+            scene.add(directionalLight);
+
+            // ウィンドウのリサイズイベントリスナー
+            window.addEventListener('resize', onWindowResize);
+
+            // モバイル操作ボタンのイベントリスナー
+            const moveButtons = document.querySelectorAll('.move-button');
+            moveButtons.forEach(button => {
+                button.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // デフォルトのイベントを防ぐ
+                    handleMoveStart(button.id);
+                }, { passive: false }); // passive: false で preventDefault を有効にする
+
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    handleMoveEnd(button.id);
+                }, { passive: false });
+            });
+
+            // ジャンプボタンのイベントリスナー
+            document.getElementById('jump').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                jump();
+            }, { passive: false });
+            document.getElementById('jump').addEventListener('click', () => { // PCからのクリックも対応
+                jump();
+            });
+
+            // キーボードイベントリスナー (PC操作用)
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            // 視点回転のためのポインターイベントリスナー
+            renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+            renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
+            renderer.domElement.addEventListener('pointerup', onPointerUp);
+            renderer.domElement.addEventListener('pointercancel', onPointerUp);
+        }
+
+        // モバイル移動ボタン開始時の処理
+        function handleMoveStart(buttonId) {
+            switch(buttonId) {
+                case 'moveForward': moveForward = true; inputHistory.push('Up'); break;
+                case 'moveBackward': moveBackward = true; inputHistory.push('Down'); break;
+                case 'moveLeft': moveLeft = true; inputHistory.push('Left'); break;
+                case 'moveRight': moveRight = true; inputHistory.push('Right'); break;
+            }
+            checkSecretCommand();
+        }
+
+        // モバイル移動ボタン終了時の処理
+        function handleMoveEnd(buttonId) {
+            switch(buttonId) {
+                case 'moveForward': moveForward = false; break;
+                case 'moveBackward': moveBackward = false; break;
+                case 'moveLeft': moveLeft = false; break;
+                case 'moveRight': moveRight = false; break;
+            }
+        }
+
+        // 迷路の描画
+        function drawMaze() {
+            // 壁と床のマテリアルを変更
+            const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xA0522D }); // 壁の色はシエナ (茶色系)
+            const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x6B8E23 }); // 床の色 (オリーブドラブ)
+
+            // 床の作成
+            const floorGeometry = new THREE.PlaneGeometry(mazeWidth * CELL_SIZE, mazeHeight * CELL_SIZE);
+            const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+            floorMesh.rotation.x = -Math.PI / 2; // X軸を中心に-90度回転させて水平にする
+            floorMesh.position.set(mazeWidth * CELL_SIZE / 2, 0, mazeHeight * CELL_SIZE / 2);
+            scene.add(floorMesh);
+
+            // 壁の作成
+            for (let z = 0; z < mazeHeight; z++) {
+                for (let x = 0; x < mazeWidth; x++) {
+                    if (mazeCells[z][x] === 1) { // 壁の場合
+                        const wallGeometry = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
+                        const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+                        wallMesh.position.set(x * CELL_SIZE + CELL_SIZE / 2, WALL_HEIGHT / 2, z * CELL_SIZE + CELL_SIZE / 2);
+                        scene.add(wallMesh);
+                    }
+                }
+            }
+
+            // スタート地点とゴール地点のマーク
+            const startGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.8, 0.1, CELL_SIZE * 0.8);
+            const startMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 }); // 緑
+            const startMesh = new THREE.Mesh(startGeometry, startMaterial);
+            startMesh.position.set(startX * CELL_SIZE + CELL_SIZE / 2, 0.05, startZ * CELL_SIZE + CELL_SIZE / 2);
+            scene.add(startMesh);
+
+            const endGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.8, 0.1, CELL_SIZE * 0.8);
+            const endMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 }); // 赤
+            const endMesh = new THREE.Mesh(endGeometry, endMaterial);
+            endMesh.position.set(endX * CELL_SIZE + CELL_SIZE / 2, 0.05, endZ * CELL_SIZE + CELL_SIZE / 2);
+            scene.add(endMesh);
+        }
+
+        // ウィンドウリサイズ時の処理
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ポインターダウン (タッチ開始/マウスボタン押下)
+        function onPointerDown(event) {
+            // 他のボタン操作と競合しないように、回転タッチIDが未設定の場合のみ処理
+            // タッチイベントか、マウスの左クリックの場合
+            if (rotationTouchId === -1 && (event.pointerType === 'touch' || (event.pointerType === 'mouse' && event.button === 0))) {
+                // ボタン要素がクリックされた場合は視点操作を行わない
+                if (event.target.closest('.move-button') || event.target.closest('.jump-button') || event.target.id === 'secretJumpToggle') {
+                    return;
+                }
+                rotationTouchId = event.pointerId; // 現在のポインターIDを記録
+                prevTouch = { x: event.clientX, y: event.clientY }; // 初期タッチ位置を記録
+            }
+            // `move-button` または `jump-button` または `secretJumpToggle` 上でのイベントは preventDefault しない
+            if (!event.target.classList.contains('move-button') && !event.target.classList.contains('jump-button') && event.target.id !== 'secretJumpToggle') {
+                event.preventDefault(); // デフォルトのイベントを防ぐ（スクロールなど）
+            }
+        }
+
+        // ポインター移動 (タッチ移動/マウス移動)
+        function onPointerMove(event) {
+            if (rotationTouchId === event.pointerId && prevTouch) { // 記録されたポインターIDと一致し、前回のタッチ位置がある場合
+                const currentTouch = { x: event.clientX, y: event.clientY };
+
+                const deltaX = currentTouch.x - prevTouch.x; // X方向の移動量
+                const deltaY = currentTouch.y - prevTouch.y; // Y方向の移動量
+
+                // カメラの現在の回転をオイラー角で取得
+                const currentEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+                
+                // ヨー (Y軸回転) の更新
+                currentEuler.y -= deltaX * ROTATION_SPEED_DRAG;
+                // ピッチ (X軸回転) の更新
+                currentEuler.x -= deltaY * ROTATION_SPEED_DRAG;
+
+                // ピッチの制限 (見上げ/見下ろしすぎを防ぐ)
+                const maxPitch = Math.PI / 2 * 0.9; // 90度 * 0.9
+                currentEuler.x = Math.max(-maxPitch, Math.min(maxPitch, currentEuler.x));
+
+                currentEuler.z = 0; // ロール (Z軸回転) は常に0に保つ
+
+                // 更新されたオイラー角からカメラのクォータニオンを設定
+                camera.quaternion.setFromEuler(currentEuler);
+
+                prevTouch = currentTouch; // 現在のタッチ位置を次回のために記録
+            }
+            // `move-button` または `jump-button` または `secretJumpToggle` 上でのイベントは preventDefault しない
+            if (!event.target.classList.contains('move-button') && !event.target.classList.contains('jump-button') && event.target.id !== 'secretJumpToggle') {
+                event.preventDefault(); // デフォルトのイベントを防ぐ
+            }
+        }
+
+        // ポインターアップ (タッチ終了/マウスボタン離す)
+        function onPointerUp(event) {
+            if (rotationTouchId === event.pointerId) { // 記録されたポインターIDと一致する場合
+                rotationTouchId = -1; // ポインターIDをリセット
+                prevTouch = null; // 前回のタッチ位置をリセット
+            }
+        }
+
+        // キーボード押下時の処理
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = true;
+                    inputHistory.push('ArrowUp');
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = true;
+                    inputHistory.push('ArrowLeft');
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = true;
+                    inputHistory.push('ArrowDown');
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = true;
+                    inputHistory.push('ArrowRight');
+                    break;
+                case 'Space': // スペースキーでジャンプ
+                    jump();
+                    break;
+            }
+            checkSecretCommand();
+        }
+
+        // キーボード離す時の処理
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                    
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = false;
+                    break;
+            }
+        }
+
+        // 隠しコマンドチェック
+        function checkSecretCommand() {
+            // 入力履歴を最大長に制限
+            if (inputHistory.length > COMMAND_MAX_LENGTH) {
+                inputHistory = inputHistory.slice(-COMMAND_MAX_LENGTH);
+            }
+
+            // キーボードコマンドとの一致チェック
+            const keyboardMatch = commandSequence.every((val, index) => inputHistory[inputHistory.length - commandSequence.length + index] === val);
+
+            // モバイルコマンド（ボタンIDからの変換）との一致チェック
+            const mobileMatch = mobileCommandSequence.every((val, index) => inputHistory[inputHistory.length - mobileCommandSequence.length + index] === val);
+            
+            if (keyboardMatch || mobileMatch) {
+                if (!document.getElementById('secretJumpToggle')) { // ボタンがなければ作成
+                    createSecretJumpToggleButton();
+                    showMessage("隠しジャンプボタン出現！", 3000);
+                }
+                inputHistory = []; // コマンド成功後は履歴をリセット
+            }
+        }
+
+        // 隠しジャンプON/OFF切り替えボタンの作成
+        function createSecretJumpToggleButton() {
+            const rightControlsDiv = document.getElementById('right-controls');
+            const toggleButton = document.createElement('button');
+            toggleButton.id = 'secretJumpToggle';
+            toggleButton.className = 'jump-button'; // スタイルを流用
+            toggleButton.textContent = '隠しジャンプ: OFF';
+            rightControlsDiv.appendChild(toggleButton);
+
+            const handleToggle = () => {
+                secretJumpActive = !secretJumpActive;
+                toggleButton.textContent = `隠しジャンプ: ${secretJumpActive ? 'ON' : 'OFF'}`;
+                showMessage(`隠しジャンプを${secretJumpActive ? 'ON' : 'OFF'}にしました`, 2000);
+
+                // 隠しジャンプがOFFになり、かつ現在地が壁の上にいる場合、強制的に地面に落とす
+                if (!secretJumpActive) {
+                    const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
+                    const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
+
+                    // 現在のセルが有効な迷路の範囲内で、かつ壁セルである場合
+                    if (currentMazeX >= 0 && currentMazeX < mazeWidth &&
+                        currentMazeZ >= 0 && currentMazeZ < mazeHeight &&
+                        mazeCells[currentMazeZ][currentMazeX] === 1) {
+                        // プレイヤーの目の高さが壁の頂上より十分上にある場合、落下を開始
+                        if (camera.position.y > WALL_HEIGHT + PLAYER_HEIGHT * 0.5) { 
+                            verticalVelocity = 0; // 垂直速度をリセットして落下開始
+                            isJumping = true; // 落下をトリガーするために一時的にtrueに
+                        }
+                    } else { // 壁のセルにいないが、空中に浮いている場合も落下させる
+                        if (camera.position.y > PLAYER_HEIGHT) {
+                            verticalVelocity = 0;
+                            isJumping = true;
+                        }
+                    }
+                }
+            };
+
+            toggleButton.addEventListener('click', handleToggle);
+            toggleButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleToggle();
+            }, { passive: false });
+        }
+
+
+        // ジャンプ関数
+        function jump() {
+            if (!isJumping) { // ジャンプ中でない場合のみジャンプ可能
+                isJumping = true;
+                // 隠しジャンプモードがアクティブなら高いジャンプ、そうでなければ通常のジャンプ
+                verticalVelocity = secretJumpActive ? PLAYER_JUMP_VELOCITY : NORMAL_JUMP_VELOCITY;
+            }
+        }
+
+        // 衝突判定関数 (XとZ軸を統合し、押し出し量を計算)
+        function checkCollision(currentX, currentZ, desiredMoveX, desiredMoveZ) {
+            // 隠しジャンプが有効で、壁の高さより上にいる場合は衝突しない
+            if (secretJumpActive && camera.position.y > WALL_HEIGHT + PLAYER_HEIGHT * 0.5) {
+                return { collided: false, newX: currentX + desiredMoveX, newZ: currentZ + desiredMoveZ };
+            }
+
+            let nextX = currentX + desiredMoveX;
+            let nextZ = currentZ + desiredMoveZ;
+
+            let resolvedX = nextX;
+            let resolvedZ = nextZ;
+            let collided = false;
+
+            // 影響を受ける可能性のあるセルの範囲を計算
+            // Math.floor と Math.ceil を適切に使い、プレイヤーの半径も考慮に入れる
+            const minCheckX = Math.floor((Math.min(currentX, nextX) - PLAYER_RADIUS) / CELL_SIZE);
+            const maxCheckX = Math.ceil((Math.max(currentX, nextX) + PLAYER_RADIUS) / CELL_SIZE);
+            const minCheckZ = Math.floor((Math.min(currentZ, nextZ) - PLAYER_RADIUS) / CELL_SIZE);
+            const maxCheckZ = Math.ceil((Math.max(currentZ, nextZ) + PLAYER_RADIUS) / CELL_SIZE);
+
+            for (let z = minCheckZ; z < maxCheckZ; z++) {
+                for (let x = minCheckX; x < maxCheckX; x++) {
+                    // 迷路の範囲外であれば衝突とみなす
+                    if (x < 0 || x >= mazeWidth || z < 0 || z >= mazeHeight) {
+                         // 範囲外への移動は完全にブロックし、境界線に押し戻す
+                        if (nextX - PLAYER_RADIUS < 0) resolvedX = PLAYER_RADIUS;
+                        if (nextX + PLAYER_RADIUS > mazeWidth * CELL_SIZE) resolvedX = mazeWidth * CELL_SIZE - PLAYER_RADIUS;
+                        if (nextZ - PLAYER_RADIUS < 0) resolvedZ = PLAYER_RADIUS;
+                        if (nextZ + PLAYER_RADIUS > mazeHeight * CELL_SIZE) resolvedZ = mazeHeight * CELL_SIZE - PLAYER_RADIUS;
+                        collided = true;
+                        continue; // 次のセルをチェック
+                    }
+                    
+                    // 壁の場合
+                    if (mazeCells[z][x] === 1) {
+                        const wallMinX = x * CELL_SIZE;
+                        const wallMaxX = (x + 1) * CELL_SIZE;
+                        const wallMinZ = z * CELL_SIZE;
+                        const wallMaxZ = (z + 1) * CELL_SIZE;
+
+                        // プレイヤーの新しい境界ボックス
+                        const playerNextMinX = nextX - PLAYER_RADIUS;
+                        const playerNextMaxX = nextX + PLAYER_RADIUS;
+                        const playerNextMinZ = nextZ - PLAYER_RADIUS;
+                        const playerNextMaxZ = nextZ + PLAYER_RADIUS;
+
+                        // 壁とプレイヤーの新しい境界ボックスが重なっているかチェック
+                        if (playerNextMaxX > wallMinX && playerNextMinX < wallMaxX &&
+                            playerNextMaxZ > wallMinZ && playerNextMinZ < wallMaxZ) {
+                            
+                            collided = true;
+
+                            // 衝突解決のロジック
+                            // X軸とZ軸でどれだけ重なっているかを計算
+                            const overlapX = Math.min(playerNextMaxX - wallMinX, wallMaxX - playerNextMinX);
+                            const overlapZ = Math.min(playerNextMaxZ - wallMinZ, wallMaxZ - playerNextMinZ);
+
+                            // 重なりが小さい方の軸に沿って押し出す
+                            if (overlapX < overlapZ) {
+                                // X方向からの衝突
+                                if (currentX < wallMinX) { // 壁の左側から右へ移動しようとした場合
+                                    resolvedX = wallMinX - PLAYER_RADIUS;
+                                } else { // 壁の右側から左へ移動しようとした場合
+                                    resolvedX = wallMaxX + PLAYER_RADIUS;
+                                }
+                                desiredMoveX = 0; // その方向の移動は制限
+                            } else {
+                                // Z方向からの衝突
+                                if (currentZ < wallMinZ) { // 壁の上側から下へ移動しようとした場合
+                                    resolvedZ = wallMinZ - PLAYER_RADIUS;
+                                } else { // 壁の下側から上へ移動しようとした場合
+                                    resolvedZ = wallMaxZ + PLAYER_RADIUS;
+                                }
+                                desiredMoveZ = 0; // その方向の移動は制限
+                            }
+                        }
+                    }
+                }
+            }
+            return { collided: collided, newX: resolvedX, newZ: resolvedZ, remainingMoveX: desiredMoveX, remainingMoveZ: desiredMoveZ };
+        }
+
+
+        // 天井衝突判定
+        function checkCeilingCollision(targetY) {
+            // プレイヤーの現在いるセルを基準に判定
+            const currentCellX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentCellZ = Math.floor(camera.position.z / CELL_SIZE);
+
+            // 有効な迷路セル内か確認し、かつ壁の場合
+            if (currentCellX >= 0 && currentCellX < mazeWidth && currentCellZ >= 0 && currentCellZ < mazeHeight && mazeCells[currentCellZ][currentCellX] === 1) {
+                // 隠しジャンプがアクティブな場合は、壁の高さによる天井衝突を無視する
+                if (!secretJumpActive && targetY + PLAYER_HEIGHT / 2 > WALL_HEIGHT) { // 壁の高さが天井と見なされる
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 床衝突判定 (壁の上への着地も含む)
+        function checkFloorCollision(targetY) {
+            const currentCellX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentCellZ = Math.floor(camera.position.z / CELL_SIZE);
+
+            // まずは通常の地面への衝突判定
+            if (targetY <= PLAYER_HEIGHT) {
+                return { collided: true, landY: PLAYER_HEIGHT }; // 地面に着地
+            }
+
+            // プレイヤーが現在いるセルが壁であるか、または壁の真上にいる場合
+            if (currentCellX >= 0 && currentCellX < mazeWidth && currentCellZ >= 0 && currentCellZ < mazeHeight && mazeCells[currentCellZ][currentCellX] === 1) {
+                // プレイヤーが立つべき壁の上のY座標 (プレイヤーの目の高さが壁の頂上に来るように)
+                const wallTopSurfaceY = WALL_HEIGHT;
+                const playerStandingOnWallY = wallTopSurfaceY + PLAYER_HEIGHT;
+
+                // 落下中で、かつ目標Y座標が壁の頂点に着地する範囲内である場合
+                if (verticalVelocity < 0 && targetY <= playerStandingOnWallY) {
+                    // プレイヤーの足元が壁の上面に到達していれば衝突とみなす
+                    // 0.1 のマージンは、浮動小数点計算の誤差を考慮
+                    if (camera.position.y - PLAYER_HEIGHT / 2 >= wallTopSurfaceY - 0.1) { 
+                        return { collided: true, landY: playerStandingOnWallY }; // 壁の上にちょうど着地する位置に調整
+                    }
+                }
+            }
+            
+            return { collided: false, landY: targetY }; // 衝突なし
+        }
+
+        // 重力適用と床・壁上陸判定
+        function applyGravity() {
+            // 地面より高い位置にいる場合、またはジャンプ中の場合
+            if (isJumping || camera.position.y > PLAYER_HEIGHT) {
+                verticalVelocity -= GRAVITY; // 重力で速度を減速
+
+                let nextY = camera.position.y + verticalVelocity;
+
+                // 天井衝突判定 (上昇中のみ)
+                if (verticalVelocity > 0) {
+                    if (checkCeilingCollision(nextY)) {
+                        verticalVelocity = 0; // 天井にぶつかったら速度を0に
+                        // 隠しジャンプが無効の場合のみ壁の高さで止める（天井として機能させる）
+                        if (!secretJumpActive) { 
+                             camera.position.y = WALL_HEIGHT + PLAYER_HEIGHT / 2; // プレイヤーの頭が壁の高さになるように調整
+                        }
+                    }
+                }
+
+                // 床または壁の上への着地判定 (落下中のみ)
+                if (verticalVelocity < 0) {
+                    const hitGround = checkFloorCollision(nextY);
+                    if (hitGround.collided) {
+                        camera.position.y = hitGround.landY; // 着地位置に調整
+                        verticalVelocity = 0; // 速度を0に
+                        isJumping = false; // ジャンプ終了
+                    } else {
+                        camera.position.y = nextY; // 衝突がなければ移動
+                    }
+                } else { // 上昇中または速度が0の場合
+                    camera.position.y = nextY; // 衝突がなければ移動
+                }
+            } else { // 地面に接地している場合
+                // 念のため、ぴったりPLAYER_HEIGHTに調整
+                camera.position.y = PLAYER_HEIGHT;
+                isJumping = false;
+                verticalVelocity = 0;
+            }
+        }
+
+
+        // ミニマップの初期化
+        function initMinimap() {
+            minimapCanvas = document.getElementById('minimapCanvas');
+            minimapCtx = minimapCanvas.getContext('2d');
+            minimapCanvas.width = MINIMAP_WIDTH;
+            minimapCanvas.height = MINIMAP_HEIGHT;
+
+            visitedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
+            revealedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
+
+            drawInitialMinimap();
+        }
+
+        // ミニマップの初期描画（スタート、ゴールのみ、背景は真っ黒）
+        function drawInitialMinimap() {
+            minimapCtx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+            minimapCtx.fillStyle = 'rgba(0,0,0,1)'; // 全体を真っ黒に
+            minimapCtx.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+
+            // スタート地点を緑で描画
+            minimapCtx.fillStyle = '#00FF00'; // 緑
+            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+            revealedCells[startZ][startX] = true; // スタート地点は最初から表示
+
+            // ゴール地点を赤で描画
+            minimapCtx.fillStyle = '#FF0000'; // 赤
+            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+            revealedCells[endZ][endX] = true; // ゴール地点も最初から表示
+        }
+
+        // ミニマップの更新（探索型表示）
+        function updateMinimap() {
+            // 現在のプレイヤーの迷路セル座標
+            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
+
+            // プレイヤーが有効な迷路セル内にいる場合、訪問済みとしてマーク
+            if (currentMazeX >= 0 && currentMazeX < mazeWidth && currentMazeZ >= 0 && currentMazeZ < mazeHeight) {
+                visitedCells[currentMazeZ][currentMazeX] = true;
+                revealedCells[currentMazeZ][currentMazeX] = true; // 現在地も常に表示
+            }
+
+            const REVEAL_RADIUS = 2; // 周囲2マスまで表示
+
+            // ミニマップをクリアして背景を真っ黒に
+            minimapCtx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+            minimapCtx.fillStyle = 'rgba(0,0,0,1)';
+            minimapCtx.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
+
+            // プレイヤーの視界に入ったセルをrevealedCellsに記録
+            for (let zOffset = -REVEAL_RADIUS; zOffset <= REVEAL_RADIUS; zOffset++) {
+                for (let xOffset = -REVEAL_RADIUS; xOffset <= REVEAL_RADIUS; xOffset++) {
+                    const checkX = currentMazeX + xOffset;
+                    const checkZ = currentMazeZ + zOffset;
+
+                    if (checkX >= 0 && checkX < mazeWidth && checkZ >= 0 && checkZ < mazeHeight) {
+                        const distSq = xOffset * xOffset + zOffset * zOffset;
+                        const radiusSq = REVEAL_RADIUS * REVEAL_RADIUS;
+                        if (distSq <= radiusSq) { // 円形に視界を広げる
+                            revealedCells[checkZ][checkX] = true;
+                        }
+                    }
+                }
+            }
+
+            // revealedCellsに記録されているセルのみを描画 (全て明確な色)
+            for (let z = 0; z < mazeHeight; z++) {
+                for (let x = 0; x < mazeWidth; x++) {
+                    if (revealedCells[z][x]) { // 過去に一度でも見えたセル
+                        if (mazeCells[z][x] === 1) { // 壁
+                            minimapCtx.fillStyle = '#8B4513'; // 3D空間の壁と同じ茶色
+                        } else { // 通路
+                            minimapCtx.fillStyle = '#ADD8E6'; // ライトブルー
+                        }
+                        minimapCtx.fillRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+                        minimapCtx.strokeStyle = '#999'; // グリッド線
+                        minimapCtx.strokeRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+                    }
+                }
+            }
+
+            // スタートとゴールは常に表示
+            minimapCtx.fillStyle = '#00FF00'; // 緑
+            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+
+            minimapCtx.fillStyle = '#FF0000'; // 赤
+            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
+
+            // プレイヤー位置の描画
+            const playerMinimapX = (camera.position.x / CELL_SIZE) * MINIMAP_CELL_SIZE;
+            const playerMinimapZ = (camera.position.z / CELL_SIZE) * MINIMAP_CELL_SIZE;
+            minimapCtx.fillStyle = 'blue';
+            minimapCtx.beginPath();
+            minimapCtx.arc(playerMinimapX, playerMinimapZ, MINIMAP_CELL_SIZE * 0.4, 0, Math.PI * 2, false);
+            minimapCtx.fill();
+        }
+
+        // ゲームループ
+        function animate() {
+            requestAnimationFrame(animate); // 次のフレームを要求
+
+            const moveDirection = new THREE.Vector3(); // 移動方向ベクトル
+            let desiredMoveX = 0;
+            let desiredMoveZ = 0;
+
+            // 前後移動
+            if (moveForward) {
+                camera.getWorldDirection(moveDirection); // カメラの向いている方向を取得
+                moveDirection.y = 0; // Y成分を0にして水平移動に制限
+                moveDirection.normalize(); // ベクトルを正規化
+                desiredMoveX += moveDirection.x * PLAYER_SPEED;
+                desiredMoveZ += moveDirection.z * PLAYER_SPEED;
+            }
+            if (moveBackward) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                desiredMoveX -= moveDirection.x * PLAYER_SPEED;
+                desiredMoveZ -= moveDirection.z * PLAYER_SPEED;
+            }
+
+            // 左右移動 (横歩き)
+            if (moveLeft) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                const left = new THREE.Vector3().crossVectors(camera.up, moveDirection); // カメラの左方向ベクトルを計算
+                desiredMoveX += left.x * PLAYER_SPEED;
+                desiredMoveZ += left.z * PLAYER_SPEED;
+            }
+            if (moveRight) {
+                camera.getWorldDirection(moveDirection);
+                moveDirection.y = 0;
+                moveDirection.normalize();
+                const right = new THREE.Vector3().crossVectors(moveDirection, camera.up); // カメラの右方向ベクトルを計算
+                desiredMoveX += right.x * PLAYER_SPEED;
+                desiredMoveZ += right.z * PLAYER_SPEED;
+            }
+
+            // 合計移動量を計算し、衝突判定を適用
+            // 衝突判定は、プレイヤーの現在の位置と移動量を考慮して、新しい安全な位置を計算します
+            const collisionResult = checkCollision(camera.position.x, camera.position.z, desiredMoveX, desiredMoveZ);
+            
+            camera.position.x = collisionResult.newX;
+            camera.position.z = collisionResult.newZ;
+            
+            applyGravity(); // 重力とジャンプの処理を適用
+
+            // ゴール判定
+            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
+            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
+            
+            // ゴール地点にいて、かつ地面に接地していることを確認
+            // 隠しジャンプで壁の上にいる状態でもゴール判定されるように、Y座標のチェックを緩和
+            if (currentMazeX === endX && currentMazeZ === endZ && camera.position.y <= WALL_HEIGHT + PLAYER_HEIGHT + 0.1) {
+                showMessage("ゴール！おめでとう！", 5000); // ゴールメッセージ表示
+                cancelAnimationFrame(animate); // アニメーションループを停止
+                setTimeout(() => {
+                    location.reload(); // 5秒後にページをリロードしてゲームを再開
+                }, 5000);
+            }
+
+            renderer.render(scene, camera); // シーンをレンダリング
+            updateMinimap(); // ミニマップを更新
+        }
+    </script>
+</body>
+</html>
