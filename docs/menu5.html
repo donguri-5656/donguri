@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>オンラインテトリス（完全版）</title>
+  <style>
+    body { background: #d0f0ff; font-family: sans-serif; margin: 0; padding: 0;
+      display: flex; flex-direction: column; align-items: center; }
+    #menu, #wrapper { margin-top: 20px; }
+    .btn { padding: 10px 20px; background: #a0e0ff; border: none;
+      border-radius: 5px; margin: 5px; font-size: 16px; cursor: pointer; }
+    .btn.selected { background: #66bde3; color: white; font-weight: bold; }
+    canvas { border: 2px solid #a0e0ff; background: #fff; margin: 4px; }
+    #game-area { display: flex; align-items: flex-start; }
+    .side-column { display: flex; flex-direction: column; align-items: center; }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <h1>オンラインテトリス</h1>
+    <input id="playerName" placeholder="名前を入力" />
+    <div>
+      <button id="btn-gesture" class="btn selected" onclick="setControlMode('gesture')">ジェスチャー</button>
+      <button id="btn-button" class="btn" onclick="setControlMode('button')">ボタン</button>
+    </div>
+    <button class="btn" onclick="hostRoom()">部屋を作成</button>
+    <input id="roomCode" placeholder="ルームコード" />
+    <button class="btn" onclick="joinRoom()">参加</button>
+  </div>
+
+  <div id="wrapper" style="display:none;">
+    <div id="game-area">
+      <div class="side-column">
+        <canvas id="next" width="80" height="160"></canvas>
+        <canvas id="hold" width="80" height="80"></canvas>
+      </div>
+      <canvas id="tetris" width="200" height="400"></canvas>
+      <canvas id="garbage-indicator" width="20" height="400"></canvas>
+      <canvas id="opponent" width="200" height="400"></canvas>
+      <div class="side-column">
+        <canvas id="opponentNext" width="80" height="160"></canvas>
+        <canvas id="opponentHold" width="80" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBaAc1roVYEaokLoCSbg80uFzOF2YL53q8",
+      authDomain: "online-tetris1.firebaseapp.com",
+      databaseURL: "https://online-tetris1-default-rtdb.firebaseio.com",
+      projectId: "online-tetris1",
+      storageBucket: "online-tetris1.appspot.com",
+      messagingSenderId: "869783174259",
+      appId: "1:869783174259:web:4eb1624226d88f91cffe06"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let roomId = "";
+    let isHost = false;
+    let controlMode = "gesture"; // デフォルトはジェスチャー
+
+    function hostRoom() {
+      const name = document.getElementById("playerName").value;
+      if (!name) return alert("名前を入力してください");
+      roomId = Math.random().toString(36).substring(2, 8);
+      isHost = true;
+      db.ref("rooms/" + roomId + "/host").set({ name });
+      db.ref("rooms/" + roomId).onDisconnect().remove();
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("wrapper").style.display = "block";
+    }
+
+    function joinRoom() {
+      const name = document.getElementById("playerName").value;
+      const code = document.getElementById("roomCode").value;
+      if (!name || !code) return alert("名前とルームコードを入力してください");
+      db.ref("rooms/" + code).once("value").then(snap => {
+        if (!snap.exists()) return alert("そのルームは存在しません");
+        roomId = code;
+        isHost = false;
+        db.ref("rooms/" + roomId + "/guest").set({ name });
+        document.getElementById("menu").style.display = "none";
+        document.getElementById("wrapper").style.display = "block";
+      });
+    }
+
+    function setControlMode(mode) {
+      controlMode = mode;
+      document.getElementById("btn-gesture").classList.toggle("selected", mode === "gesture");
+      document.getElementById("btn-button").classList.toggle("selected", mode === "button");
+    }
+  </script>
+</body>
+</html>
