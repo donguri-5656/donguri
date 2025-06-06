@@ -855,8 +855,8 @@
             player.matrix = createPiece(player.type);
             player.rotState = 0;
 
-            // ゲームオーバーラインの調整: ミノの初期位置をY=2から開始
-            player.pos.y = 2; 
+            // ゲームオーバーラインの調整: ミノの初期位置をY=0から開始
+            player.pos.y = 0; 
             player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
 
             nextPieces.shift();
