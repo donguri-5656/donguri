@@ -1828,7 +1828,7 @@
             }
         }
 
-        function handleTouchEnd(event) {
+function handleTouchEnd(event) {
             if (!gameActive || isPaused) return;
 
             stopSoftDrop();
@@ -1839,16 +1839,24 @@
             const deltaX = endX - startX;
             const deltaY = endY - startY;
 
+            // タップ判定用の新しい閾値を10に設定
+            const tapThreshold = 10;
+
+            // 移動距離を計算
+            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // 垂直方向への大きなスワイプ（ハードドロップ）を判定
             if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
                 hardDrop();
-            } else if (Math.abs(deltaX) < rotationTapThreshold && Math.abs(deltaY) < rotationTapThreshold) {
+            } else if (moveDistance < tapThreshold) {
+                // 移動距離が閾値以下の場合はタップと見なし、回転を判定
                 const rect = tetrisCanvas.getBoundingClientRect();
                 const touchX = endX - rect.left;
 
                 if (touchX < rect.width / 2) {
-                    playerRotate(false);
+                    playerRotate(false); // 反時計回り
                 } else {
-                    playerRotate(true);
+                    playerRotate(true); // 時計回り
                 }
             }
         }
