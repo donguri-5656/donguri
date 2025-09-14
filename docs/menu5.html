@@ -1839,16 +1839,12 @@ function handleTouchEnd(event) {
             const deltaX = endX - startX;
             const deltaY = endY - startY;
 
-            // タップ判定用の新しい閾値を5に設定
-            const tapThreshold = 1;
-
-            // 移動距離を計算
+            // タップとスワイプをより厳密に区別するために、
+            // タッチ開始地点から終了地点までの直線距離を計算
             const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // 垂直方向への大きなスワイプ（ハードドロップ）を判定
-            if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
-                hardDrop();
-            } else if (moveDistance < tapThreshold) {
+            
+            // `rotationTapThreshold`をタップ判定の閾値として使用
+            if (moveDistance < rotationTapThreshold) {
                 // 移動距離が閾値以下の場合はタップと見なし、回転を判定
                 const rect = tetrisCanvas.getBoundingClientRect();
                 const touchX = endX - rect.left;
@@ -1858,6 +1854,9 @@ function handleTouchEnd(event) {
                 } else {
                     playerRotate(true); // 時計回り
                 }
+            } else if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
+                // 垂直方向への大きなスワイプ（ハードドロップ）を判定
+                hardDrop();
             }
         }
 
