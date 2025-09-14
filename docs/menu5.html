@@ -1839,8 +1839,8 @@ function handleTouchEnd(event) {
             const deltaX = endX - startX;
             const deltaY = endY - startY;
 
-            // タップ判定用の新しい閾値を10に設定
-            const tapThreshold = 10;
+            // タップ判定用の新しい閾値を5に設定
+            const tapThreshold = 5;
 
             // 移動距離を計算
             const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
