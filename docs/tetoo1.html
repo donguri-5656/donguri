@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>オンラインテトリス（SRSあり）</title>
+    <title>（SRSなんかおかしい）</title>
     <style>
         body {
             background: #d0f0ff;
@@ -16,6 +16,7 @@
             align-items: center;
             position: relative;
             padding-bottom: 240px;
+            touch-action: none;
         }
 
         #menu {
@@ -240,7 +241,7 @@
 
 <body>
     <div id="menu">
-        <h1>オンラインテトリス</h1>
+        <h1>操作性最悪…………</h1>
         <input id="playerName" placeholder="名前を入力" />
         <div>
             <button id="btn-gesture" class="btn selected" onclick="setControlMode('gesture')">ジェスチャー</button>
@@ -1827,7 +1828,7 @@
             }
         }
 
-        function handleTouchEnd(event) {
+function handleTouchEnd(event) {
             if (!gameActive || isPaused) return;
 
             stopSoftDrop();
@@ -1838,17 +1839,24 @@
             const deltaX = endX - startX;
             const deltaY = endY - startY;
 
-            if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
-                hardDrop();
-            } else if (Math.abs(deltaX) < rotationTapThreshold && Math.abs(deltaY) < rotationTapThreshold) {
+            // タップとスワイプをより厳密に区別するために、
+            // タッチ開始地点から終了地点までの直線距離を計算
+            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // `rotationTapThreshold`をタップ判定の閾値として使用
+            if (moveDistance < rotationTapThreshold) {
+                // 移動距離が閾値以下の場合はタップと見なし、回転を判定
                 const rect = tetrisCanvas.getBoundingClientRect();
                 const touchX = endX - rect.left;
 
                 if (touchX < rect.width / 2) {
-                    playerRotate(false);
+                    playerRotate(false); // 反時計回り
                 } else {
-                    playerRotate(true);
+                    playerRotate(true); // 時計回り
                 }
+            } else if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
+                // 垂直方向への大きなスワイプ（ハードドロップ）を判定
+                hardDrop();
             }
         }
 
