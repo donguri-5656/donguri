@@ -52,10 +52,8 @@
       border-top-right-radius: 30px;
       width: 100%;
       box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-      /* ここから追加・修正 */
-      height: 33.33vh; /* 画面の3分の1の高さに固定 */
-      overflow-y: auto; /* コンテンツがはみ出したらスクロールする */
-      /* ここまで */
+      max-height: 33.33vh; /* 画面の高さの3分の1に制限 */
+      overflow-y: auto; /* コンテンツが多い場合はスクロールを有効にする */
     }
 
     .menu-title {
