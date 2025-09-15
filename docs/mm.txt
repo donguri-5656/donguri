@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>（SRSなんかおかしい）</title>
+    <style>
+        body {
+            background: #d0f0ff;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            padding-bottom: 240px;
+            touch-action: none;
+        }
+
+        #menu {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #a0e0ff;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn.selected {
+            background: #66bde3;
+            color: white;
+            font-weight: bold;
+        }
+
+        #wrapper {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            padding: 10px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        canvas {
+            background: #fff;
+            border: 2px solid #a0e0ff;
+        }
+
+        #next,
+        #opponentNext {
+            width: 80px;
+            height: 160px;
+        }
+
+        #hold,
+        #opponentHold {
+            width: 80px;
+            height: 80px;
+        }
+
+        #tetris,
+        #opponent {
+            width: 200px;
+            height: 400px;
+        }
+
+        .garbage-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            height: 400px;
+            width: 20px;
+            border: 2px solid #ccc;
+            background-color: #f0f0f0;
+        }
+
+        .garbage-cell {
+            width: 100%;
+            height: 20px;
+            background-color: #888;
+            border-top: 1px solid #666;
+            box-sizing: border-box;
+        }
+
+        .side-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-areas:
+                "rotL hard rotR hold"
+                "left down right hold";
+            gap: 10px;
+            grid-template-columns: repeat(3, 60px) 100px;
+            z-index: 10;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .btn-control {
+            width: 60px;
+            height: 60px;
+            font-size: 18px;
+            background: #e0f2f7;
+            border: 1px solid #b2ebf2;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            user-select: none;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+
+        .btn-rotate-left {
+            grid-area: rotL;
+        }
+
+        .btn-hard-drop {
+            grid-area: hard;
+        }
+
+        .btn-rotate-right {
+            grid-area: rotR;
+        }
+
+        .btn-left {
+            grid-area: left;
+        }
+
+        .btn-right {
+            grid-area: right;
+        }
+
+        .btn-down {
+            grid-area: down;
+        }
+
+        .btn-hold {
+            grid-area: hold;
+            height: 130px;
+            width: 100px;
+            font-size: 20px;
+        }
+
+        #waiting-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 100;
+        }
+
+        #waitingRoomId {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        #countdown-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 8em;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        #game-over-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 2em;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 300;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #game-over-overlay p {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        #game-over-overlay button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #66bde3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="menu">
+        <h1>操作性最悪…………</h1>
+        <input id="playerName" placeholder="名前を入力" />
+        <div>
+            <button id="btn-gesture" class="btn selected" onclick="setControlMode('gesture')">ジェスチャー</button>
+            <button id="btn-button" class="btn" onclick="setControlMode('button')">ボタン</button>
+        </div>
+        <button class="btn" onclick="hostRoom()">部屋を作成</button>
+        <input id="roomCode" placeholder="ルームコード" />
+        <button class="btn" onclick="joinRoom()">参加</button>
+    </div>
+
+    <div id="waiting-screen" style="display:none;">
+        <div id="waitingRoomId" style="font-size: 1.5em; margin-bottom: 20px;"></div>
+        <p>参加者を待っています...</p>
+    </div>
+
+    <div id="wrapper" style="display:none;">
+        <div class="side-column">
+            <canvas id="next" width="80" height="160"></canvas>
+            <canvas id="hold" width="80" height="80"></canvas>
+        </div>
+
+        <canvas id="tetris" width="200" height="400"></canvas>
+
+        <div id="my-garbage-indicator" class="garbage-column"></div>
+
+        <canvas id="opponent" width="200" height="400"></canvas>
+
+        <div id="opponent-garbage-indicator" class="garbage-column"></div>
+
+        <div class="side-column">
+            <canvas id="opponentNext" width="80" height="160"></canvas>
+            <canvas id="opponentHold" width="80" height="80"></canvas>
+        </div>
+    </div>
+
+    <div id="touch-controls" class="controls">
+        <button class="btn-control btn-rotate-left" onclick="playerRotate(false)">左回転</button>
+        <button class="btn-control btn-hard-drop" onclick="hardDrop()">↑</button>
+        <button class="btn-control btn-rotate-right" onclick="playerRotate(true)">右回転</button>
+        <button class="btn-control btn-hold" onclick="holdPiece()">HOLD</button>
+
+        <button class="btn-control btn-left" onclick="playerMove(-1)">←</button>
+        <button class="btn-control btn-down" onmousedown="startSoftDrop()" onmouseup="stopSoftDrop()"
+            ontouchstart="startSoftDrop()" ontouchend="stopSoftDrop()">↓</button>
+        <button class="btn-control btn-right" onclick="playerMove(1)">→</button>
+    </div>
+
+    <div id="countdown-overlay" style="display:none;">
+        <span id="countdown-text"></span>
+    </div>
+
+    <div id="game-over-overlay" style="display:none;">
+        <h2 id="game-over-message"></h2>
+        <p id="game-over-detail"></p>
+        <button onclick="restartGame()">トップ画面に戻る</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaAc1roVYEaokLoCSbg80uFzOF2YL53q8",
+            authDomain: "online-tetris1.firebaseapp.com",
+            databaseURL: "https://online-tetris1-default-rtdb.firebaseio.com",
+            projectId: "online-tetris1",
+            storageBucket: "online-tetris1.appspot.com",
+            messagingSenderId: "869783174259",
+            appId: "1:869783174259:web:4eb1624226d88f91cffe06"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let roomId = "";
+        let isHost = false;
+        let myRoleRef = null;
+        let opponentRoleRef = null;
+        let myConnectedListener = null;
+        let controlMode = "gesture";
+
+        let opponentMatrix = Array.from({
+            length: 20
+        }, () => Array(10).fill(0));
+
+        let opponentPlayerType = null;
+        let opponentPlayerPosition = null;
+        let opponentNextPieces = [];
+        let opponentHoldPiece = null;
+
+        let myIncomingGarbageLines = 0;
+        let opponentIncomingGarbageLines = 0;
+
+        let gameStarted = false;
+        let opponentConnectedListener = null;
+        let gameActive = false;
+        let isPaused = false;
+
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let animationFrameId = null;
+        let softDropInterval = null;
+
+        const tetrisCanvas = document.getElementById("tetris");
+        let startX = 0;
+        let startY = 0;
+        let lastMoveTime = 0;
+        const moveDebounceTime = 80;
+        const lateralMoveThreshold = 15;
+        const hardDropSwipeThreshold = 60;
+        const softDropSwipeThreshold = 20;
+        const rotationTapThreshold = 15;
+
+        document.addEventListener("keydown", (e) => {
+            if (!gameActive || isPaused) return;
+            if (e.key === "ArrowLeft") playerMove(-1);
+            else if (e.key === "ArrowRight") playerMove(1);
+            else if (e.key === "ArrowDown") startSoftDrop();
+            else if (e.key === "ArrowUp") hardDrop();
+            else if (e.key === "z") playerRotate(false);
+            else if (e.key === "x") playerRotate(true);
+            else if (e.key === "c") holdPiece();
+        });
+
+        document.addEventListener("keyup", (e) => {
+            if (!gameActive || isPaused) return;
+            if (e.key === "ArrowDown") stopSoftDrop();
+        });
+
+        db.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                console.log("[Firebase Connected] 接続が確立されました。");
+            } else {
+                console.log("[Firebase Connected] 接続が切断されました。");
+            }
+        });
+
+        function waitForMyConnected() {
+            return new Promise((resolve, reject) => {
+                if (!myRoleRef) {
+                    console.error("[waitForMyConnected] myRoleRefが設定されていません。");
+                    return reject("myRoleRef not set.");
+                }
+
+                const connectedValueListener = (snapshot) => {
+                    const isConnected = snapshot.val();
+                    console.log(`[waitForMyConnected] 自分のconnected状態: ${isConnected}`);
+                    if (isConnected === true) {
+                        myRoleRef.child("connected").off("value", connectedValueListener);
+                        resolve(true);
+                    }
+                };
+
+                myRoleRef.child("connected").once("value").then(snapshot => {
+                    if (snapshot.val() === true) {
+                        console.log("[waitForMyConnected] 既にconnected状態がtrueです。");
+                        resolve(true);
+                    } else {
+                        myRoleRef.child("connected").on("value", connectedValueListener);
+                    }
+                });
+            });
+        }
+
+
+        async function hostRoom() {
+            const name = document.getElementById("playerName").value;
+            if (!name) return alert("名前を入力してください");
+
+            roomId = Math.random().toString(36).substring(2, 8);
+            isHost = true;
+            myRoleRef = db.ref("rooms/" + roomId + "/host");
+            opponentRoleRef = db.ref("rooms/" + roomId + "/guest");
+
+            myConnectedListener = myRoleRef.child("connected").on("value", (snapshot) => {
+                console.log(`[My Connected Listener (Host)] 自分のconnected状態: ${snapshot.val()}`);
+            });
+
+            try {
+                const snapshot = await db.ref("rooms/" + roomId).once("value");
+                if (snapshot.exists()) {
+                    alert("このルームコードはすでに使用されています。もう一度「部屋を作成」を押してください。");
+                    if (myRoleRef && myConnectedListener) {
+                        myRoleRef.child("connected").off("value", myConnectedListener);
+                        myConnectedListener = null;
+                    }
+                    myRoleRef = null;
+                    return;
+                }
+
+                await myRoleRef.set({
+                    name: name,
+                    connected: true,
+                    incomingGarbage: 0
+                });
+                await myRoleRef.child('connected').onDisconnect().set(false);
+                console.log(`[Host Room] ルーム ${roomId} を作成し、ホスト情報を初期書き込みしました。Connectedをtrueに設定しました。`);
+
+                document.getElementById("menu").style.display = "none";
+                document.getElementById("waiting-screen").style.display = "flex";
+                document.getElementById("waitingRoomId").innerHTML =
+                    `ルームコード: <strong>${roomId}</strong> <button onclick="copyRoomCode()">コピー</button>`;
+
+                console.log("[Host Room] 自分のconnected状態がtrueになるまで待機中...");
+                await waitForMyConnected();
+                console.log("[Host Room] 自分のconnected状態がtrueになりました。");
+
+                opponentConnectedListener = opponentRoleRef.on("value", async (snapshot) => {
+                    console.log(`[Host Room Listener] ゲストの状態変化:`, snapshot.val());
+                    console.log(`[Host Room Listener] ゲストが存在するか: ${snapshot.exists()}`);
+                    console.log(`[Host Room Listener] ゲストのconnected状態: ${snapshot.exists() ? snapshot.val().connected : 'N/A'}`);
+                    console.log(`[Host Room Listener] ゲームは既に開始されているか: ${gameStarted}`);
+
+
+                    if (snapshot.exists() && snapshot.val().connected === true && !gameStarted) {
+                        console.log("[Host Room Listener] ゲストが参加し、両者接続済み。ゲーム開始準備。");
+
+                        document.getElementById("wrapper").style.display = "flex";
+                        document.getElementById("waiting-screen").style.display = "none";
+                        startGame();
+                        gameStarted = true;
+
+                        opponentRoleRef.child("connected").on("value", (connSnapshot) => {
+                            const opponentStatus = connSnapshot.val();
+                            console.log(`[Opponent Connected Listener (Host)] ゲストのconnected状態: ${opponentStatus}`);
+                            if (gameStarted && (opponentStatus === false || opponentStatus === null)) {
+                                console.log("[Opponent Connected Listener (Host)] ゲストが切断されました。");
+                                endGame(true, "相手がゲームを退出しました");
+                            }
+                        });
+                        opponentRoleRef.off("value", opponentConnectedListener);
+                    } else if (!snapshot.exists() && gameStarted) {
+                        console.log("[Host Room Listener] ゲーム開始後にゲストデータが消滅しました。");
+                        endGame(true, "相手がゲームを退出しました");
+                    }
+                });
+
+            } catch (error) {
+                console.error("ルーム作成エラー:", error);
+                alert("ルームの作成に失敗しました。もう一度お試しください。");
+                if (myRoleRef && myConnectedListener) {
+                    myRoleRef.child("connected").off("value", myConnectedListener);
+                    myConnectedListener = null;
+                }
+                myRoleRef = null;
+            }
+        }
+
+
+        async function joinRoom() {
+            const name = document.getElementById("playerName").value;
+            const code = document.getElementById("roomCode").value;
+            if (!name || !code) return alert("名前とルームコードを入力してください");
+
+            roomId = code;
+            isHost = false;
+            myRoleRef = db.ref("rooms/" + roomId + "/guest");
+            opponentRoleRef = db.ref("rooms/" + roomId + "/host");
+
+            myConnectedListener = myRoleRef.child("connected").on("value", (snapshot) => {
+                console.log(`[My Connected Listener (Guest)] 自分のconnected状態: ${snapshot.val()}`);
+            });
+
+            try {
+                const snap = await db.ref("rooms/" + roomId).once("value");
+                if (!snap.exists()) {
+                    alert("そのルームは存在しません");
+                    if (myRoleRef && myConnectedListener) {
+                        myRoleRef.child("connected").off("value", myConnectedListener);
+                        myConnectedListener = null;
+                    }
+                    myRoleRef = null;
+                    return;
+                }
+                if (snap.val().guest) {
+                    alert("このルームはすでに満員です。");
+                    if (myRoleRef && myConnectedListener) {
+                        myRoleRef.child("connected").off("value", myConnectedListener);
+                        myConnectedListener = null;
+                    }
+                    myRoleRef = null;
+                    return;
+                }
+
+                await myRoleRef.set({
+                    name: name,
+                    connected: true,
+                    incomingGarbage: 0
+                });
+                await myRoleRef.child('connected').onDisconnect().set(false);
+                console.log(`[Join Room] ルーム ${roomId} に参加し、ゲスト情報を初期書き込みしました。Connectedをtrueに設定しました。`);
+
+
+                document.getElementById("menu").style.display = "none";
+                document.getElementById("wrapper").style.display = "flex";
+
+                console.log("[Join Room] 自分のconnected状態がtrueになるまで待機中...");
+                await waitForMyConnected();
+                console.log("[Join Room] 自分のconnected状態がtrueになりました。");
+
+                opponentConnectedListener = opponentRoleRef.on("value", async (snapshot) => {
+                    console.log(`[Join Room Listener] ホストの状態変化:`, snapshot.val());
+                    console.log(`[Join Room Listener] ホストが存在するか: ${snapshot.exists()}`);
+                    console.log(`[Join Room Listener] ホストのconnected状態: ${snapshot.exists() ? snapshot.val().connected : 'N/A'}`);
+                    console.log(`[Join Room Listener] ゲームは既に開始されているか: ${gameStarted}`);
+
+                    if (snapshot.exists() && snapshot.val().connected === true && !gameStarted) {
+                        console.log("[Join Room Listener] ホストが接続済み。両者接続済み。ゲーム開始準備。");
+
+                        document.getElementById("menu").style.display = "none";
+                        document.getElementById("wrapper").style.display = "flex";
+                        startGame();
+                        gameStarted = true;
+
+                        opponentRoleRef.child("connected").on("value", (connSnapshot) => {
+                            const opponentStatus = connSnapshot.val();
+                            console.log(`[Opponent Connected Listener (Guest)] ホストのconnected状態: ${opponentStatus}`);
+                            if (gameStarted && (opponentStatus === false || opponentStatus === null)) {
+                                console.log("[Opponent Connected Listener (Guest)] ホストが切断されました。");
+                                endGame(true, "相手がゲームを退出しました");
+                            }
+                        });
+                        opponentRoleRef.off("value", opponentConnectedListener);
+                    } else if (!snapshot.exists() && gameStarted) {
+                        console.log("[Join Room Listener] ゲーム開始後にホストデータが消滅しました。");
+                        endGame(true, "相手がゲームを退出しました");
+                    } else if (!snapshot.exists() && !gameStarted) {
+                        console.log("[Join Room Listener] ゲーム開始前にホストが退出しました。");
+                        endGame(false, "ホストが退出したため、ルームに参加できませんでした。");
+                    }
+                });
+
+            } catch (error) {
+                console.error("ルーム参加エラー:", error);
+                alert("ルームへの参加に失敗しました。もう一度お試しください。");
+                if (myRoleRef && myConnectedListener) {
+                    myRoleRef.child("connected").off("value", myConnectedListener);
+                    myConnectedListener = null;
+                }
+                myRoleRef = null;
+            }
+        }
+
+
+        function copyRoomCode() {
+            navigator.clipboard.writeText(roomId).then(() => {
+                alert("ルームコードをコピーしました！");
+            }).catch(err => {
+                console.error("ルームコードのコピーに失敗しました:", err);
+            });
+        }
+
+        function setControlMode(mode) {
+            controlMode = mode;
+            document.getElementById("btn-gesture").classList.toggle("selected", mode === "gesture");
+            document.getElementById("btn-button").classList.toggle("selected", mode === "button");
+            attachInputListeners();
+        }
+
+        // --- SRS KICK TABLES ---
+        // J, L, S, T, Z pieces use this kick table
+        const JLSZT_KICKS_0R = [ // 0 -> R (clockwise)
+            [0, 0],
+            [-1, 0],
+            [-1, 1],
+            [0, -2],
+            [-1, -2]
+        ];
+        const JLSZT_KICKS_R0 = [ // R -> 0 (counter-clockwise)
+            [0, 0],
+            [1, 0],
+            [1, -1],
+            [0, 2],
+            [1, 2]
+        ];
+        const JLSZT_KICKS_RL = [ // R -> L (clockwise)
+            [0, 0],
+            [1, 0],
+            [1, -1],
+            [0, 2],
+            [1, 2]
+        ];
+        const JLSZT_KICKS_LR = [ // L -> R (counter-clockwise)
+            [0, 0],
+            [-1, 0],
+            [-1, 1],
+            [0, -2],
+            [-1, -2]
+        ];
+        const JLSZT_KICKS_L2 = [ // L -> 2 (clockwise)
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, -2],
+            [1, -2]
+        ];
+        const JLSZT_KICKS_2L = [ // 2 -> L (counter-clockwise)
+            [0, 0],
+            [-1, 0],
+            [-1, -1],
+            [0, 2],
+            [-1, 2]
+        ];
+        const JLSZT_KICKS_20 = [ // 2 -> 0 (clockwise)
+            [0, 0],
+            [-1, 0],
+            [-1, 1],
+            [0, -2],
+            [-1, -2]
+        ];
+        const JLSZT_KICKS_02 = [ // 0 -> 2 (counter-clockwise)
+            [0, 0],
+            [1, 0],
+            [1, -1],
+            [0, 2],
+            [1, 2]
+        ];
+
+        // I piece uses a different kick table
+        const I_KICKS_0R = [ // 0 -> R (clockwise)
+            [0, 0],
+            [-2, 0],
+            [1, 0],
+            [-2, -1],
+            [1, 2]
+        ];
+        const I_KICKS_R0 = [ // R -> 0 (counter-clockwise)
+            [0, 0],
+            [2, 0],
+            [-1, 0],
+            [2, 1],
+            [-1, -2]
+        ];
+        const I_KICKS_RL = [ // R -> L (clockwise)
+            [0, 0],
+            [-1, 0],
+            [2, 0],
+            [-1, 2],
+            [2, -1]
+        ];
+        const I_KICKS_LR = [ // L -> R (counter-clockwise)
+            [0, 0],
+            [1, 0],
+            [-2, 0],
+            [1, -2],
+            [-2, 1]
+        ];
+        const I_KICKS_L2 = [ // L -> 2 (clockwise)
+            [0, 0],
+            [-1, 0],
+            [2, 0],
+            [-1, -2],
+            [2, 1]
+        ];
+        const I_KICKS_2L = [ // 2 -> L (counter-clockwise)
+            [0, 0],
+            [1, 0],
+            [-2, 0],
+            [1, 2],
+            [-2, -1]
+        ];
+        const I_KICKS_20 = [ // 2 -> 0 (clockwise)
+            [0, 0],
+            [2, 0],
+            [-1, 0],
+            [2, 1],
+            [-1, -2]
+        ];
+        const I_KICKS_02 = [ // 0 -> 2 (counter-clockwise)
+            [0, 0],
+            [-2, 0],
+            [1, 0],
+            [-2, -1],
+            [1, 2]
+        ];
+
+        // Define a helper function to get the appropriate kick table
+        function getKickTable(pieceType, prevRotState, newRotState, clockwise) {
+            let table;
+            if (pieceType === 'I') {
+                if (clockwise) {
+                    if (prevRotState === 0 && newRotState === 1) table = I_KICKS_0R;
+                    else if (prevRotState === 1 && newRotState === 2) table = I_KICKS_RL;
+                    else if (prevRotState === 2 && newRotState === 3) table = I_KICKS_L2;
+                    else if (prevRotState === 3 && newRotState === 0) table = I_KICKS_20;
+                } else { // counter-clockwise
+                    if (prevRotState === 0 && newRotState === 3) table = I_KICKS_02;
+                    else if (prevRotState === 1 && newRotState === 0) table = I_KICKS_R0;
+                    else if (prevRotState === 2 && newRotState === 1) table = I_KICKS_2L;
+                    else if (prevRotState === 3 && newRotState === 2) table = I_KICKS_LR;
+                }
+            } else { // J, L, S, T, Z pieces
+                if (clockwise) {
+                    if (prevRotState === 0 && newRotState === 1) table = JLSZT_KICKS_0R;
+                    else if (prevRotState === 1 && newRotState === 2) table = JLSZT_KICKS_RL;
+                    else if (prevRotState === 2 && newRotState === 3) table = JLSZT_KICKS_L2;
+                    else if (prevRotState === 3 && newRotState === 0) table = JLSZT_KICKS_20;
+                } else { // counter-clockwise
+                    if (prevRotState === 0 && newRotState === 3) table = JLSZT_KICKS_02;
+                    else if (prevRotState === 1 && newRotState === 0) table = JLSZT_KICKS_R0;
+                    else if (prevRotState === 2 && newRotState === 1) table = JLSZT_KICKS_2L;
+                    else if (prevRotState === 3 && newRotState === 2) table = JLSZT_KICKS_LR;
+                }
+            }
+            return table;
+        }
+
+        // --- TETROMINO_DATA の定義 (SRS対応) ---
+        const TETROMINO_DATA = {};
+
+        // 汎用回転関数
+        function rotateMatrix(matrix, clockwise = true) {
+            const size = matrix.length;
+            const result = [];
+            for (let y = 0; y < size; ++y) {
+                result[y] = [];
+                for (let x = 0; x < size; ++x) {
+                    if (clockwise) {
+                        result[y][x] = matrix[size - 1 - x][y];
+                    } else { // 反時計回り
+                        result[y][x] = matrix[x][size - 1 - y];
+                    }
+                }
+            }
+            return result;
+        }
+
+        function initializeTetrominoData() {
+            const pieceDefs = {
+                'T': {
+                    shape: [
+                        [0, 1, 0],
+                        [1, 1, 1],
+                        [0, 0, 0]
+                    ],
+                    color: '#CC66FF',
+                },
+                'O': {
+                    shape: [
+                        [1, 1],
+                        [1, 1]
+                    ],
+                    color: '#FFCC66',
+                },
+                'L': {
+                    shape: [
+                        [0, 0, 1],
+                        [1, 1, 1],
+                        [0, 0, 0]
+                    ],
+                    color: '#FF9966',
+                },
+                'J': {
+                    shape: [
+                        [1, 0, 0],
+                        [1, 1, 1],
+                        [0, 0, 0]
+                    ],
+                    color: '#6666FF',
+                },
+                'S': {
+                    shape: [
+                        [0, 1, 1],
+                        [1, 1, 0],
+                        [0, 0, 0]
+                    ],
+                    color: '#66FF66',
+                },
+                'Z': {
+                    shape: [
+                        [1, 1, 0],
+                        [0, 1, 1],
+                        [0, 0, 0]
+                    ],
+                    color: '#FF6666',
+                },
+                'I': {
+                    shape: [
+                        [0, 0, 0, 0],
+                        [1, 1, 1, 1],
+                        [0, 0, 0, 0],
+                        [0, 0, 0, 0]
+                    ],
+                    color: '#66CCFF',
+                }
+            };
+
+            for (const type in pieceDefs) {
+                const def = pieceDefs[type];
+                TETROMINO_DATA[type] = {
+                    color: def.color,
+                    rotations: []
+                };
+
+                let currentMatrix = def.shape;
+                TETROMINO_DATA[type].rotations.push(currentMatrix); // 0度
+
+                for (let i = 1; i < 4; i++) {
+                    currentMatrix = rotateMatrix(currentMatrix, true); // 時計回りに回転
+                    TETROMINO_DATA[type].rotations.push(currentMatrix);
+                }
+            }
+        }
+        initializeTetrominoData(); // ページロード時にテトリミノデータを初期化
+
+        let nextBag = [];
+
+        function fillBag() {
+            const types = 'TJLOSZI'.split('');
+            for (let i = types.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [types[i], types[j]] = [types[j], types[i]];
+            }
+            nextBag = nextBag.concat(types);
+        }
+
+        function getNextType() {
+            if (nextBag.length < 7) fillBag();
+            return nextBag.shift();
+        }
+
+        const arena = Array.from({
+            length: 20
+        }, () => Array(10).fill(0));
+
+        const player = {
+            pos: {
+                x: 0,
+                y: 0
+            },
+            matrix: null,
+            type: '',
+            holdUsed: false,
+            rotState: 0, // 0: 0deg, 1: 90deg, 2: 180deg, 3: 270deg
+            isTSpin: false // T-Spin判定フラグ
+        };
+
+        const hold = {
+            type: '',
+            matrix: null
+        };
+
+        function playerReset() {
+            if (myIncomingGarbageLines > 0) {
+                console.log(`[Player Reset] 溜まっているお邪魔ライン ${myIncomingGarbageLines} を適用します。`);
+                applyGarbage(myIncomingGarbageLines);
+            }
+
+            const type = getNextType();
+            player.type = type;
+            player.rotState = 0; // 新しいピースなので初期回転状態は0度
+            player.matrix = TETROMINO_DATA[type].rotations[player.rotState]; // 事前計算された形状を読み込む
+            player.pos.y = -1;
+            player.pos.x = Math.floor((10 - player.matrix[0].length) / 2);
+            player.holdUsed = false;
+            player.isTSpin = false;
+
+            if (checkLose()) {
+                endGame(false, "ブロックが天井に到達しました");
+                return;
+            }
+        }
+
+        function getGhostPosition(p) {
+            const ghost = { ...p,
+                pos: { ...p.pos
+                }
+            };
+            while (!collide(arena, ghost)) {
+                ghost.pos.y++;
+            }
+            ghost.pos.y--;
+            return ghost.pos;
+        }
+
+        function getOpponentGhostPosition(p) {
+            if (!p || !p.matrix || !p.pos) return null;
+            const ghost = { ...p,
+                pos: { ...p.pos
+                }
+            };
+            while (!collide(opponentMatrix, ghost)) {
+                ghost.pos.y++;
+            }
+            ghost.pos.y--;
+            return ghost.pos;
+        }
+
+        // playerRotate関数の修正版 (SRSキックあり)
+        function playerRotate(clockwise = true) {
+            if (!gameActive || isPaused) return;
+
+            const originalPos = {
+                x: player.pos.x,
+                y: player.pos.y
+            };
+            const originalRotState = player.rotState;
+
+            // 新しい回転状態を計算
+            const newRotState = (originalRotState + (clockwise ? 1 : 3)) % 4;
+            // 新しい回転状態に対応する形状をTETROMINO_DATAから直接取得
+            const rotatedMatrix = TETROMINO_DATA[player.type].rotations[newRotState];
+
+            // キックテーブルを取得
+            const kicks = getKickTable(player.type, originalRotState, newRotState, clockwise);
+
+            let rotatedSuccessfully = false;
+            player.isTSpin = false; // 回転前にT-Spinフラグをリセット
+
+            // 各キックパターンを試す
+            for (const kick of kicks) {
+                const offsetX = kick[0];
+                const offsetY = kick[1];
+
+                player.pos.x = originalPos.x + offsetX;
+                player.pos.y = originalPos.y + offsetY;
+                player.matrix = rotatedMatrix; // 一時的に新しい回転状態のミノを設定
+                player.rotState = newRotState; // 一時的に新しい回転状態を適用
+
+                if (!collide(arena, player)) {
+                    // 衝突しない場合はこのキックで確定
+                    rotatedSuccessfully = true;
+
+                    // T-Spin判定
+                    if (player.type === 'T') {
+                        player.isTSpin = checkTSpin(originalPos, originalRotState, player.pos, player.rotState, player.matrix);
+                    }
+                    break; // 有効なキックが見つかったのでループを抜ける
+                }
+            }
+
+            if (!rotatedSuccessfully) {
+                // すべてのキックを試しても回転できない場合、元の状態に戻す
+                player.pos = originalPos;
+                player.matrix = TETROMINO_DATA[player.type].rotations[originalRotState];
+                player.rotState = originalRotState;
+                player.isTSpin = false;
+            }
+            sendMatrix();
+        }
+
+
+        function holdPiece() {
+            if (!gameActive || isPaused) return;
+            if (player.holdUsed) return;
+            const temp = player.type;
+            if (!hold.type) {
+                hold.type = temp;
+                playerReset();
+            } else {
+                player.type = hold.type;
+                player.rotState = 0; // ホールドピースも初期回転状態は0度
+                player.matrix = TETROMINO_DATA[hold.type].rotations[player.rotState];
+                hold.type = temp;
+            }
+            hold.matrix = TETROMINO_DATA[hold.type].rotations[0]; // ホールドピースの描画用 matrix (0度)
+            player.pos.y = -1;
+            player.pos.x = Math.floor((10 - player.matrix[0].length) / 2);
+            player.holdUsed = true;
+            player.isTSpin = false; // ホールドはT-Spin状態をリセット
+            sendMatrix();
+        }
+
+        let combo = -1;
+        let lastClearWasSpecial = false; // Back-to-Back判定用 (Tetris or T-Spin)
+
+        function playerMove(dir) {
+            if (!gameActive || isPaused) return false;
+            const originalX = player.pos.x;
+            player.pos.x += dir;
+            if (collide(arena, player)) {
+                player.pos.x -= dir;
+                return false;
+            }
+            sendMatrix();
+            return true;
+        }
+
+        function playerDrop() {
+            if (!gameActive || isPaused) return;
+            player.pos.y++;
+            if (collide(arena, player)) {
+                player.pos.y--;
+                fixPiece();
+            }
+            sendMatrix();
+            dropCounter = 0;
+        }
+
+        function hardDrop() {
+            if (!gameActive || isPaused) return;
+            while (!collide(arena, player)) {
+                player.pos.y++;
+            }
+            player.pos.y--;
+            fixPiece();
+        }
+
+        function fixPiece() {
+            player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        arena[y + player.pos.y][x + player.pos.x] = player.type;
+                    }
+                });
+            });
+
+            const cleared = sweep();
+            const wasTSpin = player.isTSpin;
+            player.isTSpin = false; // T-Spinフラグは着地時にリセット
+
+            if (cleared > 0) {
+                combo++;
+                const isSpecialClear = wasTSpin || cleared === 4; // T-Spin or Tetris
+
+                const attackResult = calculateAttack(cleared, combo, wasTSpin, lastClearWasSpecial);
+
+                let linesToSend = attackResult.lines;
+                const initialMyIncomingGarbageLines = myIncomingGarbageLines;
+
+                if (myIncomingGarbageLines > 0) {
+                    if (linesToSend >= myIncomingGarbageLines) {
+                        linesToSend -= myIncomingGarbageLines;
+                        myIncomingGarbageLines = 0;
+                        console.log(`[相殺処理] 自分の攻撃 ${attackResult.lines} でお邪魔 ${initialMyIncomingGarbageLines} を全相殺。残りの攻撃ライン: ${linesToSend}`);
+                    } else {
+                        myIncomingGarbageLines -= linesToSend;
+                        linesToSend = 0;
+                        console.log(`[相殺処理] 自分の攻撃 ${attackResult.lines} でお邪魔 ${initialMyIncomingGarbageLines} の一部を相殺。残りのお邪魔ライン: ${myIncomingGarbageLines}`);
+                    }
+                }
+
+                if (myIncomingGarbageLines !== initialMyIncomingGarbageLines) {
+                    if (myRoleRef) {
+                        myRoleRef.child("incomingGarbage").set(myIncomingGarbageLines)
+                            .then(() => console.log(`[Firebase Update] 自分のincomingGarbageを ${myIncomingGarbageLines} に更新しました。`))
+                            .catch(error => console.error("[Firebase Error] 自分のincomingGarbage更新失敗:", error));
+                    }
+                }
+
+                if (linesToSend > 0) {
+                    sendAttack(linesToSend);
+                }
+                lastClearWasSpecial = isSpecialClear;
+            } else {
+                combo = -1;
+                lastClearWasSpecial = false;
+            }
+
+            playerReset();
+            sendMatrix();
+            drawGarbageIndicators();
+        }
+
+        function sweep() {
+            let lines = 0;
+            outer: for (let y = arena.length - 1; y >= 0; y--) {
+                for (let x = 0; x < arena[y].length; x++) {
+                    if (arena[y][x] === 0) continue outer;
+                }
+                const row = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(row);
+                lines++;
+                y++;
+            }
+            return lines;
+        }
+
+        function calculateAttack(linesCleared, combo, isTSpin, lastWasSpecial) {
+            let attack = 0;
+            let B2B = lastWasSpecial && (isTSpin || linesCleared === 4);
+
+            if (isTSpin) {
+                if (linesCleared === 0) attack = 0; // T-Spin Single (No Clear) - No attack in most games
+                else if (linesCleared === 1) attack = B2B ? 3 : 2; // T-Spin Single
+                else if (linesCleared === 2) attack = B2B ? 4 : 3; // T-Spin Double
+                else if (linesCleared === 3) attack = B2B ? 6 : 5; // T-Spin Triple
+            } else if (linesCleared === 1) {
+                attack = 0;
+            } else if (linesCleared === 2) {
+                attack = 1;
+            } else if (linesCleared === 3) {
+                attack = 2;
+            } else if (linesCleared === 4) { // Tetris
+                attack = B2B ? 6 : 4;
+            }
+
+            // Combo bonus (typically starts from 1st clear, not 0th)
+            if (combo > 0) {
+                if (combo <= 1) attack += 0; // C1 is usually 0 bonus
+                else if (combo <= 2) attack += 1; // C2 is 1
+                else if (combo <= 3) attack += 1; // C3 is 1
+                else if (combo <= 4) attack += 2; // C4 is 2
+                else if (combo <= 5) attack += 2; // C5 is 2
+                else if (combo <= 6) attack += 3; // C6 is 3
+                else if (combo >= 7) attack += 4; // C7 and up is 4 (or more in some games)
+            }
+
+
+            // Perfect Clear bonus (simplified - check if arena is empty)
+            let isPerfectClear = true;
+            for (let y = 0; y < arena.length; y++) {
+                for (let x = 0; x < arena[y].length; x++) {
+                    if (arena[y][x] !== 0) {
+                        isPerfectClear = false;
+                        break;
+                    }
+                }
+                if (!isPerfectClear) break;
+            }
+
+            if (isPerfectClear) {
+                // PC attack lines vary greatly by game. Using a common value.
+                if (linesCleared === 0) attack += 0; // No clear PC is usually 0 or less
+                else if (linesCleared === 1) attack += 6;
+                else if (linesCleared === 2) attack += 8;
+                else if (linesCleared === 3) attack += 10;
+                else if (linesCleared === 4) attack += 12;
+            }
+
+            console.log(`Lines Cleared: ${linesCleared}, Combo: ${combo}, T-Spin: ${isTSpin}, B2B: ${B2B}, Attack: ${attack}`);
+
+            return {
+                lines: attack,
+                isSpecialClear: isTSpin || linesCleared === 4
+            };
+        }
+
+        // T-Spin判定ロジック
+        function checkTSpin(originalPos, originalRotState, currentPos, currentRotState, matrix) {
+            // Tミノでなければ判定しない
+            if (player.type !== 'T') return false;
+
+            // 回転によって実際に位置が動いていない（キックが適用されていない）場合は、T-Spinは発生しない
+            // ただし、SRSの定義によっては、キックなしでも条件を満たせばT-Spinとみなすゲームもある
+            // ここでは一般的なSRST-Spinのルールを適用 (回転後の位置とミノの形状で判定)
+
+            // Tミノの回転中心 (3x3 マトリックスの場合、中央が (1,1))
+            const centerX = currentPos.x + 1;
+            const centerY = currentPos.y + 1;
+
+            // Tミノの角の座標 (arena座標)
+            // 0度: top-left (0,0), top-right (2,0), bottom-left (0,2), bottom-right (2,2)
+            // Tミノの3x3マトリックスをarenaに投影したときの角のワールド座標
+            const corners = [
+                // Top-left "corner"
+                [currentPos.x, currentPos.y],
+                // Top-right "corner"
+                [currentPos.x + 2, currentPos.y],
+                // Bottom-left "corner"
+                [currentPos.x, currentPos.y + 2],
+                // Bottom-right "corner"
+                [currentPos.x + 2, currentPos.y + 2]
+            ];
+
+            let filledCorners = 0;
+            // 4つの角のうち、3つ以上が埋まっているか（壁または他のブロック）
+            for (let i = 0; i < corners.length; i++) {
+                const cx = corners[i][0];
+                const cy = corners[i][1];
+
+                // 範囲外または既存ブロックで埋まっている場合
+                if (cx < 0 || cx >= 10 || cy >= 20 || (cy >= 0 && arena[cy] && arena[cy][cx] !== 0)) {
+                    // ただし、Tミノ自体が占めている場所はカウントしない
+                    let isTBlock = false;
+                    for (let my = 0; my < matrix.length; my++) {
+                        for (let mx = 0; mx < matrix[my].length; mx++) {
+                            if (matrix[my][mx] !== 0 && (currentPos.x + mx === cx) && (currentPos.y + my === cy)) {
+                                isTBlock = true;
+                                break;
+                            }
+                        }
+                        if (isTBlock) break;
+                    }
+                    if (!isTBlock) {
+                        filledCorners++;
+                    }
+                }
+            }
+
+            // SRS T-Spin定義: 3つの角が埋まっていて、かつ回転が成功していること
+            // より厳密な定義 (T-Spin Mini判定含む) は複雑になるが、ここでは簡易版
+            // 3つの角が埋まっていればT-Spinと判定 (T-Spin Miniは考慮しない)
+            if (filledCorners >= 3) {
+                console.log("T-Spin Detected!");
+                return true;
+            }
+
+            return false;
+        }
+
+
+        // drawMatrix の type 引数を改良
+        function drawMatrix(ctx, matrix, offset, pieceType) {
+            if (!matrix) return;
+
+            matrix.forEach((row, y) => {
+                if (!row) return;
+                row.forEach((val, x) => {
+                    if (val !== 0) {
+                        ctx.fillStyle = getColor(pieceType);
+                        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        ctx.strokeStyle = '#a0e0ff';
+                        ctx.lineWidth = 0.05;
+                        ctx.strokeRect(x + offset.x, y + offset.y, 1, 1);
+                    }
+                });
+            });
+        }
+
+        function sendAttack(lines) {
+            if (roomId) {
+                const path = isHost ? "guest" : "host";
+                const attackRef = db.ref(`rooms/${roomId}/${path}/incomingGarbage`);
+
+                attackRef.transaction(currentData => {
+                    return (currentData || 0) + lines;
+                });
+                console.log(`[Send Attack] 相手に ${lines} ラインの攻撃を送りました。`);
+            }
+        }
+
+        function drawOpponent() {
+            const canvas = document.getElementById("opponent");
+            const ctx = canvas.getContext("2d");
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(20, 20);
+
+            for (let y = 0; y < opponentMatrix.length; y++) {
+                for (let x = 0; x < opponentMatrix[y].length; x++) {
+                    const val = opponentMatrix[y][x];
+                    if (val !== 0) {
+                        ctx.fillStyle = getColor(val);
+                        ctx.fillRect(x, y, 1, 1);
+                        ctx.strokeStyle = '#a0e0ff';
+                        ctx.lineWidth = 0.05;
+                        ctx.strokeRect(x, y, 1, 1);
+                    }
+                }
+            }
+
+            if (opponentPlayerType && opponentPlayerPosition) {
+                // 相手のミノがどこにあるか、回転状態は不明なので、ここでは常に0度回転で表示（簡易版）
+                // 実際は相手のplayer.rotStateも送信して、その状態のミノを表示する
+                const opponentPlayerMatrix = TETROMINO_DATA[opponentPlayerType].rotations[0];
+                if (opponentPlayerMatrix) {
+                    const ghostPos = getOpponentGhostPosition({
+                        matrix: opponentPlayerMatrix,
+                        pos: opponentPlayerPosition,
+                        type: opponentPlayerType
+                    });
+                    if (ghostPos) {
+                        drawMatrix(ctx, opponentPlayerMatrix, ghostPos, 'ghost');
+                    }
+                    opponentPlayerMatrix.forEach((row, y) => {
+                        row.forEach((value, x) => {
+                            const drawY = y + opponentPlayerPosition.y;
+                            const drawX = x + opponentPlayerPosition.x;
+                            if (value !== 0 && drawY >= 0) {
+                                ctx.fillStyle = getColor(opponentPlayerType);
+                                ctx.fillRect(drawX, drawY, 1, 1);
+                                ctx.strokeStyle = '#a0e0ff';
+                                ctx.lineWidth = 0.05;
+                                ctx.strokeRect(drawX, drawY, 1, 1);
+                            }
+                        });
+                    });
+                }
+            }
+        }
+
+        function drawGarbageIndicators() {
+            const myGarbageIndicator = document.getElementById("my-garbage-indicator");
+            myGarbageIndicator.innerHTML = '';
+            for (let i = 0; i < myIncomingGarbageLines; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('garbage-cell');
+                myGarbageIndicator.appendChild(cell);
+            }
+
+            const opponentGarbageIndicator = document.getElementById("opponent-garbage-indicator");
+            opponentGarbageIndicator.innerHTML = '';
+            for (let i = 0; i < opponentIncomingGarbageLines; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('garbage-cell');
+                opponentGarbageIndicator.appendChild(cell);
+            }
+        }
+
+        function applyGarbage(lines) {
+            if (lines <= 0) return;
+
+            console.log(`[Apply Garbage] ${lines} ラインのお邪魔を受け取りました。盤面に適用します。`);
+
+            for (let i = 0; i < lines; i++) {
+                arena.shift();
+                const garbageRow = Array(10).fill('G');
+                const randomHole = Math.floor(Math.random() * 10);
+                garbageRow[randomHole] = 0;
+                arena.push(garbageRow);
+            }
+
+            myIncomingGarbageLines = 0;
+
+            if (myRoleRef) {
+                myRoleRef.child("incomingGarbage").set(0)
+                    .then(() => console.log(`[Firebase Update] お邪魔ラインを盤面に適用したので、自分のincomingGarbageを0にリセットしました。`))
+                    .catch(error => console.error("[Firebase Error] incomingGarbageリセット失敗:", error));
+            }
+
+            if (checkLose()) { // お邪魔を適用した後にも負け判定を行う
+                endGame(false, "ブロックが天井に到達しました");
+                return;
+            }
+            sendMatrix();
+        }
+
+
+        function listenAttackLines() {
+            if (roomId) {
+                const myPath = isHost ? "host" : "guest";
+                const opponentPath = isHost ? "guest" : "host";
+
+                db.ref(`rooms/${roomId}/${myPath}/incomingGarbage`).on("value", snapshot => {
+                    const newLines = snapshot.val();
+                    if (Number.isInteger(newLines) && newLines >= 0) {
+                        console.log(`[My Attack Listener] 自分のincomingGarbageが ${myIncomingGarbageLines} から ${newLines} に更新されました。`);
+                        myIncomingGarbageLines = newLines;
+                        drawGarbageIndicators();
+                    }
+                });
+
+                db.ref(`rooms/${roomId}/${opponentPath}/incomingGarbage`).on("value", snapshot => {
+                    const lines = snapshot.val();
+                    if (Number.isInteger(lines) && lines >= 0) {
+                        opponentIncomingGarbageLines = lines;
+                        console.log(`[Opponent Attack Listener] 相手のIncoming Garbage Lines: ${opponentIncomingGarbageLines}`);
+                        drawGarbageIndicators();
+                    }
+                });
+            }
+        }
+
+        function getColor(type) {
+            if (TETROMINO_DATA[type]) {
+                return TETROMINO_DATA[type].color;
+            }
+            const colors = {
+                'G': 'gray', // お邪魔ブロック
+                'ghost': 'rgba(128,128,128,0.4)', // ゴーストピースの色
+                'default': '#555'
+            };
+            return colors[type] || colors['default'];
+        }
+
+        function checkLose() {
+            console.log("[Check Lose] Checking for lose condition.");
+            // 新しいピースが出現する位置に既存のブロックがあるかチェック
+            // player.pos.y が -1 または 0 の場合、その位置にブロックがあればゲームオーバー
+            // PlayerReset時に呼ばれるので、player.matrixは新しいピースの形状
+            const checkPlayer = { ...player
+            };
+            checkPlayer.pos.y = -1; // 初期位置が-1なので、0より下であればセーフ
+            for (let y = 0; y < checkPlayer.matrix.length; y++) {
+                for (let x = 0; x < checkPlayer.matrix[y].length; x++) {
+                    if (checkPlayer.matrix[y][x] !== 0) {
+                        const arenaY = y + checkPlayer.pos.y;
+                        const arenaX = x + checkPlayer.pos.x;
+                        if (arenaY >= 0 && arena[arenaY][arenaX] !== 0) {
+                            console.log("[Check Lose] Lose condition met! New piece collides at spawn.");
+                            return true;
+                        }
+                    }
+                }
+            }
+            console.log("[Check Lose] No lose condition detected.");
+            return false;
+        }
+
+
+        function endGame(isWin, message) {
+            console.log(`[End Game] ゲーム終了処理開始。勝敗: ${isWin ? '勝利' : '敗北'}、メッセージ: "${message}"`);
+
+            if (gameStarted) {
+                gameStarted = false;
+                gameActive = false;
+                isPaused = true;
+
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                if (softDropInterval) {
+                    clearInterval(softDropInterval);
+                    softDropInterval = null;
+                }
+
+                if (myRoleRef) {
+                    myRoleRef.child("connected").onDisconnect().cancel()
+                        .then(() => {
+                            console.log(`[End Game] 自分のonDisconnect設定をキャンセルしました。`);
+                            return myRoleRef.child("connected").set(false);
+                        })
+                        .then(() => console.log(`[End Game] 自分のconnected状態をfalseに更新しました。`))
+                        .catch(error => console.error(`[End Game] connected状態の更新に失敗しました:`, error));
+                }
+
+                if (roomId) {
+                    if (myRoleRef && myConnectedListener) {
+                        myRoleRef.child("connected").off("value", myConnectedListener);
+                        myConnectedListener = null;
+                        console.log("[End Game] 自分のconnectedリスナーを解除しました。");
+                    }
+                    if (opponentRoleRef && opponentConnectedListener) {
+                        opponentRoleRef.child("connected").off("value", opponentConnectedListener);
+                        opponentConnectedListener = null;
+                        console.log("[End Game] 相手のconnectedリスナーを解除しました。");
+                    }
+                    if (myRoleRef) {
+                        myRoleRef.child("incomingGarbage").off();
+                        console.log("[End Game] 自分のincomingGarbageリスナーを解除しました。");
+                    }
+                    if (opponentRoleRef) {
+                        opponentRoleRef.child("incomingGarbage").off();
+                        opponentRoleRef.child("gameData").off();
+                        console.log("[End Game] 相手のincomingGarbage/gameDataリスナーを解除しました。");
+                    }
+                }
+            } else {
+                document.getElementById("touch-controls").style.display = "none";
+            }
+            displayGameOverScreen(isWin, message);
+
+            if (isHost && roomId) {
+                db.ref("rooms/" + roomId).remove()
+                    .then(() => console.log("Host removed room successfully."))
+                    .catch(error => console.error("Error removing room:", error));
+            } else if (!isHost && roomId) {
+                if (myRoleRef) {
+                    myRoleRef.remove()
+                        .then(() => console.log("Guest removed own data successfully."))
+                        .catch(error => console.error("Error removing guest data:", error));
+                }
+            }
+        }
+
+
+        function displayGameOverScreen(isWin, message) {
+            const overlay = document.getElementById("game-over-overlay");
+            const h2 = document.getElementById("game-over-message");
+            const p = document.getElementById("game-over-detail");
+
+            if (isWin) {
+                h2.textContent = "勝利！";
+                if (message === "相手がゲームを退出しました") {
+                    p.textContent = "相手がゲームを退出しました。";
+                } else if (message === "ブロックが天井に到達しました") {
+                    p.textContent = "相手のブロックが天井に到達しました。";
+                } else {
+                    p.textContent = "";
+                }
+            } else {
+                h2.textContent = "敗北！";
+                if (message === "ブロックが天井に到達しました") {
+                    p.textContent = "あなたの盤面がブロックで埋まってしまいました。";
+                } else if (message === "ホストが退出したため、ルームに参加できませんでした。") {
+                    p.textContent = "ホストが退出したため、ゲームを開始できませんでした。";
+                } else {
+                    p.textContent = message;
+                }
+            }
+
+            overlay.style.display = "flex";
+            document.getElementById("touch-controls").style.display = "none";
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        async function startGame() {
+            console.log("[Start Game] ゲーム開始処理。");
+            gameStarted = true;
+            gameActive = false;
+            isPaused = false;
+
+            for (let y = 0; y < arena.length; y++) {
+                for (let x = 0; x < arena[y].length; x++) {
+                    arena[y][x] = 0;
+                }
+            }
+            myIncomingGarbageLines = 0;
+            opponentIncomingGarbageLines = 0;
+            drawGarbageIndicators();
+
+            const countdownOverlay = document.getElementById("countdown-overlay");
+            const countdownText = document.getElementById("countdown-text");
+            countdownOverlay.style.display = "flex";
+            document.getElementById("wrapper").style.display = "flex";
+            document.getElementById("touch-controls").style.display = "none";
+
+            fillBag();
+            playerReset();
+            sendMatrix();
+
+            listenOpponentMatrix();
+            listenAttackLines();
+            attachInputListeners();
+
+            for (let i = 3; i > 0; i--) {
+                countdownText.textContent = i;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            countdownText.textContent = "GO!";
+            await new Promise(resolve => setTimeout(resolve, 500));
+            countdownOverlay.style.display = "none";
+
+            gameActive = true;
+            document.getElementById("touch-controls").style.display = "grid";
+
+            dropCounter = 0;
+            lastTime = 0;
+            animationFrameId = requestAnimationFrame(update);
+            console.log("[Start Game] ゲームループを開始しました。");
+            console.log("[Start Game] 相手のデータリスナーと入力リスナーを設定しました。");
+        }
+
+        function update(time = 0) {
+            if (!gameActive || isPaused) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+
+            if (dropCounter > dropInterval) {
+                playerDrop();
+            }
+
+            draw();
+            animationFrameId = requestAnimationFrame(update);
+        }
+
+        function draw() {
+            const ctx = document.getElementById('tetris').getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.scale(20, 20);
+
+            for (let y = 0; y < arena.length; y++) {
+                for (let x = 0; x < arena[y].length; x++) {
+                    const val = arena[y][x];
+                    if (val !== 0) {
+                        ctx.fillStyle = getColor(val);
+                        ctx.fillRect(x, y, 1, 1);
+                        ctx.strokeStyle = '#a0e0ff';
+                        ctx.lineWidth = 0.05;
+                        ctx.strokeRect(x, y, 1, 1);
+                    }
+                }
+            }
+
+            const ghostPos = getGhostPosition(player);
+            drawMatrix(ctx, player.matrix, ghostPos, 'ghost');
+
+            drawMatrix(ctx, player.matrix, player.pos, player.type);
+
+            const nextCtx = document.getElementById('next').getContext('2d');
+            nextCtx.setTransform(1, 0, 0, 1, 0, 0);
+            nextCtx.clearRect(0, 0, nextCtx.canvas.width, nextCtx.canvas.height);
+            nextCtx.scale(20, 20);
+
+            const displayNextCount = Math.min(nextBag.length, 3);
+            for (let i = 0; i < displayNextCount; i++) {
+                if (!nextBag[i]) continue;
+
+                const nextMatrix = TETROMINO_DATA[nextBag[i]].rotations[0]; // Nextピースは0度回転の形状
+                if (nextMatrix) {
+                    const xOffset = Math.floor((4 - nextMatrix[0].length) / 2);
+                    const yOffset = 1 + i * 5;
+                    drawMatrix(nextCtx, nextMatrix, {
+                        x: xOffset,
+                        y: yOffset
+                    }, nextBag[i]);
+                }
+            }
+
+            const holdCtx = document.getElementById('hold').getContext('2d');
+            holdCtx.setTransform(1, 0, 0, 1, 0, 0);
+            holdCtx.clearRect(0, 0, holdCtx.canvas.width, holdCtx.canvas.height);
+            holdCtx.scale(20, 20);
+            if (hold.type) {
+                const holdMatrix = TETROMINO_DATA[hold.type].rotations[0]; // Holdピースも0度回転の形状
+                if (holdMatrix) {
+                    const xOffset = Math.floor((4 - holdMatrix.length) / 2);
+                    const yOffset = Math.floor((4 - holdMatrix.length) / 2);
+                    drawMatrix(holdCtx, holdMatrix, {
+                        x: xOffset,
+                        y: yOffset
+                    }, hold.type);
+                }
+            }
+
+            const opponentNextCtx = document.getElementById('opponentNext').getContext('2d');
+            opponentNextCtx.setTransform(1, 0, 0, 1, 0, 0);
+            opponentNextCtx.clearRect(0, 0, opponentNextCtx.canvas.width, opponentNextCtx.canvas.height);
+            opponentNextCtx.scale(20, 20);
+            const displayOpponentNextCount = Math.min(opponentNextPieces.length, 2);
+            for (let i = 0; i < displayOpponentNextCount; i++) {
+                if (!opponentNextPieces[i]) continue;
+
+                const opponentNextMatrix = TETROMINO_DATA[opponentNextPieces[i]].rotations[0];
+                if (opponentNextMatrix) {
+                    const xOffset = Math.floor((4 - opponentNextMatrix[0].length) / 2);
+                    const yOffset = 1 + i * 5;
+                    drawMatrix(opponentNextCtx, opponentNextMatrix, {
+                        x: xOffset,
+                        y: yOffset
+                    }, opponentNextPieces[i]);
+                }
+            }
+
+            const opponentHoldCtx = document.getElementById('opponentHold').getContext('2d');
+            opponentHoldCtx.setTransform(1, 0, 0, 1, 0, 0);
+            opponentHoldCtx.clearRect(0, 0, opponentHoldCtx.canvas.width, opponentHoldCtx.canvas.height);
+            opponentHoldCtx.scale(20, 20);
+            if (opponentHoldPiece) {
+                const opponentHoldMatrix = TETROMINO_DATA[opponentHoldPiece].rotations[0];
+                if (opponentHoldMatrix) {
+                    const xOffset = Math.floor((4 - opponentHoldMatrix.length) / 2);
+                    const yOffset = Math.floor((4 - opponentHoldMatrix.length) / 2);
+                    drawMatrix(opponentHoldCtx, opponentHoldMatrix, {
+                        x: xOffset,
+                        y: yOffset
+                    }, opponentHoldPiece);
+                }
+            }
+
+            drawOpponent();
+            drawGarbageIndicators();
+        }
+
+        // 衝突判定は変更なし
+        function collide(targetArena, p) {
+            const [m, o] = [p.matrix, p.pos];
+            for (let y = 0; y < m.length; ++y) {
+                for (let x = 0; x < m[y].length; ++x) {
+                    if (m[y][x] !== 0) { // ピースのブロックがある場合のみチェック
+                        const arenaX = x + o.x;
+                        const arenaY = y + o.y;
+
+                        // 盤面外との衝突判定
+                        // 横方向の壁
+                        if (arenaX < 0 || arenaX >= 10) {
+                            return true;
+                        }
+                        // 下方向の床
+                        if (arenaY >= 20) {
+                            return true;
+                        }
+                        // 既存のブロックとの衝突判定
+                        if (arenaY >= 0 && targetArena[arenaY] && targetArena[arenaY][arenaX] !== 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function sendMatrix() {
+            if (roomId && myRoleRef) {
+                const nextPiecesToSend = [];
+                for (let i = 0; i < Math.min(nextBag.length, 2); i++) {
+                    nextPiecesToSend.push(nextBag[i]);
+                }
+
+                myRoleRef.child("gameData").set({
+                    arena: arena,
+                    playerType: player.type,
+                    playerPosition: player.pos,
+                    nextPieces: nextPiecesToSend.length > 0 ? nextPiecesToSend : [],
+                    holdPiece: hold.type
+                });
+            }
+        }
+
+        function listenOpponentMatrix() {
+            if (opponentRoleRef) {
+                opponentRoleRef.child("gameData").on("value", snapshot => {
+                    const gameData = snapshot.val();
+                    if (gameData) {
+                        console.log("[Opponent Matrix Listener] 相手のゲームデータを受信しました:", gameData);
+                        opponentMatrix = gameData.arena || Array.from({
+                            length: 20
+                        }, () => Array(10).fill(0));
+
+                        opponentPlayerType = gameData.playerType;
+                        opponentPlayerPosition = gameData.playerPosition;
+                        opponentNextPieces = gameData.nextPieces || [];
+                        opponentHoldPiece = gameData.holdPiece;
+
+                        draw();
+                        console.log("[Opponent Matrix Listener] 相手の盤面を更新しました。");
+                    } else {
+                        console.log("[Opponent Matrix Listener] 相手のゲームデータは空です。");
+                        opponentPlayerType = null;
+                        opponentPlayerPosition = null;
+                        opponentNextPieces = [];
+                        opponentHoldPiece = null;
+                        draw();
+                    }
+                });
+            }
+        }
+
+        function startSoftDrop() {
+            if (!gameActive || isPaused) return;
+            if (dropInterval !== 50) {
+                dropInterval = 50;
+            }
+        }
+
+        function stopSoftDrop() {
+            if (!gameActive || isPaused) return;
+            dropInterval = 1000;
+        }
+
+        function attachInputListeners() {
+            tetrisCanvas.removeEventListener("touchstart", handleTouchStart);
+            tetrisCanvas.removeEventListener("touchmove", handleTouchMove);
+            tetrisCanvas.removeEventListener("touchend", handleTouchEnd);
+
+            const touchControls = document.getElementById("touch-controls");
+
+            if (gameStarted) {
+                touchControls.style.display = "grid";
+
+                if (controlMode === "gesture") {
+                    tetrisCanvas.addEventListener("touchstart", handleTouchStart);
+                    tetrisCanvas.addEventListener("touchmove", handleTouchMove);
+                    tetrisCanvas.addEventListener("touchend", handleTouchEnd);
+                }
+            } else {
+                touchControls.style.display = "none";
+            }
+        }
+
+        function handleTouchStart(event) {
+            if (!gameActive || isPaused) return;
+
+            event.preventDefault();
+            startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+        }
+
+        function handleTouchMove(event) {
+            if (!gameActive || isPaused) return;
+
+            event.preventDefault();
+            const currentTime = Date.now();
+            const currentX = event.touches[0].clientX;
+            const currentY = event.touches[0].clientY;
+
+            const deltaXSinceStart = currentX - startX;
+            const deltaYSinceStart = currentY - startY;
+
+            if (currentTime - lastMoveTime > moveDebounceTime) {
+                if (Math.abs(deltaXSinceStart) >= lateralMoveThreshold) {
+                    const dir = (deltaXSinceStart > 0) ? 1 : -1;
+                    if (playerMove(dir)) {
+                        startX = currentX;
+                        lastMoveTime = currentTime;
+                    } else {
+                        startX = currentX;
+                        lastMoveTime = currentTime;
+                    }
+                }
+            }
+
+            if (deltaYSinceStart > softDropSwipeThreshold && Math.abs(deltaYSinceStart) > Math.abs(deltaXSinceStart)) {
+                startSoftDrop();
+            } else if (deltaYSinceStart <= 0 && softDropInterval) {
+                stopSoftDrop();
+            }
+        }
+
+function handleTouchEnd(event) {
+            if (!gameActive || isPaused) return;
+
+            stopSoftDrop();
+
+            const endX = event.changedTouches[0].clientX;
+            const endY = event.changedTouches[0].clientY;
+
+            const deltaX = endX - startX;
+            const deltaY = endY - startY;
+
+            // タップとスワイプをより厳密に区別するために、
+            // タッチ開始地点から終了地点までの直線距離を計算
+            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // `rotationTapThreshold`をタップ判定の閾値として使用
+            if (moveDistance < rotationTapThreshold) {
+                // 移動距離が閾値以下の場合はタップと見なし、回転を判定
+                const rect = tetrisCanvas.getBoundingClientRect();
+                const touchX = endX - rect.left;
+
+                if (touchX < rect.width / 2) {
+                    playerRotate(false); // 反時計回り
+                } else {
+                    playerRotate(true); // 時計回り
+                }
+            } else if (deltaY < -hardDropSwipeThreshold && Math.abs(deltaY) > Math.abs(deltaX)) {
+                // 垂直方向への大きなスワイプ（ハードドロップ）を判定
+                hardDrop();
+            }
+        }
+
+        attachInputListeners();
+    </script>
+</body>
+
+</html>
