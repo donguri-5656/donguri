@@ -5,91 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>wa--i</title>
 <style>
-  body {
-    margin: 0;
-    font-family: "Arial", sans-serif;
-    background-color: #d0f0ff;
-    color: #333;
-    /* 変更点: 以下の3行を追加 */
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    /* 変更点: overflow: hidden; を削除 */
-  }
+body {
+  margin: 0;
+  font-family: "Arial", sans-serif;
+  background-color: #d0f0ff;
+  color: #333;
+  /* スクロールを禁止し、body全体をFlexコンテナにする */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 
-  .hero {
-    /* 変更点: min-height: 100vh; を削除 */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    position: relative;
-    overflow: hidden; /* このoverflowは残して、飛び回る画像がはみ出すのを防ぎます */
-    background-color: #d0f0ff;
-    /* 変更点: 以下の1行を追加 */
-    flex-grow: 1;
-  }
+.hero {
+  /* heroが残りのスペースをすべて占めるようにする */
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+  /* 飛行する画像を非表示にしないため、overflow: hidden;は残す */
+  overflow: hidden;
+  background-color: #d0f0ff;
+}
 
-  .flying-img {
-    position: absolute;
-    left: -400px;
-    width: 320px;
+.flying-img {
+  position: absolute;
+  left: -400px;
+  width: 320px;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes fly-random {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
     opacity: 0.7;
-    pointer-events: none;
-    z-index: 0;
   }
+  100% {
+    transform: translate(var(--tx, 100vw), var(--ty, -50px)) rotate(var(--rot, 360deg));
+    opacity: 0.7;
+  }
+}
 
-  @keyframes fly-random {
-    0% {
-      transform: translate(0, 0) rotate(0deg);
-      opacity: 0.7;
-    }
-    100% {
-      transform: translate(var(--tx, 100vw), var(--ty, -50px)) rotate(var(--rot, 360deg));
-      opacity: 0.7;
-    }
-  }
+.menu-section {
+  z-index: 1;
+  padding: 30px 20px;
+  background-color: #ffffff;
+  border-top-left-radius: 30px;
+  border-top-right-radius: 30px;
+  width: 100%;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
+  /* メニューが画面下部に常に表示されるようにする */
+}
 
-  .menu-section {
-    z-index: 1;
-    padding: 30px 20px;
-    background-color: #ffffff;
-    border-top-left-radius: 30px;
-    border-top-right-radius: 30px;
-    width: 100%;
-    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.1);
-  }
+.menu-title {
+  text-align: center;
+  font-size: 2em;
+  margin-bottom: 20px;
+}
 
-  .menu-title {
-    text-align: center;
-    font-size: 2em;
-    margin-bottom: 20px;
-  }
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
 
-  .menu-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
-    max-width: 800px;
-    margin: 0 auto;
-  }
+.menu-button {
+  background: linear-gradient(to right, #a0e0ff, #c0f5ff);
+  border: none;
+  padding: 20px 30px;
+  border-radius: 50px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 
-  .menu-button {
-    background: linear-gradient(to right, #a0e0ff, #c0f5ff);
-    border: none;
-    padding: 20px 30px;
-    border-radius: 50px;
-    font-size: 1em;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  .menu-button:hover {
-    background: linear-gradient(to right, #87d4f2, #b5ecff);
-    transform: translateY(-7px) scale(1.05);
-    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
-  }
+.menu-button:hover {
+  background: linear-gradient(to right, #87d4f2, #b5ecff);
+  transform: translateY(-7px) scale(1.05);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+}
 </style>
 </head>
 <body>
