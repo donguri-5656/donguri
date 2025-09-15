@@ -1,145 +1,145 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>wa--i</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Arial", sans-serif;
-      background-color: #d0f0ff;
-      overflow: hidden;
-      color: #333;
-    }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wa--i</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Arial", sans-serif;
+      background-color: #d0f0ff;
+      overflow: hidden;
+      color: #333;
+    }
 
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      position: relative;
-      overflow: hidden;
-      background-color: #d0f0ff;
-    }
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      position: relative;
+      overflow: hidden;
+      background-color: #d0f0ff;
+    }
 
-    .flying-img {
-      position: absolute;
-      left: -400px;
-      width: 320px;
-      opacity: 0.7;
-      pointer-events: none;
-      z-index: 0;
-    }
+    .flying-img {
+      position: absolute;
+      left: -400px;
+      width: 320px;
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 0;
+    }
 
-    @keyframes fly-random {
-      0% {
-        transform: translate(0, 0) rotate(0deg);
-        opacity: 0.7;
-      }
-      100% {
-        transform: translate(var(--tx, 100vw), var(--ty, -50px)) rotate(var(--rot, 360deg));
-        opacity: 0.7;
-      }
-    }
+    @keyframes fly-random {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translate(var(--tx, 100vw), var(--ty, -50px)) rotate(var(--rot, 360deg));
+        opacity: 0.7;
+      }
+    }
 
-    .menu-section {
-      z-index: 1;
-      padding: 30px 20px;
-      background-color: #ffffff;
-      border-top-left-radius: 30px;
-      border-top-right-radius: 30px;
-      width: 100%;
-      box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-    }
+    .menu-section {
+      z-index: 1;
+      padding: 30px 20px;
+      background-color: #ffffff;
+      border-top-left-radius: 30px;
+      border-top-right-radius: 30px;
+      width: 100%;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+    }
 
-    .menu-title {
-      text-align: center;
-      font-size: 2em;
-      margin-bottom: 20px;
-    }
+    .menu-title {
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
 
-    .menu-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
 
-    .menu-button {
-      background: linear-gradient(to right, #a0e0ff, #c0f5ff);
-      border: none;
-      padding: 20px 30px;
-      border-radius: 50px;
-      font-size: 1em;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
+    .menu-button {
+      background: linear-gradient(to right, #a0e0ff, #c0f5ff);
+      border: none;
+      padding: 20px 30px;
+      border-radius: 50px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 
-    .menu-button:hover {
-      background: linear-gradient(to right, #87d4f2, #b5ecff);
-      transform: translateY(-7px) scale(1.05);
-      box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
-    }
-  </style>
+    .menu-button:hover {
+      background: linear-gradient(to right, #87d4f2, #b5ecff);
+      transform: translateY(-7px) scale(1.05);
+      box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+    }
+  </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="menu-section">
-      <div class="menu-title">メニュー</div>
-      <div class="menu-grid">
-        <button class="menu-button" onclick="location.href='menu1.html'">じゃんけん</button>
-        <button class="menu-button" onclick="location.href='menu4.html'">テトリス</button>
-        <button class="menu-button" onclick="location.href='menu3.html'">3D迷路</button>
-        <button class="menu-button" onclick="location.href='menu4.html'">メニュー4</button>
-        <button class="menu-button" onclick="location.href='menu5.html'">メニュー5</button>
-        <button class="menu-button" onclick="location.href='menu6.html'">メニュー6</button>
-        <button class="menu-button" onclick="location.href='menu7.html'">メニュー7</button>
-        <button class="menu-button" onclick="location.href='menu8.html'">メニュー8</button>
-      </div>
-    </div>
-  </div>
+  <div class="hero">
+    <div class="menu-section">
+      <div class="menu-title">メニュー</div>
+      <div class="menu-grid">
+        <button class="menu-button" onclick="location.href='menu1.html'">じゃんけん</button>
+        <button class="menu-button" onclick="location.href='menu2.html'">none</button>
+        <button class="menu-button" onclick="location.href='menu3.html'">3D迷路</button>
+        <button class="menu-button" onclick="location.href='menu4.html'">て</button>
+        <button class="menu-button" onclick="location.href='menu5.html'">まだ</button>
+        <button class="menu-button" onclick="location.href='menu6.html'">。</button>
+        <button class="menu-button" onclick="location.href='menu7.html'">分けるやつ</button>
+        <button class="menu-button" onclick="location.href='menu8.html'">おかしいよな</button>
+      </div>
+    </div>
+  </div>
 
-  <script>
-    const flyingImages = [
-      'menu_images/flying1.png',
-      'menu_images/flying2.png',
-      'menu_images/flying3.png'
-    ];
+  <script>
+    const flyingImages = [
+      'menu_images/flying1.png',
+      'menu_images/flying2.png',
+      'menu_images/flying3.png'
+    ];
 
-    function createFlyingImage() {
-      const img = document.createElement('img');
-      img.src = flyingImages[Math.floor(Math.random() * flyingImages.length)];
-      img.classList.add('flying-img');
+    function createFlyingImage() {
+      const img = document.createElement('img');
+      img.src = flyingImages[Math.floor(Math.random() * flyingImages.length)];
+      img.classList.add('flying-img');
 
-      // ランダムな縦位置（画面内）
-      const top = Math.random() * 100;
-      img.style.top = `${top}%`;
+      // ランダムな縦位置（画面内）
+      const top = Math.random() * 100;
+      img.style.top = `${top}%`;
 
-      // ランダムな飛び先（横：右へ、縦：±400pxの振れ幅）
-      const tx = `${Math.random() * 150 + 100}vw`; // 100〜250vw
-      const ty = `${(Math.random() - 0.5) * 800}px`; // -400〜+400px
-      const rot = `${Math.floor(Math.random() * 1080 - 540)}deg`; // -540〜540°
+      // ランダムな飛び先（横：右へ、縦：±400pxの振れ幅）
+      const tx = `${Math.random() * 150 + 100}vw`; // 100〜250vw
+      const ty = `${(Math.random() - 0.5) * 800}px`; // -400〜+400px
+      const rot = `${Math.floor(Math.random() * 1080 - 540)}deg`; // -540〜540°
 
-      img.style.setProperty('--tx', tx);
-      img.style.setProperty('--ty', ty);
-      img.style.setProperty('--rot', rot);
+      img.style.setProperty('--tx', tx);
+      img.style.setProperty('--ty', ty);
+      img.style.setProperty('--rot', rot);
 
-      const duration = Math.random() * 7 + 5; // 5～10秒
-      img.style.animation = `fly-random ${duration}s ease-in forwards`;
+      const duration = Math.random() * 7 + 5; // 5～10秒
+      img.style.animation = `fly-random ${duration}s ease-in forwards`;
 
-      document.body.appendChild(img);
+      document.body.appendChild(img);
 
-      setTimeout(() => {
-        img.remove();
-      }, duration * 1000 + 1000);
-    }
+      setTimeout(() => {
+        img.remove();
+      }, duration * 1000 + 1000);
+    }
 
-    // mettyamsごとに生成
-    setInterval(createFlyingImage, 200);
-  </script>
+    // mettyamsごとに生成
+    setInterval(createFlyingImage, 200);
+  </script>
 </body>
 </html>
