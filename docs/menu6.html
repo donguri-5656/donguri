@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Factory</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .ui-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        #build-mode-btn {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        #build-mode-btn.active {
+            background: #f44336;
+        }
+        #build-controls {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+        }
+        #build-controls.active {
+            display: flex;
+        }
+        .control-btn {
+            padding: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #2196F3;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        #level-info {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <div class="ui-panel">
+            <button id="build-mode-btn">ビルドモード</button>
+            <div id="build-controls">
+                <button class="control-btn" id="move-btn">移動</button>
+                <button class="control-btn" id="rotate-btn">回転</button>
+                <button class="control-btn" id="place-btn">設置</button>
+            </div>
+        </div>
+        <div class="ui-panel">
+            <p>持ち物</p>
+            <button class="control-btn" data-type="slope">スロープ</button>
+            <button class="control-btn" data-type="collector">収集機</button>
+        </div>
+    </div>
+    <div id="info-panel" class="ui-panel">
+        <p>ポイント: <span id="score-display">0</span></p>
+        <p>ボール数: <span id="ball-count-display">0</span></p>
+        <p>収集機レベル: <span id="collector-level">1</span></p>
+    </div>
+
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+            "three/examples/jsm/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+          }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+        import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+        import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+
+        let scene, camera, renderer, world, controls, transformControls;
+        let score = 0;
+        let ballCount = 0;
+        let collectorLevel = 1;
+        let buildMode = false;
+        let selectedObject = null;
+
+        const dynamicObjects = [];
+        const ballMeshes = [];
+        const ballBodies = [];
+
+        const uiElements = {
+            scoreDisplay: document.getElementById('score-display'),
+            ballCountDisplay: document.getElementById('ball-count-display'),
+            collectorLevel: document.getElementById('collector-level'),
+            buildModeBtn: document.getElementById('build-mode-btn'),
+            buildControls: document.getElementById('build-controls'),
+            moveBtn: document.getElementById('move-btn'),
+            rotateBtn: document.getElementById('rotate-btn'),
+            placeBtn: document.getElementById('place-btn'),
+            itemButtons: document.querySelectorAll('.control-btn[data-type]')
+        };
+
+        init();
+        setupEventListeners();
+        animate();
+
+        function init() {
+            // Scene, Camera, Renderer
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Physics World
+            world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 10, 5);
+            scene.add(directionalLight);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Transform Controls for Build Mode
+            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls.addEventListener('dragging-changed', function (event) {
+                controls.enabled = !event.value;
+            });
+            scene.add(transformControls);
+
+            // Initial Objects (Ball Generator, Slope, Collector)
+            createObject('generator', new THREE.Vector3(0, 5, 0));
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize, false);
+            uiElements.buildModeBtn.addEventListener('click', toggleBuildMode);
+            uiElements.itemButtons.forEach(button => {
+                button.addEventListener('click', () => createObject(button.dataset.type));
+            });
+            uiElements.moveBtn.addEventListener('click', () => {
+                if (selectedObject) {
+                    transformControls.setMode('translate');
+                }
+            });
+            uiElements.rotateBtn.addEventListener('click', () => {
+                if (selectedObject) transformControls.setMode('rotate');
+            });
+            uiElements.placeBtn.addEventListener('click', () => {
+                if (selectedObject) selectObject(null);
+            });
+            renderer.domElement.addEventListener('click', handleGameClick);
+        }
+
+        function toggleBuildMode() {
+            buildMode = !buildMode;
+            uiElements.buildModeBtn.classList.toggle('active');
+            uiElements.buildControls.classList.toggle('active');
+            selectObject(null);
+            if (!buildMode) {
+                transformControls.detach();
+            }
+        }
+
+        function createObject(type, position = null) {
+            let mesh, body, userData = {};
+
+            if (type === 'generator') {
+                mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(1, 1, 1),
+                    new THREE.MeshStandardMaterial({ color: 0x4488ff })
+                );
+                mesh.name = 'generator';
+                if (position) mesh.position.copy(position);
+                body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) });
+                if (position) body.position.copy(position);
+
+            } else if (type === 'slope') {
+                const size = 3;
+                mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(size, 0.2, size),
+                    new THREE.MeshStandardMaterial({ color: 0xdddddd })
+                );
+                mesh.name = 'slope';
+                body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(size / 2, 0.1, size / 2)) });
+                mesh.rotation.x = -Math.PI / 8;
+                body.quaternion.setFromEuler(mesh.rotation.x, 0, 0);
+
+            } else if (type === 'collector') {
+                mesh = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32),
+                    new THREE.MeshStandardMaterial({ color: 0xffa500 })
+                );
+                mesh.name = 'collector';
+                userData = { level: 1 };
+                body = new CANNON.Body({ mass: 0, shape: new CANNON.Cylinder(1.5, 1.5, 0.5, 32) });
+                body.collisionResponse = false;
+            }
+
+            mesh.userData = userData;
+            mesh.userData.body = body;
+            body.userData = mesh;
+
+            scene.add(mesh);
+            world.addBody(body);
+            dynamicObjects.push({ mesh, body });
+            
+            if (type !== 'generator') {
+                 selectObject(mesh);
+            }
+        }
+
+        function handleGameClick(event) {
+            const mouse = new THREE.Vector2();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(dynamicObjects.map(o => o.mesh));
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (buildMode) {
+                    selectObject(object);
+                } else if (object.name === 'generator') {
+                    const ballSpawnPosition = object.position.clone();
+                    ballSpawnPosition.y -= 0.5;
+                    addSphere(ballSpawnPosition);
+                }
+            }
+        }
+
+        function selectObject(object) {
+            if (selectedObject && selectedObject !== object) {
+                selectedObject.material.emissive.setHex(0x000000);
+            }
+            if (object) {
+                selectedObject = object;
+                transformControls.attach(object);
+                object.material.emissive.setHex(0x222222);
+            } else {
+                if (selectedObject) {
+                    transformControls.detach();
+                }
+                selectedObject = null;
+            }
+        }
+
+        function addSphere(startPosition) {
+            const geometry = new THREE.SphereGeometry(0.3, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+            const sphereMesh = new THREE.Mesh(geometry, material);
+            sphereMesh.position.copy(startPosition);
+            scene.add(sphereMesh);
+            ballMeshes.push(sphereMesh);
+            ballCount++;
+
+            const sphereShape = new CANNON.Sphere(0.3);
+            const sphereBody = new CANNON.Body({ mass: 1, shape: sphereShape });
+            sphereBody.position.copy(sphereMesh.position);
+            sphereBody.addEventListener('collide', (event) => {
+                const collidedMesh = event.body.userData;
+                if (collidedMesh && collidedMesh.name === 'collector') {
+                    score += 100 * collidedMesh.userData.level;
+                    uiElements.scoreDisplay.textContent = score;
+                }
+            });
+            world.addBody(sphereBody);
+            ballBodies.push(sphereBody);
+            uiElements.ballCountDisplay.textContent = ballCount;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update Physics
+            world.fixedStep();
+
+            // Update objects with physics data
+            dynamicObjects.forEach(obj => {
+                if (obj.mesh !== selectedObject) {
+                    obj.mesh.position.copy(obj.body.position);
+                    obj.mesh.quaternion.copy(obj.body.quaternion);
+                }
+            });
+
+            // Update ball positions
+            for (let i = 0; i < ballMeshes.length; i++) {
+                if (ballBodies[i].position.y < -10) {
+                    scene.remove(ballMeshes[i]);
+                    world.removeBody(ballBodies[i]);
+                    ballMeshes.splice(i, 1);
+                    ballBodies.splice(i, 1);
+                    ballCount--;
+                    uiElements.ballCountDisplay.textContent = ballCount;
+                    i--;
+                } else {
+                    ballMeshes[i].position.copy(ballBodies[i].position);
+                    ballMeshes[i].quaternion.copy(ballBodies[i].quaternion);
+                }
+            }
+
+            // 同期処理
+            if (selectedObject) {
+                const { body } = selectedObject.userData;
+                body.position.copy(selectedObject.position);
+                body.quaternion.copy(selectedObject.quaternion);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
