@@ -13,7 +13,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            touch-action: none; 
+            touch-action: none;
             -ms-touch-action: none;
         }
 
@@ -232,9 +232,17 @@ measurementId: "G-H1LV28WFVD"
         // プレビューのタイムアウトID
         let previewTimeoutId = null;
 
+        // オフスクリーンキャンバス
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+        offscreenCanvas.width = CANVAS_WIDTH;
+        offscreenCanvas.height = CANVAS_HEIGHT;
+
         // 初期設定
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        offscreenCtx.lineCap = 'round';
+        offscreenCtx.lineJoin = 'round';
         
         // ログを表示する関数
         function showLog(message) {
@@ -245,36 +253,59 @@ measurementId: "G-H1LV28WFVD"
             }, 1500);
         }
 
-        // 描画データに基づいてキャンバスを再描画
-        function redrawCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.setTransform(scale, 0, 0, scale, originX, originY);
-            
-            // undoStack と currentStroke を結合して描画
-            const allStrokes = currentStroke ? [...undoStack, currentStroke] : undoStack;
-
-            allStrokes.forEach(stroke => {
-                ctx.beginPath();
+        // オフスクリーンキャンバスを再描画
+        function drawAllStrokesToOffscreen() {
+            offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            undoStack.forEach(stroke => {
+                offscreenCtx.beginPath();
                 if (stroke.tool === 'draw') {
                     const r = parseInt(stroke.color.slice(1, 3), 16);
                     const g = parseInt(stroke.color.slice(3, 5), 16);
                     const b = parseInt(stroke.color.slice(5, 7), 16);
-                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${stroke.transparency / 100})`;
-                    ctx.lineWidth = stroke.size;
-                    ctx.globalAlpha = 1; // ここを常に1に保つ
+                    offscreenCtx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${stroke.transparency / 100})`;
+                    offscreenCtx.lineWidth = stroke.size;
                 } else if (stroke.tool === 'erase') {
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = stroke.size;
-                    ctx.globalAlpha = 1;
+                    // 消しゴムのデータはオフスクリーンで描画
+                    offscreenCtx.strokeStyle = '#fff';
+                    offscreenCtx.lineWidth = stroke.size;
                 }
                 
-                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                for (let i = 1; i < stroke.points.length; i++) {
-                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                // 消しゴムで消されたストロークは描画しない
+                if (stroke.points && stroke.points.length > 1) {
+                    offscreenCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        offscreenCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                    }
+                    offscreenCtx.stroke();
+                }
+            });
+        }
+        
+        // メインキャンバスを再描画
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // オフスクリーンキャンバスの内容を描画
+            ctx.drawImage(offscreenCanvas, originX, originY, offscreenCanvas.width * scale, offscreenCanvas.height * scale);
+
+            // 描画中のストロークをリアルタイムで描画
+            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
+                ctx.beginPath();
+                if (currentStroke.tool === 'draw') {
+                    const r = parseInt(currentStroke.color.slice(1, 3), 16);
+                    const g = parseInt(currentStroke.color.slice(5, 7), 16);
+                    const b = parseInt(currentStroke.color.slice(5, 7), 16);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${currentStroke.transparency / 100})`;
+                    ctx.lineWidth = currentStroke.size * scale;
+                } else if (currentStroke.tool === 'erase') {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = currentStroke.size * scale;
+                }
+                ctx.moveTo((currentStroke.points[0].x * scale) + originX, (currentStroke.points[0].y * scale) + originY);
+                for (let i = 1; i < currentStroke.points.length; i++) {
+                    ctx.lineTo((currentStroke.points[i].x * scale) + originX, (currentStroke.points[i].y * scale) + originY);
                 }
                 ctx.stroke();
-            });
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
         }
 
         // ツールバーイベント
@@ -293,11 +324,13 @@ measurementId: "G-H1LV28WFVD"
         undoBtn.addEventListener('click', () => {
             if (undoStack.length > 0) {
                 const lastStroke = undoStack.pop();
+                // データベースから最後のストロークを削除
+                drawingRef.child(lastStroke.key).remove();
                 redoStack.push(lastStroke);
-                drawingRef.orderByKey().limitToLast(1).once('child_added', snapshot => {
-                    snapshot.ref.remove();
-                });
                 showLog("描画を戻しました");
+                // オフスクリーンキャンバスを再描画
+                drawAllStrokesToOffscreen();
+                // メインキャンバスを再描画
                 redrawCanvas();
             }
         });
@@ -305,9 +338,13 @@ measurementId: "G-H1LV28WFVD"
         redoBtn.addEventListener('click', () => {
             if (redoStack.length > 0) {
                 const nextStroke = redoStack.pop();
+                // データベースにストロークを再プッシュ
+                drawingRef.child(nextStroke.key).set(nextStroke);
                 undoStack.push(nextStroke);
-                drawingRef.push(nextStroke);
                 showLog("描画を進めました");
+                // オフスクリーンキャンバスを再描画
+                drawAllStrokesToOffscreen();
+                // メインキャンバスを再描画
                 redrawCanvas();
             }
         });
@@ -382,7 +419,9 @@ measurementId: "G-H1LV28WFVD"
                     color: brushColor,
                     size: brushSize,
                     transparency: transparency,
-                    points: [point]
+                    points: [point],
+                    // 消しゴムの場合、影響を受けるストロークのIDを保持
+                    erasedStrokeIds: activeTool === 'erase' ? [] : null
                 };
             }
         });
@@ -397,9 +436,30 @@ measurementId: "G-H1LV28WFVD"
 
         canvas.addEventListener('mouseup', () => {
             if (isDrawing && currentStroke && currentStroke.points.length > 1) {
-                undoStack.push(currentStroke);
-                redoStack = [];
-                drawingRef.push(currentStroke);
+                // 消しゴムの場合、影響を受けるストロークを削除
+                if (currentStroke.tool === 'erase') {
+                    // 消去されたストロークのIDを特定して削除
+                    const erasedIds = [];
+                    undoStack.forEach(stroke => {
+                        // 簡略化のために、ここではストロークの最初の点が消しゴムの範囲に入っているかで判定
+                        const isErased = currentStroke.points.some(p => {
+                            const dx = p.x - stroke.points[0].x;
+                            const dy = p.y - stroke.points[0].y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            return dist < currentStroke.size;
+                        });
+                        if (isErased && stroke.key) {
+                            erasedIds.push(stroke.key);
+                            drawingRef.child(stroke.key).remove();
+                        }
+                    });
+                    showLog(`${erasedIds.length}本のストロークを削除しました`);
+                } else {
+                    // 通常の描画ストロークを送信
+                    const newStrokeRef = drawingRef.push(currentStroke);
+                    currentStroke.key = newStrokeRef.key;
+                    redoStack = [];
+                }
                 currentStroke = null;
             }
             isDrawing = false;
@@ -409,9 +469,11 @@ measurementId: "G-H1LV28WFVD"
         canvas.addEventListener('mouseout', () => {
             if (isDrawing) {
                 if (currentStroke && currentStroke.points.length > 1) {
-                    undoStack.push(currentStroke);
-                    redoStack = [];
-                    drawingRef.push(currentStroke);
+                    if (currentStroke.tool === 'draw') {
+                        const newStrokeRef = drawingRef.push(currentStroke);
+                        currentStroke.key = newStrokeRef.key;
+                        redoStack = [];
+                    }
                 }
                 currentStroke = null;
                 isDrawing = false;
@@ -433,7 +495,8 @@ measurementId: "G-H1LV28WFVD"
                     color: brushColor,
                     size: brushSize,
                     transparency: transparency,
-                    points: [point]
+                    points: [point],
+                    erasedStrokeIds: activeTool === 'erase' ? [] : null
                 };
             } else if (touches.length === 2) {
                 isDrawing = false;
@@ -486,15 +549,33 @@ measurementId: "G-H1LV28WFVD"
                 startPanPoint = newPanPoint;
 
                 redrawCanvas();
-                showPreview(); // ズーム・パン時もプレビューを更新
+                showPreview();
             }
         });
 
         canvas.addEventListener('touchend', () => {
             if (isDrawing && currentStroke && currentStroke.points.length > 1) {
-                undoStack.push(currentStroke);
-                redoStack = [];
-                drawingRef.push(currentStroke);
+                 if (currentStroke.tool === 'erase') {
+                    // 消去されたストロークのIDを特定して削除
+                    const erasedIds = [];
+                    undoStack.forEach(stroke => {
+                        const isErased = currentStroke.points.some(p => {
+                            const dx = p.x - stroke.points[0].x;
+                            const dy = p.y - stroke.points[0].y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            return dist < currentStroke.size;
+                        });
+                        if (isErased && stroke.key) {
+                            erasedIds.push(stroke.key);
+                            drawingRef.child(stroke.key).remove();
+                        }
+                    });
+                    showLog(`${erasedIds.length}本のストロークを削除しました`);
+                } else {
+                    const newStrokeRef = drawingRef.push(currentStroke);
+                    currentStroke.key = newStrokeRef.key;
+                    redoStack = [];
+                }
                 currentStroke = null;
             }
             isDrawing = false;
@@ -504,23 +585,24 @@ measurementId: "G-H1LV28WFVD"
         });
 
         // Firebaseから描画データを取得
-        drawingRef.on('child_added', (snapshot) => {
+        drawingRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            undoStack.push(data);
+            undoStack = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const stroke = data[key];
+                    stroke.key = key;
+                    undoStack.push(stroke);
+                });
+            }
+            // オフスクリーンキャンバスを再描画
+            drawAllStrokesToOffscreen();
+            // メインキャンバスを再描画
             redrawCanvas();
         });
 
-        // Firebaseから描画データが削除された場合
-        drawingRef.on('child_removed', (snapshot) => {
-            const keyToRemove = snapshot.key;
-            const indexToRemove = undoStack.findIndex(stroke => stroke.key === keyToRemove);
-            if (indexToRemove !== -1) {
-                undoStack.splice(indexToRemove, 1);
-                redrawCanvas();
-            }
-        });
-        
         // 初期描画
+        drawAllStrokesToOffscreen();
         redrawCanvas();
     </script>
 </body>
