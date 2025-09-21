@@ -3,142 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D迷路ゲーム（マルチプレイヤー版）</title>
+    <title>オンラインお絵かきツール</title>
     <style>
         body {
+            font-family: Arial, sans-serif;
             margin: 0;
-            overflow: hidden;
-            font-family: 'Arial', sans-serif;
-            touch-action: none;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: none; 
             -ms-touch-action: none;
         }
-        canvas {
-            display: block;
-            touch-action: none;
-            pointer-events: auto;
+
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            overflow: hidden;
+            background-color: #fff;
         }
-        #overlay {
-            position: absolute;
-            top: 0;
+        
+        canvas {
+            touch-action: none;
+            -ms-touch-action: none;
+            background-color: transparent;
+        }
+
+        #toolbar {
+            position: fixed;
+            bottom: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-wrap: nowrap;
-            justify-content: space-between;
-            width: 95%;
-            max-width: 800px;
-            gap: 10px;
-            z-index: 10;
-            pointer-events: auto;
-        }
-        #left-controls, #right-controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
             justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
         }
-        #left-controls {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        #right-controls {
-            flex-direction: column;
-            align-items: flex-end;
-        }
-        .movement-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 5px;
-        }
-        #up-button { grid-area: 1 / 2 / 2 / 3; }
-        #left-button { grid-area: 2 / 1 / 3 / 2; }
-        #down-button { grid-area: 2 / 2 / 3 / 3; }
-        #right-button { grid-area: 2 / 3 / 3 / 4; }
-        .move-button, .jump-button, #secretJumpToggle {
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
+
+        .tool-button, .color-picker, .range-input {
+            margin: 5px;
+            padding: 10px 15px;
             border: none;
-            padding: 15px 25px;
-            font-size: 1.5em;
-            cursor: pointer;
             border-radius: 5px;
-            user-select: none;
-            touch-action: manipulation;
-            pointer-events: auto;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
         }
-        .move-button:active, .jump-button:active, #secretJumpToggle:active {
-            background-color: rgba(0, 0, 0, 0.8);
+        
+        .tool-button {
+            background-color: #e0e0e0;
         }
-        #message {
+        
+        .tool-button.active {
+            background-color: #4CAF50;
+            color: #fff;
+        }
+
+        .color-picker {
+            padding: 5px;
+            width: 50px;
+            height: 30px;
+            border: 1px solid #ccc;
+        }
+
+        .range-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 10px;
+            position: relative;
+        }
+
+        .range-container label {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .range-container .range-input {
+            width: 100%;
+        }
+
+        .range-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* プレビュー表示用のスタイル */
+        #preview-circle {
             position: absolute;
-            top: 50%;
+            top: -40px;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 1.8em;
-            text-align: center;
-            z-index: 100;
-            display: none;
+            transform: translateX(-50%);
+            border: 2px solid rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
         }
-        #minimapCanvas {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            border: 2px solid #333;
-            background-color: rgba(0, 0, 0, 1);
-            z-index: 50;
+        #preview-circle.show {
+            opacity: 1;
+        }
+
+        #undo-redo-buttons button {
+            margin-left: 10px;
+        }
+
+        #log-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 2000;
+        }
+        #log-message.show {
+            opacity: 1;
         }
     </style>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
-    <div id="overlay">
-        <div id="minimap-container">
-            <canvas id="minimapCanvas"></canvas>
+
+    <div id="canvas-container">
+        <canvas id="drawing-board"></canvas>
+    </div>
+
+    <div id="toolbar">
+        <div id="main-tools">
+            <button id="draw-tool" class="tool-button active">ペン</button>
+            <button id="erase-tool" class="tool-button">消しゴム</button>
         </div>
-        <div id="message"></div>
-        <div id="controls">
-            <div id="left-controls">
-                <div class="movement-grid">
-                    <button id="up-button" class="move-button" data-key="w">↑</button>
-                    <button id="left-button" class="move-button" data-key="a">←</button>
-                    <button id="down-button" class="move-button" data-key="s">↓</button>
-                    <button id="right-button" class="move-button" data-key="d">→</button>
-                </div>
-            </div>
-            <div id="right-controls">
-                <button id="jump-button" class="jump-button">JUMP</button>
-            </div>
+        <div id="undo-redo-buttons">
+            <button id="undo-button" class="tool-button">戻す</button>
+            <button id="redo-button" class="tool-button">進める</button>
+        </div>
+        <div>
+            <input type="color" id="color-picker" class="color-picker" value="#000000">
+        </div>
+        <div class="range-container">
+            <div id="preview-circle"></div>
+            <label for="brush-size">太さ</label>
+            <input type="range" id="brush-size" class="range-input" min="1" max="100" value="5">
+            <span id="brush-size-value" class="range-value">5</span>
+        </div>
+        <div class="range-container">
+            <label for="transparency">透明度</label>
+            <input type="range" id="transparency" class="range-input" min="0" max="100" step="1" value="100">
+            <span id="transparency-value" class="range-value">100</span>
         </div>
     </div>
 
+    <div id="log-message"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
     <script>
-        // Firebase設定（ご自身のプロジェクト設定に置き換えてください）
+        // Firebase設定 (YOUR_API_KEYなどを置き換えてください)
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
             authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-northeast1.firebasedatabase.app",
             projectId: "YOUR_PROJECT_ID",
             storageBucket: "YOUR_PROJECT_ID.appspot.com",
             messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
@@ -146,614 +184,343 @@
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const playersRef = database.ref('players');
-        const localPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
-        const otherPlayers = {};
+        const drawingRef = database.ref('drawings/session1');
 
-        // 共通変数
-        const CELL_SIZE = 10;
-        const WALL_HEIGHT = 5;
-        const PLAYER_HEIGHT = 1.7;
-        const PLAYER_RADIUS = 0.5;
-        const PLAYER_SPEED = 0.15;
-        const NORMAL_JUMP_VELOCITY = 0.4;
-        const PLAYER_JUMP_VELOCITY = 0.8;
-        const GRAVITY = 0.02;
+        // DOM要素
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d');
+        const drawToolBtn = document.getElementById('draw-tool');
+        const eraseToolBtn = document.getElementById('erase-tool');
+        const undoBtn = document.getElementById('undo-button');
+        const redoBtn = document.getElementById('redo-button');
+        const colorPicker = document.getElementById('color-picker');
+        const brushSizeInput = document.getElementById('brush-size');
+        const brushSizeValueSpan = document.getElementById('brush-size-value');
+        const transparencyInput = document.getElementById('transparency');
+        const transparencyValueSpan = document.getElementById('transparency-value');
+        const previewCircle = document.getElementById('preview-circle');
+        const logMessage = document.getElementById('log-message');
 
-        let mazeWidth;
-        let mazeHeight;
-        let mazeCells;
-        let startX, startZ, endX, endZ;
-
-        let scene, camera, renderer;
-        let verticalVelocity = 0;
-        let isJumping = false;
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let messageTimeout;
-
-        // 隠しジャンプ関連
-        const urlParams = new URLSearchParams(window.location.search);
-        let secretJumpActive = urlParams.get('mode') === 'fly';
-
-        // ミニマップ変数
-        let minimapCanvas, minimapCtx;
-        const MINIMAP_WIDTH = 200;
-        const MINIMAP_HEIGHT = 200;
-        let MINIMAP_CELL_SIZE;
-        let visitedCells, revealedCells;
+        // キャンバスサイズ設定
+        const CANVAS_WIDTH = 2000;
+        const CANVAS_HEIGHT = 1500;
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
         
-        // タッチ操作関連
-        const touchPositions = {};
-        const isButtonTouch = (x, y) => {
-            const buttons = document.querySelectorAll('.move-button, .jump-button, #secretJumpToggle');
-            for (let i = 0; i < buttons.length; i++) {
-                const rect = buttons[i].getBoundingClientRect();
-                if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-                    return true;
-                }
-            }
-            return false;
-        };
+        // 描画状態変数
+        let isDrawing = false;
+        let activeTool = 'draw';
+        let brushSize = 5;
+        let brushColor = '#000000';
+        let transparency = 100;
+        
+        // ズーム・パン変数
+        let scale = 1;
+        let originX = 0;
+        let originY = 0;
+        let startPinchDistance = 0;
+        let startPanPoint = { x: 0, y: 0 };
+        let isPinching = false;
+        let isPanning = false;
 
-        // カメラの回転をオイラー角で管理
-        let cameraEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+        // 描画データとアンドゥ/リドゥのスタック
+        let undoStack = [];
+        let redoStack = [];
+        let currentStroke = null;
 
-        // 初期化
-        init();
-        animate();
+        // プレビューのタイムアウトID
+        let previewTimeoutId = null;
 
-        // Three.js初期化
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb);
+        // 初期設定
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        // ログを表示する関数
+        function showLog(message) {
+            logMessage.textContent = message;
+            logMessage.classList.add('show');
+            setTimeout(() => {
+                logMessage.classList.remove('show');
+            }, 1500);
+        }
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, PLAYER_HEIGHT, 0);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            const ambientLight = new THREE.AmbientLight(0x404040);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight.position.set(1, 1, 1).normalize();
-            scene.add(directionalLight);
-
-            generateMaze(15, 15);
-            drawMaze();
-            placePlayerAndGoal();
-            initMinimap();
+        // 描画データに基づいてキャンバスを再描画
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.setTransform(scale, 0, 0, scale, originX, originY);
             
-            if (secretJumpActive) {
-                createSecretJumpToggleButton();
-                showMessage("隠しジャンプモードON", 3000);
-            }
+            // undoStack と currentStroke を結合して描画
+            const allStrokes = currentStroke ? [...undoStack, currentStroke] : undoStack;
 
-            document.addEventListener('keydown', onKeyDown, false);
-            document.addEventListener('keyup', onKeyUp, false);
-            document.addEventListener('mousedown', onMouseDown, false);
-            document.addEventListener('mouseup', onMouseUp, false);
-            document.addEventListener('mousemove', onMouseMove, false);
-            window.addEventListener('resize', onWindowResize, false);
+            allStrokes.forEach(stroke => {
+                ctx.beginPath();
+                if (stroke.tool === 'draw') {
+                    const r = parseInt(stroke.color.slice(1, 3), 16);
+                    const g = parseInt(stroke.color.slice(3, 5), 16);
+                    const b = parseInt(stroke.color.slice(5, 7), 16);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${stroke.transparency / 100})`;
+                    ctx.lineWidth = stroke.size;
+                    ctx.globalAlpha = 1; // ここを常に1に保つ
+                } else if (stroke.tool === 'erase') {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = stroke.size;
+                    ctx.globalAlpha = 1;
+                }
+                
+                ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                ctx.stroke();
+            });
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+
+        // ツールバーイベント
+        drawToolBtn.addEventListener('click', () => {
+            activeTool = 'draw';
+            drawToolBtn.classList.add('active');
+            eraseToolBtn.classList.remove('active');
+        });
+        
+        eraseToolBtn.addEventListener('click', () => {
+            activeTool = 'erase';
+            eraseToolBtn.classList.add('active');
+            drawToolBtn.classList.remove('active');
+        });
+
+        undoBtn.addEventListener('click', () => {
+            if (undoStack.length > 0) {
+                const lastStroke = undoStack.pop();
+                redoStack.push(lastStroke);
+                drawingRef.orderByKey().limitToLast(1).once('child_added', snapshot => {
+                    snapshot.ref.remove();
+                });
+                showLog("描画を戻しました");
+                redrawCanvas();
+            }
+        });
+
+        redoBtn.addEventListener('click', () => {
+            if (redoStack.length > 0) {
+                const nextStroke = redoStack.pop();
+                undoStack.push(nextStroke);
+                drawingRef.push(nextStroke);
+                showLog("描画を進めました");
+                redrawCanvas();
+            }
+        });
+
+        // プレビュー表示関数
+        function showPreview() {
+            if (previewTimeoutId) {
+                clearTimeout(previewTimeoutId);
+            }
+            const previewSize = Math.max(1, brushSize * scale);
+            previewCircle.style.width = `${previewSize}px`;
+            previewCircle.style.height = `${previewSize}px`;
+
+            const r = parseInt(brushColor.slice(1, 3), 16);
+            const g = parseInt(brushColor.slice(3, 5), 16);
+            const b = parseInt(brushColor.slice(5, 7), 16);
+            previewCircle.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${transparency / 100})`;
             
-            setupMobileControls();
-            renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
-            renderer.domElement.addEventListener('touchend', onTouchEnd, false);
-            renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+            previewCircle.classList.add('show');
 
-            playersRef.on('value', (snapshot) => {
-                const players = snapshot.val();
-                if (!players) {
-                    for (const id in otherPlayers) {
-                        scene.remove(otherPlayers[id]);
-                        delete otherPlayers[id];
-                    }
-                    return;
-                }
-                const activePlayerIds = Object.keys(players);
-                for (const id in otherPlayers) {
-                    if (!activePlayerIds.includes(id)) {
-                        scene.remove(otherPlayers[id]);
-                        delete otherPlayers[id];
-                    }
-                }
-                for (const id in players) {
-                    if (id === localPlayerId) continue;
-                    const playerData = players[id];
-                    let playerMesh = otherPlayers[id];
-                    if (!playerMesh) {
-                        playerMesh = createOtherPlayerMesh();
-                        scene.add(playerMesh);
-                        otherPlayers[id] = playerMesh;
-                    }
-                    if (playerData.position && playerData.rotation) {
-                        playerMesh.position.set(playerData.position.x, playerData.position.y, playerData.position.z);
-                        playerMesh.rotation.set(playerData.rotation.x, playerData.rotation.y, playerData.rotation.z);
-                    }
-                }
-            });
-
-            window.addEventListener('beforeunload', () => {
-                playersRef.child(localPlayerId).remove();
-            });
+            previewTimeoutId = setTimeout(() => {
+                hidePreview();
+            }, 1000); // 1秒後に非表示
         }
 
-        function createOtherPlayerMesh() {
-            const group = new THREE.Group();
-            const sphereGeometry = new THREE.SphereGeometry(PLAYER_RADIUS, 16, 16);
-            const material = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
-            const sphere1 = new THREE.Mesh(sphereGeometry, material);
-            const sphere2 = new THREE.Mesh(sphereGeometry, material);
-            const sphere3 = new THREE.Mesh(sphereGeometry, material);
-            sphere1.position.y = PLAYER_HEIGHT;
-            sphere2.position.y = PLAYER_HEIGHT + PLAYER_RADIUS * 2;
-            sphere3.position.y = PLAYER_HEIGHT - PLAYER_RADIUS * 2;
-            group.add(sphere1);
-            group.add(sphere2);
-            group.add(sphere3);
-            return group;
+        function hidePreview() {
+            previewCircle.classList.remove('show');
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        colorPicker.addEventListener('input', (e) => {
+            brushColor = e.target.value;
+            showPreview();
+        });
 
-        function onKeyDown(event) {
-            switch (event.key) {
-                case 'w': case 'W': case 'ArrowUp': moveForward = true; break;
-                case 's': case 'S': case 'ArrowDown': moveBackward = true; break;
-                case 'a': case 'A': case 'ArrowLeft': moveLeft = true; break;
-                case 'd': case 'D': case 'ArrowRight': moveRight = true; break;
-                case ' ': jump(); break;
-            }
-        }
-
-        function onKeyUp(event) {
-            switch (event.key) {
-                case 'w': case 'W': case 'ArrowUp': moveForward = false; break;
-                case 's': case 'S': case 'ArrowDown': moveBackward = false; break;
-                case 'a': case 'A': case 'ArrowLeft': moveLeft = false; break;
-                case 'd': case 'D': case 'ArrowRight': moveRight = false; break;
-            }
-        }
-
-        function onMouseDown(event) {
-            if (event.button === 0) {
-                document.body.requestPointerLock();
-            }
-        }
-
-        function onMouseUp(event) {}
-
-        function onMouseMove(event) {
-            if (document.pointerLockElement === document.body) {
-                cameraEuler.y -= event.movementX * 0.002;
-                cameraEuler.x -= event.movementY * 0.002;
-                cameraEuler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraEuler.x));
-                camera.rotation.copy(cameraEuler);
-            }
-        }
-
-        function showMessage(text, duration) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = text;
-            messageDiv.style.display = 'block';
-            clearTimeout(messageTimeout);
-            messageTimeout = setTimeout(() => {
-                messageDiv.style.display = 'none';
-            }, duration);
-        }
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value, 10);
+            brushSizeValueSpan.textContent = brushSize;
+            showPreview();
+        });
         
-        function setupMobileControls() {
-            const jumpButton = document.getElementById('jump-button');
-            jumpButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                jump();
-            }, { passive: false });
-
-            const mobileButtons = document.querySelectorAll('.move-button');
-            mobileButtons.forEach(button => {
-                button.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const key = button.dataset.key;
-                    if (key === 'w') moveForward = true;
-                    if (key === 's') moveBackward = true;
-                    if (key === 'a') moveLeft = true;
-                    if (key === 'd') moveRight = true;
-                });
-                button.addEventListener('touchend', () => {
-                    const key = button.dataset.key;
-                    if (key === 'w') moveForward = false;
-                    if (key === 's') moveBackward = false;
-                    if (key === 'a') moveLeft = false;
-                    if (key === 'd') moveRight = false;
-                });
-            });
-        }
+        transparencyInput.addEventListener('input', (e) => {
+            transparency = parseInt(e.target.value, 10);
+            transparencyValueSpan.textContent = transparency;
+            showPreview();
+        });
         
-        function onTouchStart(event) {
-            for (let i = 0; i < event.changedTouches.length; i++) {
-                const touch = event.changedTouches[i];
-                if (!isButtonTouch(touch.clientX, touch.clientY)) {
-                    touchPositions[touch.identifier] = { x: touch.clientX, y: touch.clientY };
-                }
-            }
-        }
-
-        function onTouchMove(event) {
-            event.preventDefault(); // スクロールやピンチを防止
-            for (let i = 0; i < event.changedTouches.length; i++) {
-                const touch = event.changedTouches[i];
-                const startPos = touchPositions[touch.identifier];
-                if (startPos) {
-                    const dx = touch.clientX - startPos.x;
-                    const dy = touch.clientY - startPos.y;
-                    cameraEuler.y -= dx * 0.005;
-                    cameraEuler.x -= dy * 0.005;
-                    cameraEuler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraEuler.x));
-                    camera.rotation.copy(cameraEuler);
-                    startPos.x = touch.clientX;
-                    startPos.y = touch.clientY;
-                }
-            }
-        }
-
-        function onTouchEnd(event) {
-            for (let i = 0; i < event.changedTouches.length; i++) {
-                delete touchPositions[event.changedTouches[i].identifier];
-            }
-        }
-
-        function createSecretJumpToggleButton() {
-            const rightControlsDiv = document.getElementById('right-controls');
-            const toggleButton = document.createElement('button');
-            toggleButton.id = 'secretJumpToggle';
-            toggleButton.className = 'jump-button';
-            toggleButton.textContent = '隠しジャンプ: ON';
-            rightControlsDiv.appendChild(toggleButton);
-            toggleButton.addEventListener('click', () => {
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.delete('mode');
-                window.location.href = newUrl.toString();
-            });
-            toggleButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.delete('mode');
-                window.location.href = newUrl.toString();
-            }, { passive: false });
-        }
-
-        function generateMaze(width, height) {
-            mazeWidth = width;
-            mazeHeight = height;
-            mazeCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(1));
-            const stack = [];
-            const visited = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
-            startX = Math.floor(Math.random() * mazeWidth);
-            startZ = Math.floor(Math.random() * mazeHeight);
-            if(mazeCells[startZ][startX] === 1) mazeCells[startZ][startX] = 0;
-            stack.push({ x: startX, z: startZ });
-            visited[startZ][startX] = true;
-            const directions = [{ x: 2, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 2 }, { x: 0, z: -2 }];
-            while (stack.length > 0) {
-                let { x, z } = stack[stack.length - 1];
-                const neighbors = [];
-                for (const dir of directions) {
-                    const nextX = x + dir.x;
-                    const nextZ = z + dir.z;
-                    if (nextX >= 0 && nextX < mazeWidth && nextZ >= 0 && nextZ < mazeHeight && !visited[nextZ][nextX]) {
-                        neighbors.push({ x: nextX, z: nextZ, dir: dir });
-                    }
-                }
-                if (neighbors.length > 0) {
-                    const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    const wallX = x + neighbor.dir.x / 2;
-                    const wallZ = z + neighbor.dir.z / 2;
-                    mazeCells[neighbor.z][neighbor.x] = 0;
-                    mazeCells[wallZ][wallX] = 0;
-                    visited[neighbor.z][neighbor.x] = true;
-                    stack.push(neighbor);
-                } else {
-                    stack.pop();
-                }
-            }
-            for (let z = 0; z < mazeHeight; z++) {
-                for (let x = 0; x < mazeWidth; x++) {
-                    if (mazeCells[z][x] === 1) {
-                        let passageCount = 0;
-                        if (x > 0 && mazeCells[z][x-1] === 0) passageCount++;
-                        if (x < mazeWidth-1 && mazeCells[z][x+1] === 0) passageCount++;
-                        if (z > 0 && mazeCells[z-1][x] === 0) passageCount++;
-                        if (z < mazeHeight-1 && mazeCells[z+1][x] === 0) passageCount++;
-                        if (passageCount >= 3) {
-                            mazeCells[z][x] = 0;
-                        }
-                    }
-                }
-            }
-            endX = (startX < mazeWidth / 2) ? mazeWidth - 1 : 0;
-            endZ = (startZ < mazeHeight / 2) ? mazeHeight - 1 : 0;
-            mazeCells[endZ][endX] = 0;
-        }
-
-        function drawMaze() {
-            const wallGeometry = new THREE.BoxGeometry(CELL_SIZE, WALL_HEIGHT, CELL_SIZE);
-            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0xADD8E6 });
-            const floorGeometry = new THREE.PlaneGeometry(mazeWidth * CELL_SIZE, mazeHeight * CELL_SIZE);
-            const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
-            floorMesh.rotation.x = -Math.PI / 2;
-            floorMesh.position.set(mazeWidth * CELL_SIZE / 2, 0, mazeHeight * CELL_SIZE / 2);
-            scene.add(floorMesh);
-            for (let z = 0; z < mazeHeight; z++) {
-                for (let x = 0; x < mazeWidth; x++) {
-                    if (mazeCells[z][x] === 1) {
-                        const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-                        wall.position.set(x * CELL_SIZE + CELL_SIZE / 2, WALL_HEIGHT / 2, z * CELL_SIZE + CELL_SIZE / 2);
-                        scene.add(wall);
-                    }
-                }
-            }
-        }
-
-        function placePlayerAndGoal() {
-            camera.position.set(startX * CELL_SIZE + CELL_SIZE / 2, PLAYER_HEIGHT, startZ * CELL_SIZE + CELL_SIZE / 2);
-            const goalGeometry = new THREE.SphereGeometry(CELL_SIZE / 4, 32, 32);
-            const goalMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const goalMesh = new THREE.Mesh(goalGeometry, goalMaterial);
-            goalMesh.position.set(endX * CELL_SIZE + CELL_SIZE / 2, PLAYER_HEIGHT, endZ * CELL_SIZE + CELL_SIZE / 2);
-            scene.add(goalMesh);
-        }
-
-        function jump() {
-            if (!isJumping) {
-                isJumping = true;
-                verticalVelocity = secretJumpActive ? PLAYER_JUMP_VELOCITY : NORMAL_JUMP_VELOCITY;
-            }
-        }
-
-        function checkCollision(currentX, currentZ, desiredMoveX, desiredMoveZ) {
-            if (secretJumpActive) {
-                return { collided: false, newX: currentX + desiredMoveX, newZ: currentZ + desiredMoveZ };
-            }
-            let nextX = currentX + desiredMoveX;
-            let nextZ = currentZ + desiredMoveZ;
-            let resolvedX = nextX;
-            let resolvedZ = nextZ;
-            let collided = false;
-            const minCheckX = Math.floor((Math.min(currentX, nextX) - PLAYER_RADIUS) / CELL_SIZE);
-            const maxCheckX = Math.ceil((Math.max(currentX, nextX) + PLAYER_RADIUS) / CELL_SIZE);
-            const minCheckZ = Math.floor((Math.min(currentZ, nextZ) - PLAYER_RADIUS) / CELL_SIZE);
-            const maxCheckZ = Math.ceil((Math.max(currentZ, nextZ) + PLAYER_RADIUS) / CELL_SIZE);
-            for (let z = minCheckZ; z < maxCheckZ; z++) {
-                for (let x = minCheckX; x < maxCheckX; x++) {
-                    if (x < 0 || x >= mazeWidth || z < 0 || z >= mazeHeight) {
-                        if (nextX - PLAYER_RADIUS < 0) resolvedX = PLAYER_RADIUS;
-                        if (nextX + PLAYER_RADIUS > mazeWidth * CELL_SIZE) resolvedX = mazeWidth * CELL_SIZE - PLAYER_RADIUS;
-                        if (nextZ - PLAYER_RADIUS < 0) resolvedZ = PLAYER_RADIUS;
-                        if (nextZ + PLAYER_RADIUS > mazeHeight * CELL_SIZE) resolvedZ = mazeHeight * CELL_SIZE - PLAYER_RADIUS;
-                        collided = true;
-                        continue;
-                    }
-                    if (mazeCells[z][x] === 1) {
-                        const wallMinX = x * CELL_SIZE;
-                        const wallMaxX = (x + 1) * CELL_SIZE;
-                        const wallMinZ = z * CELL_SIZE;
-                        const wallMaxZ = (z + 1) * CELL_SIZE;
-                        const playerNextMinX = nextX - PLAYER_RADIUS;
-                        const playerNextMaxX = nextX + PLAYER_RADIUS;
-                        const playerNextMinZ = nextZ - PLAYER_RADIUS;
-                        const playerNextMaxZ = nextZ + PLAYER_RADIUS;
-                        if (playerNextMaxX > wallMinX && playerNextMinX < wallMaxX && playerNextMaxZ > wallMinZ && playerNextMinZ < wallMaxZ) {
-                            collided = true;
-                            const overlapX = Math.min(playerNextMaxX - wallMinX, wallMaxX - playerNextMinX);
-                            const overlapZ = Math.min(playerNextMaxZ - wallMinZ, wallMaxZ - playerNextMinZ);
-                            if (overlapX < overlapZ) {
-                                if (currentX < wallMinX) { resolvedX = wallMinX - PLAYER_RADIUS; }
-                                else { resolvedX = wallMaxX + PLAYER_RADIUS; }
-                                desiredMoveX = 0;
-                            } else {
-                                if (currentZ < wallMinZ) { resolvedZ = wallMinZ - PLAYER_RADIUS; }
-                                else { resolvedZ = wallMaxZ + PLAYER_RADIUS; }
-                                desiredMoveZ = 0;
-                            }
-                        }
-                    }
-                }
-            }
-            return { collided: collided, newX: resolvedX, newZ: resolvedZ, remainingMoveX: desiredMoveX, remainingMoveZ: desiredMoveZ };
-        }
-
-        function checkCeilingCollision(targetY) {
-            const currentCellX = Math.floor(camera.position.x / CELL_SIZE);
-            const currentCellZ = Math.floor(camera.position.z / CELL_SIZE);
-            if (currentCellX >= 0 && currentCellX < mazeWidth && currentCellZ >= 0 && currentCellZ < mazeHeight && mazeCells[currentCellZ][currentCellX] === 1) {
-                if (targetY + PLAYER_HEIGHT / 2 > WALL_HEIGHT) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function checkFloorCollision(targetY) {
-            const currentCellX = Math.floor(camera.position.x / CELL_SIZE);
-            const currentCellZ = Math.floor(camera.position.z / CELL_SIZE);
-            if (targetY <= PLAYER_HEIGHT) {
-                return { collided: true, landY: PLAYER_HEIGHT };
-            }
-            if (currentCellX >= 0 && currentCellX < mazeWidth && currentCellZ >= 0 && currentCellZ < mazeHeight && mazeCells[currentCellZ][currentCellX] === 1) {
-                const wallTopSurfaceY = WALL_HEIGHT;
-                const playerStandingOnWallY = wallTopSurfaceY + PLAYER_HEIGHT;
-                if (verticalVelocity < 0 && targetY <= playerStandingOnWallY) {
-                    if (camera.position.y - PLAYER_HEIGHT / 2 >= wallTopSurfaceY - 0.1) {
-                        return { collided: true, landY: playerStandingOnWallY };
-                    }
-                }
-            }
-            return { collided: false, landY: targetY };
-        }
-
-        function applyGravity() {
-            if (secretJumpActive) {
-                return;
-            }
-            if (isJumping || camera.position.y > PLAYER_HEIGHT) {
-                verticalVelocity -= GRAVITY;
-                let nextY = camera.position.y + verticalVelocity;
-                if (verticalVelocity > 0) {
-                    if (checkCeilingCollision(nextY)) {
-                        verticalVelocity = 0;
-                    }
-                }
-                if (verticalVelocity < 0) {
-                    const hitGround = checkFloorCollision(nextY);
-                    if (hitGround.collided) {
-                        camera.position.y = hitGround.landY;
-                        verticalVelocity = 0;
-                        isJumping = false;
-                    } else {
-                        camera.position.y = nextY;
-                    }
-                } else {
-                    camera.position.y = nextY;
-                }
+        // 座標変換関数: 画面座標 -> 論理座標
+        function getCorrectMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
             } else {
-                camera.position.y = PLAYER_HEIGHT;
-                isJumping = false;
-                verticalVelocity = 0;
+                clientX = e.clientX;
+                clientY = e.clientY;
             }
+            return {
+                x: (clientX - rect.left - originX) / scale,
+                y: (clientY - rect.top - originY) / scale
+            };
         }
 
-        function initMinimap() {
-            minimapCanvas = document.getElementById('minimapCanvas');
-            minimapCtx = minimapCanvas.getContext('2d');
-            MINIMAP_CELL_SIZE = Math.min(MINIMAP_WIDTH / mazeWidth, MINIMAP_HEIGHT / mazeHeight);
-            minimapCanvas.width = mazeWidth * MINIMAP_CELL_SIZE;
-            minimapCanvas.height = mazeHeight * MINIMAP_CELL_SIZE;
-            visitedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
-            revealedCells = Array(mazeHeight).fill(null).map(() => Array(mazeWidth).fill(false));
-            drawInitialMinimap();
-        }
-
-        function drawInitialMinimap() {
-            minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-            minimapCtx.fillStyle = 'rgba(0,0,0,1)';
-            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-            minimapCtx.fillStyle = '#00FF00';
-            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-            revealedCells[startZ][startX] = true;
-            minimapCtx.fillStyle = '#FF0000';
-            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-            revealedCells[endZ][endX] = true;
-        }
-
-        function updateMinimap() {
-            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
-            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
-            if (currentMazeX >= 0 && currentMazeX < mazeWidth && currentMazeZ >= 0 && currentMazeZ < mazeHeight) {
-                visitedCells[currentMazeZ][currentMazeX] = true;
-                revealedCells[currentMazeZ][currentMazeX] = true;
+        // マウス/タッチイベント
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                e.preventDefault();
+                isDrawing = true;
+                const point = getCorrectMousePos(e);
+                currentStroke = {
+                    tool: activeTool,
+                    color: brushColor,
+                    size: brushSize,
+                    transparency: transparency,
+                    points: [point]
+                };
             }
-            const REVEAL_RADIUS = 2;
-            for (let zOffset = -REVEAL_RADIUS; zOffset <= REVEAL_RADIUS; zOffset++) {
-                for (let xOffset = -REVEAL_RADIUS; xOffset <= REVEAL_RADIUS; xOffset++) {
-                    const checkX = currentMazeX + xOffset;
-                    const checkZ = currentMazeZ + zOffset;
-                    if (checkX >= 0 && checkX < mazeWidth && checkZ >= 0 && checkZ < mazeHeight) {
-                        const distSq = xOffset * xOffset + zOffset * zOffset;
-                        const radiusSq = REVEAL_RADIUS * REVEAL_RADIUS;
-                        if (distSq <= radiusSq) {
-                            revealedCells[checkZ][checkX] = true;
-                        }
-                    }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const newPoint = getCorrectMousePos(e);
+            currentStroke.points.push(newPoint);
+            redrawCanvas(); 
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
+                undoStack.push(currentStroke);
+                redoStack = [];
+                drawingRef.push(currentStroke);
+                currentStroke = null;
+            }
+            isDrawing = false;
+            redrawCanvas();
+        });
+
+        canvas.addEventListener('mouseout', () => {
+            if (isDrawing) {
+                if (currentStroke && currentStroke.points.length > 1) {
+                    undoStack.push(currentStroke);
+                    redoStack = [];
+                    drawingRef.push(currentStroke);
                 }
+                currentStroke = null;
+                isDrawing = false;
+                redrawCanvas();
             }
-            minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-            minimapCtx.fillStyle = 'rgba(0,0,0,1)';
-            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
-            for (let z = 0; z < mazeHeight; z++) {
-                for (let x = 0; x < mazeWidth; x++) {
-                    if (revealedCells[z][x]) {
-                        if (mazeCells[z][x] === 1) {
-                            minimapCtx.fillStyle = '#8B4513';
-                        } else {
-                            minimapCtx.fillStyle = '#ADD8E6';
-                        }
-                        minimapCtx.fillRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-                        minimapCtx.strokeStyle = '#999';
-                        minimapCtx.strokeRect(x * MINIMAP_CELL_SIZE, z * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-                    }
+        });
+
+        // タッチイベント処理
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touches = e.touches;
+            if (touches.length === 1) {
+                isDrawing = true;
+                isPinching = false;
+                isPanning = false;
+                const point = getCorrectMousePos(e);
+                currentStroke = {
+                    tool: activeTool,
+                    color: brushColor,
+                    size: brushSize,
+                    transparency: transparency,
+                    points: [point]
+                };
+            } else if (touches.length === 2) {
+                isDrawing = false;
+                isPinching = true;
+                isPanning = true;
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                startPinchDistance = Math.sqrt(dx * dx + dy * dy);
+                startPanPoint = {
+                    x: (touches[0].clientX + touches[1].clientX) / 2,
+                    y: (touches[0].clientY + touches[1].clientY) / 2
+                };
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touches = e.touches;
+            const rect = canvas.getBoundingClientRect();
+
+            if (isDrawing && touches.length === 1) {
+                const newPoint = getCorrectMousePos(e);
+                if (currentStroke) {
+                    currentStroke.points.push(newPoint);
+                    redrawCanvas();
                 }
+            } else if (isPinching && touches.length === 2) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                const newPinchDistance = Math.sqrt(dx * dx + dy * dy);
+                const pinchScale = newPinchDistance / startPinchDistance;
+                const newScale = scale * pinchScale;
+
+                const centerClientX = (touches[0].clientX + touches[1].clientX) / 2;
+                const centerClientY = (touches[0].clientY + touches[1].clientY) / 2;
+                const centerCanvasX = centerClientX - rect.left;
+                const centerCanvasY = centerClientY - rect.top;
+
+                originX = centerCanvasX - (centerCanvasX - originX) * pinchScale;
+                originY = centerCanvasY - (centerCanvasY - originY) * pinchScale;
+                scale = newScale;
+                startPinchDistance = newPinchDistance;
+
+                const newPanPoint = {
+                    x: (touches[0].clientX + touches[1].clientX) / 2,
+                    y: (touches[0].clientY + touches[1].clientY) / 2
+                };
+                originX += (newPanPoint.x - startPanPoint.x);
+                originY += (newPanPoint.y - startPanPoint.y);
+                startPanPoint = newPanPoint;
+
+                redrawCanvas();
+                showPreview(); // ズーム・パン時もプレビューを更新
             }
-            minimapCtx.fillStyle = '#00FF00';
-            minimapCtx.fillRect(startX * MINIMAP_CELL_SIZE, startZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-            minimapCtx.fillStyle = '#FF0000';
-            minimapCtx.fillRect(endX * MINIMAP_CELL_SIZE, endZ * MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE, MINIMAP_CELL_SIZE);
-            const playerMinimapX = (camera.position.x / CELL_SIZE) * MINIMAP_CELL_SIZE;
-            const playerMinimapZ = (camera.position.z / CELL_SIZE) * MINIMAP_CELL_SIZE;
-            minimapCtx.fillStyle = 'blue';
-            minimapCtx.beginPath();
-            minimapCtx.arc(playerMinimapX, playerMinimapZ, MINIMAP_CELL_SIZE * 0.4, 0, Math.PI * 2, false);
-            minimapCtx.fill();
-        }
+        });
 
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // 移動方向を計算（Y軸回転のみ考慮）
-            const cameraDirection = new THREE.Vector3();
-            camera.getWorldDirection(cameraDirection);
-            cameraDirection.y = 0;
-            cameraDirection.normalize();
-
-            const leftDirection = new THREE.Vector3().crossVectors(camera.up, cameraDirection);
-            const rightDirection = new THREE.Vector3().crossVectors(cameraDirection, camera.up);
-
-            const moveVector = new THREE.Vector3(0, 0, 0);
-
-            if (moveForward) moveVector.add(cameraDirection);
-            if (moveBackward) moveVector.sub(cameraDirection);
-            if (moveLeft) moveVector.add(leftDirection);
-            if (moveRight) moveVector.add(rightDirection);
-
-            moveVector.normalize().multiplyScalar(PLAYER_SPEED);
-
-            const collisionResult = checkCollision(camera.position.x, camera.position.z, moveVector.x, moveVector.z);
-            camera.position.x = collisionResult.newX;
-            camera.position.z = collisionResult.newZ;
-
-            applyGravity();
-
-            const currentMazeX = Math.floor(camera.position.x / CELL_SIZE);
-            const currentMazeZ = Math.floor(camera.position.z / CELL_SIZE);
-            if (currentMazeX === endX && currentMazeZ === endZ) {
-                showMessage("ゴール！おめでとう！", 5000);
-                cancelAnimationFrame(animate);
-                setTimeout(() => {
-                    location.reload();
-                }, 5000);
+        canvas.addEventListener('touchend', () => {
+            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
+                undoStack.push(currentStroke);
+                redoStack = [];
+                drawingRef.push(currentStroke);
+                currentStroke = null;
             }
-            
-            renderer.render(scene, camera);
-            updateMinimap();
+            isDrawing = false;
+            isPinching = false;
+            isPanning = false;
+            redrawCanvas();
+        });
 
-            playersRef.child(localPlayerId).set({
-                position: {
-                    x: camera.position.x,
-                    y: camera.position.y,
-                    z: camera.position.z
-                },
-                rotation: {
-                    x: camera.rotation.x,
-                    y: camera.rotation.y,
-                    z: camera.rotation.z
-                }
-            });
-        }
+        // Firebaseから描画データを取得
+        drawingRef.on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            undoStack.push(data);
+            redrawCanvas();
+        });
+
+        // Firebaseから描画データが削除された場合
+        drawingRef.on('child_removed', (snapshot) => {
+            const keyToRemove = snapshot.key;
+            const indexToRemove = undoStack.findIndex(stroke => stroke.key === keyToRemove);
+            if (indexToRemove !== -1) {
+                undoStack.splice(indexToRemove, 1);
+                redrawCanvas();
+            }
+        });
+        
+        // 初期描画
+        redrawCanvas();
     </script>
 </body>
 </html>
