@@ -173,15 +173,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
     <script>
         // Firebase設定 (YOUR_API_KEYなどを置き換えてください)
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-northeast1.firebasedatabase.app",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+const firebaseConfig = {
+apiKey: "AIzaSyBV_Osru1cnXbs1O8fQTVCbm-GoabZtqbA",
+authDomain: "donguri-oekaki.firebaseapp.com",
+databaseURL: "https://donguri-oekaki-default-rtdb.asia-northeast1.firebasedatabase.app",
+projectId: "donguri-oekaki",
+storageBucket: "donguri-oekaki.firebasestorage.app",
+messagingSenderId: "879116474799",
+appId: "1:879116474799:web:41c7fac095d8e4bf03775a",
+measurementId: "G-H1LV28WFVD"
+};
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const drawingRef = database.ref('drawings/session1');
