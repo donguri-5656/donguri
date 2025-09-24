@@ -1,609 +1,765 @@
+<?php
+// Your code here!
+
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>オンラインお絵かきツール</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>オンラインオセロ</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
+            background-color: #d0f0ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
+            color: #333;
+            overflow: hidden;
+            position: relative;
+            touch-action: none;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 95vw;
+            max-width: 500px;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            justify-content: center;
             align-items: center;
-            touch-action: none;
-            -ms-touch-action: none;
         }
-
-        #canvas-container {
-            flex-grow: 1;
+        h1 {
+            color: #4a4a4a;
+            font-size: 1.5em;
+            margin: 10px 0;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .info-panel .player-info {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .player-info .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid #333;
+        }
+        .color-indicator.black {
+            background-color: #000;
+        }
+        .color-indicator.white {
+            background-color: #fff;
+            border: 1px solid #333;
+        }
+        .board {
+            display: grid;
+            border: 2px solid #555;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+        .board.size-4x4 {
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+        .board.size-6x6 {
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+        }
+        .board.size-8x8 {
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+        }
+        .board.size-10x10 {
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+        }
+        .board.size-12x12 {
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: repeat(12, 1fr);
+        }
+        .cell {
+            background-color: #006400;
+            border: 1px solid #333;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            overflow: hidden;
-            background-color: #fff;
-        }
-        
-        canvas {
-            touch-action: none;
-            -ms-touch-action: none;
-            background-color: transparent;
-        }
-
-        #toolbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            background-color: #fff;
-            padding: 10px;
-            border-top: 1px solid #ccc;
-            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-        }
-
-        .tool-button, .color-picker, .range-input {
-            margin: 5px;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
         }
-        
-        .tool-button {
-            background-color: #e0e0e0;
+        .piece {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
         }
-        
-        .tool-button.active {
-            background-color: #4CAF50;
-            color: #fff;
+        .piece.black {
+            background-color: #000;
         }
-
-        .color-picker {
-            padding: 5px;
-            width: 50px;
-            height: 30px;
+        .piece.white {
+            background-color: #fff;
+            border: 1px solid #333;
+        }
+        .valid-move {
+            background-color: rgba(255, 255, 0, 0.4);
+        }
+        .lobby, .game {
+            display: none;
+        }
+        .lobby.active, .game.active {
+            display: block;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
             border: 1px solid #ccc;
         }
-
-        .range-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0 10px;
-            position: relative;
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border: none;
         }
-
-        .range-container label {
-            font-size: 14px;
-            margin-bottom: 5px;
+        button:hover {
+            opacity: 0.8;
         }
-
-        .range-container .range-input {
-            width: 100%;
+        #game-status {
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
         }
-
-        .range-value {
-            font-size: 14px;
+        
+        #timer-display {
+            font-size: 1.2em;
             font-weight: bold;
             color: #333;
+            margin-bottom: 10px;
+            transition: color 0.3s;
+        }
+        #timer-display.warning {
+            color: #d9534f;
+            animation: pulse 1s infinite;
         }
 
-        /* プレビュー表示用のスタイル */
-        #preview-circle {
-            position: absolute;
-            top: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 2px solid rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-        #preview-circle.show {
-            opacity: 1;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
-        #undo-redo-buttons button {
-            margin-left: 10px;
-        }
-
-        #log-message {
+        .overlay {
             position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            text-align: center;
+            color: white;
+            font-size: 2em;
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            z-index: 2000;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
         }
-        #log-message.show {
+        .overlay.active {
             opacity: 1;
+            visibility: visible;
+        }
+        .overlay h2 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .overlay-button-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .overlay-button {
+            padding: 15px 30px;
+            font-size: 0.8em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        #create-menu {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            text-align: left;
+        }
+        #create-menu.active {
+            display: flex;
         }
     </style>
 </head>
 <body>
 
-    <div id="canvas-container">
-        <canvas id="drawing-board"></canvas>
+<div class="container">
+    <div id="lobby-view" class="lobby active">
+        <h1>オンラインオセロ</h1>
+        <div id="room-list"></div>
+        <button id="show-create-menu-btn">部屋を作成</button>
     </div>
 
-    <div id="toolbar">
-        <div id="main-tools">
-            <button id="draw-tool" class="tool-button active">ペン</button>
-            <button id="erase-tool" class="tool-button">消しゴム</button>
+    <div id="game-view" class="game">
+        <h1>ゲーム中: <span id="current-room-name"></span></h1>
+        <div class="info-panel">
+            <div class="player-info">
+                <span>あなたの色:</span>
+                <span id="player-color-indicator" class="color-indicator"></span>
+            </div>
+            <div class="player-info">
+                <span>現在のターン:</span>
+                <span id="current-turn-indicator" class="color-indicator"></span>
+            </div>
         </div>
-        <div id="undo-redo-buttons">
-            <button id="undo-button" class="tool-button">戻す</button>
-            <button id="redo-button" class="tool-button">進める</button>
+        <p id="timer-display"></p>
+        <div class="board" id="board-container"></div>
+        <div class="info-panel">
+            <span>黒: <span id="black-count">2</span></span>
+            <span>白: <span id="white-count">2</span></span>
         </div>
-        <div>
-            <input type="color" id="color-picker" class="color-picker" value="#000000">
-        </div>
-        <div class="range-container">
-            <div id="preview-circle"></div>
-            <label for="brush-size">太さ</label>
-            <input type="range" id="brush-size" class="range-input" min="1" max="100" value="5">
-            <span id="brush-size-value" class="range-value">5</span>
-        </div>
-        <div class="range-container">
-            <label for="transparency">透明度</label>
-            <input type="range" id="transparency" class="range-input" min="0" max="100" step="1" value="100">
-            <span id="transparency-value" class="range-value">100</span>
-        </div>
+        <p id="game-status"></p>
+        <button id="leave-room-btn">部屋を出る</button>
     </div>
+</div>
 
-    <div id="log-message"></div>
+<div id="create-menu">
+    <h2>部屋の設定</h2>
+    <label for="room-name-input">部屋名:</label>
+    <input type="text" id="room-name-input" placeholder="部屋名を入力" value="テストルーム">
+    
+    <label for="time-limit-select">制限時間 (秒):</label>
+    <select id="time-limit-select">
+        <option value="1">1秒</option>
+        <option value="3">3秒</option>
+        <option value="5">5秒</option>
+        <option value="10">10秒</option>
+        <option value="15">15秒</option>
+        <option value="20">20秒</option>
+        <option value="30" selected>30秒 (デフォルト)</option>
+        <option value="0">無制限</option>
+    </select>
+    
+    <label for="board-size-select">フィールドサイズ:</label>
+    <select id="board-size-select">
+        <option value="4">4x4</option>
+        <option value="6">6x6</option>
+        <option value="8" selected>8x8 (デフォルト)</option>
+        <option value="10">10x10</option>
+        <option value="12">12x12</option>
+    </select>
+    
+    <button id="create-room-btn">部屋を作成</button>
+    <button id="cancel-create-btn">キャンセル</button>
+</div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
-    <script>
-        // Firebase設定 (YOUR_API_KEYなどを置き換えてください)
-const firebaseConfig = {
-apiKey: "AIzaSyBV_Osru1cnXbs1O8fQTVCbm-GoabZtqbA",
-authDomain: "donguri-oekaki.firebaseapp.com",
-databaseURL: "https://donguri-oekaki-default-rtdb.firebaseio.com",
-projectId: "donguri-oekaki",
-storageBucket: "donguri-oekaki.firebasestorage.app",
-messagingSenderId: "879116474799",
-appId: "1:879116474799:web:41c7fac095d8e4bf03775a",
-measurementId: "G-H1LV28WFVD"
-};
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const drawingRef = database.ref('drawings/session1');
+<div id="game-overlay" class="overlay">
+    <p id="overlay-message"></p>
+    <div class="overlay-button-container">
+        <button id="overlay-ok-btn" class="overlay-button" style="display:none;">OK</button>
+        <button id="overlay-confirm-btn" class="overlay-button" style="display:none;">はい</button>
+        <button id="overlay-cancel-btn" class="overlay-button" style="display:none;">いいえ</button>
+    </div>
+</div>
 
-        // DOM要素
-        const canvas = document.getElementById('drawing-board');
-        const ctx = canvas.getContext('2d');
-        const drawToolBtn = document.getElementById('draw-tool');
-        const eraseToolBtn = document.getElementById('erase-tool');
-        const undoBtn = document.getElementById('undo-button');
-        const redoBtn = document.getElementById('redo-button');
-        const colorPicker = document.getElementById('color-picker');
-        const brushSizeInput = document.getElementById('brush-size');
-        const brushSizeValueSpan = document.getElementById('brush-size-value');
-        const transparencyInput = document.getElementById('transparency');
-        const transparencyValueSpan = document.getElementById('transparency-value');
-        const previewCircle = document.getElementById('preview-circle');
-        const logMessage = document.getElementById('log-message');
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBV_Osru1cnXbs1O8fQTVCbm-GoabZtqbA",
+        authDomain: "donguri-oekaki.firebaseapp.com",
+        databaseURL: "https://donguri-oekaki-default-rtdb.firebaseio.com",
+        projectId: "donguri-oekaki",
+        storageBucket: "donguri-oekaki.firebasestorage.app",
+        messagingSenderId: "879116474799",
+        appId: "1:879116474799:web:41c7fac095d8e4bf03775a",
+        measurementId: "G-H1LV28WFVD"
+    };
 
-        // キャンバスサイズ設定
-        const CANVAS_WIDTH = 2000;
-        const CANVAS_HEIGHT = 1500;
-        canvas.width = CANVAS_WIDTH;
-        canvas.height = CANVAS_HEIGHT;
-        
-        // 描画状態変数
-        let isDrawing = false;
-        let activeTool = 'draw';
-        let brushSize = 5;
-        let brushColor = '#000000';
-        let transparency = 100;
-        
-        // ズーム・パン変数
-        let scale = 1;
-        let originX = 0;
-        let originY = 0;
-        let startPinchDistance = 0;
-        let startPanPoint = { x: 0, y: 0 };
-        let isPinching = false;
-        let isPanning = false;
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const roomsRef = database.ref('rooms');
 
-        // 描画データとアンドゥ/リドゥのスタック
-        let undoStack = [];
-        let redoStack = [];
-        let currentStroke = null;
+    const lobbyView = document.getElementById('lobby-view');
+    const gameView = document.getElementById('game-view');
+    const roomListDiv = document.getElementById('room-list');
+    const showCreateMenuBtn = document.getElementById('show-create-menu-btn');
+    const createMenu = document.getElementById('create-menu');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const cancelCreateBtn = document.getElementById('cancel-create-btn');
+    const roomNameInput = document.getElementById('room-name-input');
+    const timeLimitSelect = document.getElementById('time-limit-select');
+    const boardSizeSelect = document.getElementById('board-size-select');
+    const boardContainer = document.getElementById('board-container');
+    const playerColorIndicator = document.getElementById('player-color-indicator');
+    const currentTurnIndicator = document.getElementById('current-turn-indicator');
+    const currentRoomNameSpan = document.getElementById('current-room-name');
+    const gameStatusP = document.getElementById('game-status');
+    const leaveRoomBtn = document.getElementById('leave-room-btn');
+    const blackCountSpan = document.getElementById('black-count');
+    const whiteCountSpan = document.getElementById('white-count');
+    const gameOverlay = document.getElementById('game-overlay');
+    const overlayMessage = document.getElementById('overlay-message');
+    const overlayOkBtn = document.getElementById('overlay-ok-btn');
+    const overlayConfirmBtn = document.getElementById('overlay-confirm-btn');
+    const overlayCancelBtn = document.getElementById('overlay-cancel-btn');
+    const timerDisplay = document.getElementById('timer-display');
 
-        // プレビューのタイムアウトID
-        let previewTimeoutId = null;
+    let currentRoomId = null;
+    let playerId = null;
+    let playerColor = null;
+    let roomListener = null;
+    let timerInterval = null;
 
-        // オフスクリーンキャンバス
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d');
-        offscreenCanvas.width = CANVAS_WIDTH;
-        offscreenCanvas.height = CANVAS_HEIGHT;
+    const showOverlay = (message, type = 'alert', callback = null) => {
+        overlayMessage.innerHTML = message;
+        overlayOkBtn.style.display = 'none';
+        overlayConfirmBtn.style.display = 'none';
+        overlayCancelBtn.style.display = 'none';
 
-        // 初期設定
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        offscreenCtx.lineCap = 'round';
-        offscreenCtx.lineJoin = 'round';
-        
-        // ログを表示する関数
-        function showLog(message) {
-            logMessage.textContent = message;
-            logMessage.classList.add('show');
-            setTimeout(() => {
-                logMessage.classList.remove('show');
-            }, 1500);
+        if (type === 'alert') {
+            overlayOkBtn.style.display = 'block';
+            overlayOkBtn.onclick = () => {
+                hideOverlay();
+                if (callback) callback();
+            };
+        } else if (type === 'confirm') {
+            overlayConfirmBtn.style.display = 'block';
+            overlayCancelBtn.style.display = 'block';
+            overlayConfirmBtn.onclick = () => {
+                hideOverlay();
+                if (callback) callback(true);
+            };
+            overlayCancelBtn.onclick = () => {
+                hideOverlay();
+                if (callback) callback(false);
+            };
+        }
+        gameOverlay.classList.add('active');
+    };
+
+    const hideOverlay = () => {
+        gameOverlay.classList.remove('active');
+    };
+
+    const showLobby = () => {
+        if (currentRoomId && roomListener) {
+            roomsRef.child(currentRoomId).off('value', roomListener);
+            roomListener = null;
+        }
+        if (currentRoomId && playerId) {
+            roomsRef.child(currentRoomId).child('players').child(playerId).onDisconnect().cancel();
+        }
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
         }
 
-        // オフスクリーンキャンバスを再描画
-        function drawAllStrokesToOffscreen() {
-            offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-            undoStack.forEach(stroke => {
-                offscreenCtx.beginPath();
-                if (stroke.tool === 'draw') {
-                    const r = parseInt(stroke.color.slice(1, 3), 16);
-                    const g = parseInt(stroke.color.slice(3, 5), 16);
-                    const b = parseInt(stroke.color.slice(5, 7), 16);
-                    offscreenCtx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${stroke.transparency / 100})`;
-                    offscreenCtx.lineWidth = stroke.size;
-                } else if (stroke.tool === 'erase') {
-                    // 消しゴムのデータはオフスクリーンで描画
-                    offscreenCtx.strokeStyle = '#fff';
-                    offscreenCtx.lineWidth = stroke.size;
-                }
-                
-                // 消しゴムで消されたストロークは描画しない
-                if (stroke.points && stroke.points.length > 1) {
-                    offscreenCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-                    for (let i = 1; i < stroke.points.length; i++) {
-                        offscreenCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-                    }
-                    offscreenCtx.stroke();
+        lobbyView.classList.add('active');
+        gameView.classList.remove('active');
+        currentRoomId = null;
+        playerId = null;
+        playerColor = null;
+    };
+
+    const showGame = () => {
+        lobbyView.classList.remove('active');
+        gameView.classList.add('active');
+    };
+    
+    function getDisplayTime(seconds) {
+        if (seconds === 0) return '無制限';
+        return `${seconds}秒`;
+    }
+    
+    roomsRef.on('value', snapshot => {
+        roomListDiv.innerHTML = '';
+        const rooms = snapshot.val();
+        if (rooms) {
+            let availableRooms = Object.keys(rooms).filter(roomId => rooms[roomId].status !== 'playing');
+            if (availableRooms.length > 0) {
+                availableRooms.forEach(roomId => {
+                    const room = rooms[roomId];
+                    const roomElement = document.createElement('div');
+                    const boardSizeText = `${room.boardSize}x${room.boardSize}`;
+                    const timeLimitText = getDisplayTime(room.timeLimit);
+                    roomElement.innerHTML = `
+                        <p>${room.name} (${Object.keys(room.players).length}/2) - ${boardSizeText} / ${timeLimitText}</p>
+                        <button class="join-room-btn" data-room-id="${roomId}">入室</button>
+                    `;
+                    roomListDiv.appendChild(roomElement);
+                });
+            } else {
+                 roomListDiv.innerHTML = `<p>現在、利用可能な部屋はありません。</p>`;
+            }
+        } else {
+            roomListDiv.innerHTML = `<p>現在、利用可能な部屋はありません。</p>`;
+        }
+    });
+
+    showCreateMenuBtn.addEventListener('click', () => {
+        createMenu.classList.add('active');
+    });
+
+    cancelCreateBtn.addEventListener('click', () => {
+        createMenu.classList.remove('active');
+    });
+
+    createRoomBtn.addEventListener('click', () => {
+        const roomName = roomNameInput.value.trim();
+        const timeLimit = parseInt(timeLimitSelect.value);
+        const boardSize = parseInt(boardSizeSelect.value);
+
+        if (!roomName) {
+            showOverlay('部屋名を入力してください。');
+            return;
+        }
+
+        createMenu.classList.remove('active');
+        
+        playerId = Math.random().toString(36).substr(2, 9);
+        playerColor = 'black';
+        currentRoomId = roomsRef.push().key;
+
+        const initialBoard = createInitialBoard(boardSize);
+        const initialTimestamp = Date.now();
+
+        roomsRef.child(currentRoomId).set({
+            name: roomName,
+            board: initialBoard,
+            turn: 'b',
+            lastTurn: null,
+            timeLimit: timeLimit,
+            boardSize: boardSize,
+            lastMoveTimestamp: initialTimestamp,
+            players: {
+                [playerId]: { color: 'black' }
+            },
+            status: 'waiting'
+        }).then(() => {
+            joinRoom(currentRoomId, playerId, 'black');
+        });
+    });
+    
+    function createInitialBoard(size) {
+        const board = Array(size).fill(null).map(() => Array(size).fill(''));
+        const center = size / 2;
+        if (size === 4) {
+            board[1][1] = 'w';
+            board[1][2] = 'b';
+            board[2][1] = 'b';
+            board[2][2] = 'w';
+        } else {
+            board[center - 1][center - 1] = 'w';
+            board[center - 1][center] = 'b';
+            board[center][center - 1] = 'b';
+            board[center][center] = 'w';
+        }
+        return board;
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('join-room-btn')) {
+            const roomId = e.target.dataset.roomId;
+            roomsRef.child(roomId).once('value', snapshot => {
+                const room = snapshot.val();
+                if (Object.keys(room.players).length < 2) {
+                    playerId = Math.random().toString(36).substr(2, 9);
+                    playerColor = 'white';
+                    currentRoomId = roomId;
+                    roomsRef.child(`${roomId}/players/${playerId}`).set({ color: 'white' });
+                    roomsRef.child(roomId).update({ status: 'playing', lastMoveTimestamp: Date.now() });
+                    joinRoom(roomId, playerId, 'white');
+                } else {
+                    showOverlay('この部屋は満室です。');
                 }
             });
         }
-        
-        // メインキャンバスを再描画
-        function redrawCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // オフスクリーンキャンバスの内容を描画
-            ctx.drawImage(offscreenCanvas, originX, originY, offscreenCanvas.width * scale, offscreenCanvas.height * scale);
+    });
 
-            // 描画中のストロークをリアルタイムで描画
-            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
-                ctx.beginPath();
-                if (currentStroke.tool === 'draw') {
-                    const r = parseInt(currentStroke.color.slice(1, 3), 16);
-                    const g = parseInt(currentStroke.color.slice(5, 7), 16);
-                    const b = parseInt(currentStroke.color.slice(5, 7), 16);
-                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${currentStroke.transparency / 100})`;
-                    ctx.lineWidth = currentStroke.size * scale;
-                } else if (currentStroke.tool === 'erase') {
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = currentStroke.size * scale;
+    leaveRoomBtn.addEventListener('click', () => {
+        showOverlay('本当に部屋を離れますか？ゲームはあなたの負けになります。', 'confirm', (result) => {
+            if (result) {
+                if (currentRoomId && playerId) {
+                    roomsRef.child(currentRoomId).child('players').child(playerId).remove();
+                    showLobby();
                 }
-                ctx.moveTo((currentStroke.points[0].x * scale) + originX, (currentStroke.points[0].y * scale) + originY);
-                for (let i = 1; i < currentStroke.points.length; i++) {
-                    ctx.lineTo((currentStroke.points[i].x * scale) + originX, (currentStroke.points[i].y * scale) + originY);
-                }
-                ctx.stroke();
             }
-        }
-
-        // ツールバーイベント
-        drawToolBtn.addEventListener('click', () => {
-            activeTool = 'draw';
-            drawToolBtn.classList.add('active');
-            eraseToolBtn.classList.remove('active');
         });
+    });
+    
+    const joinRoom = (roomId, id, color) => {
+        currentRoomId = roomId;
+        playerId = id;
+        playerColor = color;
+        showGame();
         
-        eraseToolBtn.addEventListener('click', () => {
-            activeTool = 'erase';
-            eraseToolBtn.classList.add('active');
-            drawToolBtn.classList.remove('active');
-        });
+        const roomRef = roomsRef.child(currentRoomId);
+        
+        roomRef.child('players').child(playerId).onDisconnect().remove();
 
-        undoBtn.addEventListener('click', () => {
-            if (undoStack.length > 0) {
-                const lastStroke = undoStack.pop();
-                // データベースから最後のストロークを削除
-                drawingRef.child(lastStroke.key).remove();
-                redoStack.push(lastStroke);
-                showLog("描画を戻しました");
-                // オフスクリーンキャンバスを再描画
-                drawAllStrokesToOffscreen();
-                // メインキャンバスを再描画
-                redrawCanvas();
+        if (roomListener) roomsRef.child(currentRoomId).off('value', roomListener);
+        if (timerInterval) clearInterval(timerInterval);
+
+        roomListener = roomRef.on('value', snapshot => {
+            const room = snapshot.val();
+            if (!room) {
+                 return;
             }
-        });
 
-        redoBtn.addEventListener('click', () => {
-            if (redoStack.length > 0) {
-                const nextStroke = redoStack.pop();
-                // データベースにストロークを再プッシュ
-                drawingRef.child(nextStroke.key).set(nextStroke);
-                undoStack.push(nextStroke);
-                showLog("描画を進めました");
-                // オフスクリーンキャンバスを再描画
-                drawAllStrokesToOffscreen();
-                // メインキャンバスを再描画
-                redrawCanvas();
+            currentRoomNameSpan.textContent = room.name;
+            const currentPlayerChar = playerColor === 'black' ? 'b' : 'w';
+            const opponentPlayerChar = currentPlayerChar === 'b' ? 'w' : 'b';
+
+            if (room.status === 'playing' && Object.keys(room.players).length < 2) {
+                if (room.players && room.players[playerId]) {
+                     showOverlay('対戦相手が切断しました。<br>あなたの勝利です！', 'alert', () => {
+                         roomRef.remove();
+                         showLobby();
+                     });
+                }
+                return;
             }
-        });
 
-        // プレビュー表示関数
-        function showPreview() {
-            if (previewTimeoutId) {
-                clearTimeout(previewTimeoutId);
-            }
-            const previewSize = Math.max(1, brushSize * scale);
-            previewCircle.style.width = `${previewSize}px`;
-            previewCircle.style.height = `${previewSize}px`;
-
-            const r = parseInt(brushColor.slice(1, 3), 16);
-            const g = parseInt(brushColor.slice(3, 5), 16);
-            const b = parseInt(brushColor.slice(5, 7), 16);
-            previewCircle.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${transparency / 100})`;
+            updateBoard(room.board, room.turn, room.boardSize);
             
-            previewCircle.classList.add('show');
-
-            previewTimeoutId = setTimeout(() => {
-                hidePreview();
-            }, 1000); // 1秒後に非表示
-        }
-
-        function hidePreview() {
-            previewCircle.classList.remove('show');
-        }
-
-        colorPicker.addEventListener('input', (e) => {
-            brushColor = e.target.value;
-            showPreview();
-        });
-
-        brushSizeInput.addEventListener('input', (e) => {
-            brushSize = parseInt(e.target.value, 10);
-            brushSizeValueSpan.textContent = brushSize;
-            showPreview();
-        });
-        
-        transparencyInput.addEventListener('input', (e) => {
-            transparency = parseInt(e.target.value, 10);
-            transparencyValueSpan.textContent = transparency;
-            showPreview();
-        });
-        
-        // 座標変換関数: 画面座標 -> 論理座標
-        function getCorrectMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            return {
-                x: (clientX - rect.left - originX) / scale,
-                y: (clientY - rect.top - originY) / scale
-            };
-        }
-
-        // マウス/タッチイベント
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 0) {
-                e.preventDefault();
-                isDrawing = true;
-                const point = getCorrectMousePos(e);
-                currentStroke = {
-                    tool: activeTool,
-                    color: brushColor,
-                    size: brushSize,
-                    transparency: transparency,
-                    points: [point],
-                    // 消しゴムの場合、影響を受けるストロークのIDを保持
-                    erasedStrokeIds: activeTool === 'erase' ? [] : null
-                };
-            }
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const newPoint = getCorrectMousePos(e);
-            currentStroke.points.push(newPoint);
-            redrawCanvas(); 
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
-                // 消しゴムの場合、影響を受けるストロークを削除
-                if (currentStroke.tool === 'erase') {
-                    // 消去されたストロークのIDを特定して削除
-                    const erasedIds = [];
-                    undoStack.forEach(stroke => {
-                        // 簡略化のために、ここではストロークの最初の点が消しゴムの範囲に入っているかで判定
-                        const isErased = currentStroke.points.some(p => {
-                            const dx = p.x - stroke.points[0].x;
-                            const dy = p.y - stroke.points[0].y;
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-                            return dist < currentStroke.size;
-                        });
-                        if (isErased && stroke.key) {
-                            erasedIds.push(stroke.key);
-                            drawingRef.child(stroke.key).remove();
-                        }
-                    });
-                    showLog(`${erasedIds.length}本のストロークを削除しました`);
+            if (room.status === 'playing') {
+                playerColorIndicator.className = 'color-indicator ' + playerColor;
+                currentTurnIndicator.className = 'color-indicator ' + (room.turn === 'b' ? 'black' : 'white');
+                
+                if (room.timeLimit > 0) {
+                    startTimer(room.lastMoveTimestamp, room.timeLimit, room.turn);
                 } else {
-                    // 通常の描画ストロークを送信
-                    const newStrokeRef = drawingRef.push(currentStroke);
-                    currentStroke.key = newStrokeRef.key;
-                    redoStack = [];
+                    timerDisplay.textContent = '制限時間: 無制限';
+                    timerDisplay.classList.remove('warning');
                 }
-                currentStroke = null;
-            }
-            isDrawing = false;
-            redrawCanvas();
-        });
 
-        canvas.addEventListener('mouseout', () => {
-            if (isDrawing) {
-                if (currentStroke && currentStroke.points.length > 1) {
-                    if (currentStroke.tool === 'draw') {
-                        const newStrokeRef = drawingRef.push(currentStroke);
-                        currentStroke.key = newStrokeRef.key;
-                        redoStack = [];
+                if (room.turn === currentPlayerChar) {
+                    if (room.lastTurn === opponentPlayerChar) {
+                        gameStatusP.textContent = '相手は駒を置く場所がないためパスしました。あなたの番です。';
+                    } else if (room.lastTurn === currentPlayerChar) {
+                        gameStatusP.textContent = '時間制限によりパスしました。あなたの番です。';
+                    } else {
+                        gameStatusP.textContent = 'あなたの番です';
+                    }
+                } else {
+                    if (room.lastTurn === currentPlayerChar) {
+                        gameStatusP.textContent = 'あなたは時間制限によりパスしました。相手の番です。';
+                    } else if (room.lastTurn === opponentPlayerChar) {
+                        gameStatusP.textContent = '相手は駒を置く場所がないためパスしました。相手の番です。';
+                    } else {
+                        gameStatusP.textContent = '相手の番です';
                     }
                 }
-                currentStroke = null;
-                isDrawing = false;
-                redrawCanvas();
-            }
-        });
 
-        // タッチイベント処理
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touches = e.touches;
-            if (touches.length === 1) {
-                isDrawing = true;
-                isPinching = false;
-                isPanning = false;
-                const point = getCorrectMousePos(e);
-                currentStroke = {
-                    tool: activeTool,
-                    color: brushColor,
-                    size: brushSize,
-                    transparency: transparency,
-                    points: [point],
-                    erasedStrokeIds: activeTool === 'erase' ? [] : null
-                };
-            } else if (touches.length === 2) {
-                isDrawing = false;
-                isPinching = true;
-                isPanning = true;
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                startPinchDistance = Math.sqrt(dx * dx + dy * dy);
-                startPanPoint = {
-                    x: (touches[0].clientX + touches[1].clientX) / 2,
-                    y: (touches[0].clientY + touches[1].clientY) / 2
-                };
-            }
-        });
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touches = e.touches;
-            const rect = canvas.getBoundingClientRect();
-
-            if (isDrawing && touches.length === 1) {
-                const newPoint = getCorrectMousePos(e);
-                if (currentStroke) {
-                    currentStroke.points.push(newPoint);
-                    redrawCanvas();
+                if (!canPlace(room.board, 'b', room.boardSize) && !canPlace(room.board, 'w', room.boardSize)) {
+                    const blackCount = room.board.flat().filter(p => p === 'b').length;
+                    const whiteCount = room.board.flat().filter(p => p === 'w').length;
+                    
+                    let resultMessage;
+                    if (blackCount > whiteCount) {
+                        resultMessage = `ゲーム終了！<br>黒の勝利です！ (${blackCount} vs ${whiteCount})`;
+                    } else if (whiteCount > blackCount) {
+                        resultMessage = `ゲーム終了！<br>白の勝利です！ (${whiteCount} vs ${blackCount})`;
+                    } else {
+                        resultMessage = `ゲーム終了！<br>引き分けです！`;
+                    }
+                    showOverlay(resultMessage, 'alert', () => {
+                        roomRef.remove();
+                        showLobby();
+                    });
                 }
-            } else if (isPinching && touches.length === 2) {
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                const newPinchDistance = Math.sqrt(dx * dx + dy * dy);
-                const pinchScale = newPinchDistance / startPinchDistance;
-                const newScale = scale * pinchScale;
 
-                const centerClientX = (touches[0].clientX + touches[1].clientX) / 2;
-                const centerClientY = (touches[0].clientY + touches[1].clientY) / 2;
-                const centerCanvasX = centerClientX - rect.left;
-                const centerCanvasY = centerClientY - rect.top;
-
-                originX = centerCanvasX - (centerCanvasX - originX) * pinchScale;
-                originY = centerCanvasY - (centerCanvasY - originY) * pinchScale;
-                scale = newScale;
-                startPinchDistance = newPinchDistance;
-
-                const newPanPoint = {
-                    x: (touches[0].clientX + touches[1].clientX) / 2,
-                    y: (touches[0].clientY + touches[1].clientY) / 2
-                };
-                originX += (newPanPoint.x - startPanPoint.x);
-                originY += (newPanPoint.y - startPanPoint.y);
-                startPanPoint = newPanPoint;
-
-                redrawCanvas();
-                showPreview();
+            } else if (room.status === 'waiting') {
+                gameStatusP.textContent = '対戦相手を待っています...';
             }
+            
+            const blackCount = room.board.flat().filter(p => p === 'b').length;
+            const whiteCount = room.board.flat().filter(p => p === 'w').length;
+            blackCountSpan.textContent = blackCount;
+            whiteCountSpan.textContent = whiteCount;
         });
+    };
+    
+    function startTimer(lastMoveTimestamp, timeLimit, currentTurn) {
+        if (timerInterval) clearInterval(timerInterval);
 
-        canvas.addEventListener('touchend', () => {
-            if (isDrawing && currentStroke && currentStroke.points.length > 1) {
-                 if (currentStroke.tool === 'erase') {
-                    // 消去されたストロークのIDを特定して削除
-                    const erasedIds = [];
-                    undoStack.forEach(stroke => {
-                        const isErased = currentStroke.points.some(p => {
-                            const dx = p.x - stroke.points[0].x;
-                            const dy = p.y - stroke.points[0].y;
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-                            return dist < currentStroke.size;
-                        });
-                        if (isErased && stroke.key) {
-                            erasedIds.push(stroke.key);
-                            drawingRef.child(stroke.key).remove();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - lastMoveTimestamp) / 1000);
+            const remaining = timeLimit - elapsed;
+            
+            if (remaining <= 3) {
+                timerDisplay.classList.add('warning');
+            } else {
+                timerDisplay.classList.remove('warning');
+            }
+
+            if (remaining <= 0) {
+                 clearInterval(timerInterval);
+                 
+                 roomsRef.child(currentRoomId).once('value', snapshot => {
+                    const room = snapshot.val();
+                    if (room && room.turn === currentTurn) {
+                        const nextTurn = currentTurn === 'b' ? 'w' : 'b';
+                        const updateData = {
+                             turn: nextTurn,
+                             lastMoveTimestamp: Date.now(),
+                             lastTurn: currentTurn 
+                        };
+                        
+                        roomsRef.child(currentRoomId).update(updateData);
+                    }
+                 });
+            } else {
+                 timerDisplay.textContent = `残り時間: ${remaining}秒`;
+            }
+        }, 1000);
+    }
+    
+    const updateBoard = (board, currentTurn, size) => {
+        boardContainer.innerHTML = '';
+        boardContainer.className = `board size-${size}x${size}`;
+        const currentPlayerChar = playerColor === 'black' ? 'b' : 'w';
+        const validMoves = (currentTurn === currentPlayerChar) ? getValidMoves(board, currentPlayerChar, size) : [];
+
+        board.forEach((row, rowIndex) => {
+            row.forEach((cell, colIndex) => {
+                const cellDiv = document.createElement('div');
+                cellDiv.classList.add('cell');
+                
+                if (validMoves.some(move => move.r === rowIndex && move.c === colIndex)) {
+                    cellDiv.classList.add('valid-move');
+                }
+
+                if (cell === 'b') {
+                    cellDiv.innerHTML = '<div class="piece black"></div>';
+                } else if (cell === 'w') {
+                    cellDiv.innerHTML = '<div class="piece white"></div>';
+                }
+                
+                cellDiv.addEventListener('click', () => {
+                    const roomRef = roomsRef.child(currentRoomId);
+                    roomRef.once('value', snapshot => {
+                        const room = snapshot.val();
+                        if (room.turn !== currentPlayerChar) {
+                            gameStatusP.textContent = 'あなたのターンではありません。';
+                            return;
+                        }
+
+                        const newBoard = JSON.parse(JSON.stringify(room.board));
+                        const flippedPieces = getFlippedPieces(newBoard, rowIndex, colIndex, currentPlayerChar, size);
+
+                        if (flippedPieces.length > 0) {
+                            newBoard[rowIndex][colIndex] = currentPlayerChar;
+                            flippedPieces.forEach(p => {
+                                newBoard[p.r][p.c] = currentPlayerChar;
+                            });
+
+                            const nextTurn = currentPlayerChar === 'b' ? 'w' : 'b';
+                            
+                            let updateData = { board: newBoard, lastTurn: currentPlayerChar, lastMoveTimestamp: Date.now() };
+                            
+                            if (getValidMoves(newBoard, nextTurn, size).length === 0) {
+                                updateData.turn = currentPlayerChar;
+                            } else {
+                                updateData.turn = nextTurn;
+                                updateData.lastTurn = null; 
+                            }
+
+                            roomRef.update(updateData);
+                            
+                        } else {
+                            gameStatusP.textContent = 'そこには置けません。';
                         }
                     });
-                    showLog(`${erasedIds.length}本のストロークを削除しました`);
-                } else {
-                    const newStrokeRef = drawingRef.push(currentStroke);
-                    currentStroke.key = newStrokeRef.key;
-                    redoStack = [];
-                }
-                currentStroke = null;
-            }
-            isDrawing = false;
-            isPinching = false;
-            isPanning = false;
-            redrawCanvas();
-        });
-
-        // Firebaseから描画データを取得
-        drawingRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            undoStack = [];
-            if (data) {
-                Object.keys(data).forEach(key => {
-                    const stroke = data[key];
-                    stroke.key = key;
-                    undoStack.push(stroke);
                 });
-            }
-            // オフスクリーンキャンバスを再描画
-            drawAllStrokesToOffscreen();
-            // メインキャンバスを再描画
-            redrawCanvas();
+                boardContainer.appendChild(cellDiv);
+            });
         });
+    };
 
-        // 初期描画
-        drawAllStrokesToOffscreen();
-        redrawCanvas();
-    </script>
+    function getValidMoves(board, color, size) {
+        const moves = [];
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (board[r][c] === '' && getFlippedPieces(board, r, c, color, size).length > 0) {
+                    moves.push({ r, c });
+                }
+            }
+        }
+        return moves;
+    }
+
+    function canPlace(board, color, size) {
+        return getValidMoves(board, color, size).length > 0;
+    }
+
+    function getFlippedPieces(board, r, c, color, size) {
+        if (board[r][c] !== '') return [];
+        const flipped = [];
+        const opponentColor = color === 'b' ? 'w' : 'b';
+
+        const directions = [
+            [-1, 0], [1, 0], [0, -1], [0, 1],
+            [-1, -1], [-1, 1], [1, -1], [1, 1]
+        ];
+
+        directions.forEach(([dr, dc]) => {
+            let tempFlip = [];
+            for (let i = 1; i < size; i++) {
+                const newR = r + dr * i;
+                const newC = c + dc * i;
+
+                if (newR < 0 || newR >= size || newC < 0 || newC >= size) break;
+                
+                const currentPiece = board[newR][newC];
+                if (currentPiece === '') break;
+                
+                if (currentPiece === opponentColor) {
+                    tempFlip.push({ r: newR, c: newC });
+                } else if (currentPiece === color) {
+                    flipped.push(...tempFlip);
+                    break;
+                }
+            }
+        });
+        return flipped;
+    }
+
+    showLobby();
+</script>
 </body>
 </html>
