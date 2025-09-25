@@ -565,7 +565,7 @@
 
                 if (room.turn === currentPlayerChar) {
                     if (room.lastTurn === opponentPlayerChar) {
-                        gameStatusP.textContent = '相手は駒を置く場所がないためパスしました。あなたの番です。';
+                        gameStatusP.textContent = '相手は置けないのでパスしました。あなたの番です。';
                     } else if (room.lastTurn === currentPlayerChar) {
                         gameStatusP.textContent = '時間制限によりパスしました。あなたの番です。';
                     } else {
@@ -575,7 +575,7 @@
                     if (room.lastTurn === currentPlayerChar) {
                         gameStatusP.textContent = 'あなたは時間制限によりパスしました。相手の番です。';
                     } else if (room.lastTurn === opponentPlayerChar) {
-                        gameStatusP.textContent = '相手は駒を置く場所がないためパスしました。相手の番です。';
+                        gameStatusP.textContent = '置けないためパスしました。相手の番です。';
                     } else {
                         gameStatusP.textContent = '相手の番です';
                     }
