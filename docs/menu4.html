@@ -382,6 +382,15 @@
         let currentControlMode = 'button'; // 'button', 'gesture'
         let currentDifficulty = 'normal'; // 'easy', 'normal', 'hard'
         let perfectClearBonus = false; // Perfect Clear判定用フラグ
+        let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+  const now = new Date().getTime();
+  if (now - lastTouchEnd <= 300) {
+    event.preventDefault(); // ダブルタップによるズームを防ぐ
+  }
+  lastTouchEnd = now;
+}, false);
+
 
         const scoreElem = document.getElementById('score');
         const pauseButton = document.getElementById('pause-button');
