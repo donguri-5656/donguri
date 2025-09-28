@@ -2,282 +2,717 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>汎用文字列スプリッター</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>オセロ</title>
     <style>
-        /* 全体的なスタイル */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            padding: 0;
-            background-color: #f4f7f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #d0f0ff;
             color: #333;
-            line-height: 1.6;
         }
 
-        /* コンテナ */
-        .container {
-            max-width: 900px;
-            margin: 30px auto;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        /* ヘッダー */
-        h1 {
-            color: #2c3e50;
+        #menu-container, #difficulty-container, #game-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
-            margin-bottom: 25px;
-            font-size: 2.2em;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
-        /* ラベル */
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-            font-size: 1.1em;
-        }
-
-        /* テキストエリア */
-        textarea#textInput { /* ID指定で明確化 */
-            width: calc(100% - 20px);
-            height: 300px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 0.95em;
-            resize: vertical;
-            box-sizing: border-box;
+        h1, h2 {
             margin-bottom: 20px;
-            font-family: 'Consolas', 'Monaco', monospace;
         }
 
-        /* ボタン (分割ボタン) */
-        button#splitButton { /* ID指定で明確化 */
-            display: block;
-            width: 200px;
-            margin: 0 auto 30px auto;
-            padding: 12px 25px;
-            background-color: #007bff;
-            color: white;
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 1em;
+            cursor: pointer;
             border: none;
             border-radius: 8px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            background-color: #4CAF50;
+            color: white;
         }
 
-        button#splitButton:hover {
-            background-color: #0056b3;
+        button:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
-        button#splitButton:active {
-            background-color: #004085;
-            transform: translateY(0);
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            border: 2px solid #333;
+            background-color: #008000;
+            margin-bottom: 20px;
         }
 
-        /* 結果表示エリア */
-        .results {
-            background-color: #e9ecef;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 30px;
+        .cell {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #333;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
-        .results h2 {
-            color: #34495e;
-            font-size: 1.8em;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #ced4da;
-            padding-bottom: 10px;
+        .disc {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: absolute;
         }
 
-        .results h3 {
-            color: #495057;
-            font-size: 1.4em;
-            margin-top: 20px;
+        .disc.black { background-color: black; }
+        .disc.white { background-color: white; }
+
+        .cell.highlight {
+            background-color: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+        }
+        
+        /* 石がひっくり返るアニメーション */
+        .disc.flip-black {
+            animation: flipToBlack 0.5s forwards;
+        }
+
+        .disc.flip-white {
+            animation: flipToWhite 0.5s forwards;
+        }
+
+        @keyframes flipToBlack {
+            0% { transform: scaleX(1) rotateY(0deg); background-color: white; }
+            50% { transform: scaleX(0.1) rotateY(90deg); background-color: white; }
+            51% { background-color: black; }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: black; }
+        }
+
+        @keyframes flipToWhite {
+            0% { transform: scaleX(1) rotateY(0deg); background-color: black; }
+            50% { transform: scaleX(0.1) rotateY(90deg); background-color: black; }
+            51% { background-color: white; }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: white; }
+        }
+
+        #info-panel {
+            text-align: center;
+            font-size: 1.2em;
             margin-bottom: 10px;
         }
-
-        /* スクロール可能なpreタグ */
-        .results pre {
-            background-color: #2d2d2d;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 6px;
-            overflow: auto; /* スクロール可能にする */
-            max-height: 250px; /* 最大高さを設定 */
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 0.9em;
-            white-space: pre-wrap;
-            word-break: break-all;
-            position: relative;
-            margin-bottom: 10px; /* コピーボタンとの間に余白 */
-        }
-
-        /* 各preタグの直下にあるコピーボタン */
-        .copy-button-container {
-            text-align: right; /* ボタンを右寄せ */
-            margin-bottom: 25px; /* 次のセクションとの間に余白 */
-        }
-
-        .copy-button-container .copy-btn {
-            position: static; /* absoluteを解除 */
-            top: auto;
-            right: auto;
-            background-color: #28a745;
+        
+        #pause-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #f44336;
             color: white;
+            padding: 10px 20px;
             border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9em;
-            opacity: 0.9;
-            transition: opacity 0.2s ease, background-color 0.2s ease;
-            box-shadow: 0 2px 5px rgba(40, 167, 69, 0.2);
-        }
-
-        .copy-button-container .copy-btn:hover {
-            opacity: 1;
-            background-color: #218838;
-        }
-
-        .no-content {
-            color: #6c757d;
-            font-style: italic;
-            text-align: center;
-            padding: 10px;
-            background-color: #f8f9fa;
             border-radius: 5px;
-            border: 1px dashed #ced4da;
+            cursor: pointer;
+        }
+        
+        #pause-button:hover {
+            background-color: #d32f2f;
         }
 
-        /* フッター */
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            color: #777;
-            font-size: 0.9em;
+        /* 通知ポップアップ */
+        #notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            border-radius: 10px;
+            font-size: 1.5em;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            pointer-events: none;
+        }
+        #notification.visible {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>汎用文字列スプリッター</h1>
 
-        <p>ここに任意のテキスト（HTML、コード、文章など）をペーストしてください。入力された文字列を、おおよそ中央に最も近い<strong>改行文字</strong>で分割し、それぞれ表示します。</p>
-
-        <label for="textInput">テキストをここにペーストしてください:</label>
-        <textarea id="textInput" placeholder="例: これは非常に長い文字列です。\nこれを半分に分割します。\nさらに別の行です。"></textarea>
-
-        <button id="splitButton" onclick="splitAndDisplay()">分割して表示</button>
-
-        <div class="results">
-            <h2>分割結果</h2>
-
-            <h3>Part 1</h3>
-            <pre id="textPart1" class="no-content">ここに文字列のPart 1が表示されます。</pre>
-            <div class="copy-button-container">
-                <button class="copy-btn" onclick="copyToClipboard('textPart1')">Part 1 をコピー</button>
-            </div>
-
-            <h3>Part 2</h3>
-            <pre id="textPart2" class="no-content">ここに文字列のPart 2が表示されます。</pre>
-            <div class="copy-button-container">
-                <button class="copy-btn" onclick="copyToClipboard('textPart2')">Part 2 をコピー</button>
-            </div>
-        </div>
+    <div id="menu-container">
+        <h2>オセロ</h2>
+        <button onclick="showDifficultyScreen()">AIと対戦</button>
+        <button onclick="startGame('twoPlayer')">2人で対戦</button>
     </div>
 
-    <footer class="footer">
-        <p>&copy; 2025 汎用文字列スプリッター. All rights reserved.</p>
-    </footer>
+    <div id="difficulty-container">
+        <h2>難易度を選んでください</h2>
+        <button onclick="startGame('ai', 'easy')">簡単</button>
+        <button onclick="startGame('ai', 'normal')">普通</button>
+        <button onclick="startGame('ai', 'hard')">難しい</button>
+        <button onclick="showMenuScreen()">メニューに戻る</button>
+    </div>
+
+    <div id="game-container">
+        <button id="pause-button" onclick="pauseGame()">止める</button>
+        <div id="info-panel">
+            <p>黒: <span id="black-score">2</span> 白: <span id="white-score">2</span></p>
+            <p id="message">あなたのターンです (黒)</p>
+        </div>
+        <div id="game-board"></div>
+    </div>
+
+    <div id="notification"></div>
 
     <script>
-        function splitAndDisplay() {
-            const textInput = document.getElementById('textInput').value;
+        // DOM要素の取得
+        const menuContainer = document.getElementById('menu-container');
+        const difficultyContainer = document.getElementById('difficulty-container');
+        const gameContainer = document.getElementById('game-container');
+        const boardElement = document.getElementById('game-board');
+        const blackScoreElement = document.getElementById('black-score');
+        const whiteScoreElement = document.getElementById('white-score');
+        const messageElement = document.getElementById('message');
+        const notificationElement = document.getElementById('notification');
 
-            if (!textInput) {
-                alert("テキストが入力されていません。");
-                return;
+        const boardSize = 8;
+        let board = [];
+        let currentPlayer = 'black';
+        let isGameOver = false;
+        let isAiThinking = false;
+        let gameMode = 'twoPlayer';
+        let difficulty = 'normal';
+        let aiStartTime = 0;
+
+        // 画面切り替え関数
+        function showMenuScreen() {
+            menuContainer.style.display = 'flex';
+            difficultyContainer.style.display = 'none';
+            gameContainer.style.display = 'none';
+        }
+
+        function showDifficultyScreen() {
+            menuContainer.style.display = 'none';
+            difficultyContainer.style.display = 'flex';
+        }
+
+        function showGameScreen() {
+            menuContainer.style.display = 'none';
+            difficultyContainer.style.display = 'none';
+            gameContainer.style.display = 'flex';
+        }
+
+        // ゲーム開始
+        function startGame(mode, diff = 'normal') {
+            gameMode = mode;
+            difficulty = diff;
+            showGameScreen();
+            resetGame();
+        }
+
+        // ゲームの一時停止
+        function pauseGame() {
+            if (confirm('メニュー画面に戻りますか？現在のゲームは破棄されます。')) {
+                showMenuScreen();
             }
+        }
 
-            // 初期状態をリセット
-            const idsToReset = ['textPart1', 'textPart2'];
-            idsToReset.forEach(id => {
-                const element = document.getElementById(id);
-                element.textContent = `ここに文字列の${id.includes('1') ? 'Part 1' : 'Part 2'}が表示されます。`;
-                element.classList.add('no-content');
-            });
+        // ゲームのリセット
+        function resetGame() {
+            isGameOver = false;
+            isAiThinking = false;
+            currentPlayer = 'black';
+            initializeBoard();
+            renderBoard();
+            highlightValidMoves();
+            messageElement.textContent = 'あなたのターンです (黒)';
+        }
 
-            const textLength = textInput.length;
-            const idealSplitPoint = Math.floor(textLength / 2);
-            let splitIndex = idealSplitPoint;
+        // ゲームの状態を初期化
+        function initializeBoard() {
+            board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+            board[3][3] = 'white';
+            board[3][4] = 'black';
+            board[4][3] = 'black';
+            board[4][4] = 'white';
+        }
 
-            // Search for the nearest newline character around the ideal split point
-            // Search backward first
-            let foundNewline = false;
-            for (let i = idealSplitPoint; i >= 0; i--) {
-                if (textInput[i] === '\n') {
-                    splitIndex = i + 1; // Include the newline in the first part, or just after it
-                    foundNewline = true;
-                    break;
+        // 盤面をHTMLで描画
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let y = 0; y < boardSize; y++) {
+                for (let x = 0; x < boardSize; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    
+                    if (board[y][x]) {
+                        const disc = document.createElement('div');
+                        disc.classList.add('disc', board[y][x]);
+                        cell.appendChild(disc);
+                    }
+                    
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
                 }
             }
+            updateScores();
+        }
 
-            // If no newline found backward, search forward
-            if (!foundNewline) {
-                for (let i = idealSplitPoint; i < textLength; i++) {
-                    if (textInput[i] === '\n') {
-                        splitIndex = i + 1; // Include the newline in the first part, or just after it
-                        foundNewline = true;
+        // スコアを更新
+        function updateScores() {
+            const blackCount = board.flat().filter(cell => cell === 'black').length;
+            const whiteCount = board.flat().filter(cell => cell === 'white').length;
+            blackScoreElement.textContent = blackCount;
+            whiteScoreElement.textContent = whiteCount;
+        }
+
+        // 通知ポップアップを表示
+        function showNotification(message) {
+            notificationElement.textContent = message;
+            notificationElement.classList.add('visible');
+            setTimeout(() => {
+                notificationElement.classList.remove('visible');
+            }, 1500);
+        }
+
+        // 石を置ける場所をハイライト
+        function highlightValidMoves() {
+            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('highlight'));
+            if (isGameOver || (gameMode === 'ai' && currentPlayer === 'white')) return;
+
+            const validMoves = getValidMoves(currentPlayer, board);
+            validMoves.forEach(move => {
+                const cell = document.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`);
+                if (cell) cell.classList.add('highlight');
+            });
+        }
+
+        // 石をひっくり返す
+        function flipDiscs(x, y, player) {
+            const opponent = player === 'black' ? 'white' : 'black';
+            const flipped = [];
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+
+            directions.forEach(([dx, dy]) => {
+                const lineToFlip = [];
+                let newX = x + dx;
+                let newY = y + dy;
+
+                while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                    if (board[newY][newX] === opponent) {
+                        lineToFlip.push({ x: newX, y: newY });
+                    } else if (board[newY][newX] === player) {
+                        flipped.push(...lineToFlip);
                         break;
+                    } else {
+                        break;
+                    }
+                    newX += dx;
+                    newY += dy;
+                }
+            });
+
+            if (flipped.length > 0) {
+                board[y][x] = player;
+                flipped.forEach(pos => {
+                    board[pos.y][pos.x] = player;
+                });
+                return { success: true, flipped: flipped };
+            }
+            return { success: false };
+        }
+
+        // 有効な手を取得
+        function getValidMoves(player, currentBoard) {
+            const validMoves = [];
+            for (let y = 0; y < boardSize; y++) {
+                for (let x = 0; x < boardSize; x++) {
+                    if (currentBoard[y][x] === null && canPlaceDisc(x, y, player, currentBoard)) {
+                        validMoves.push({ x, y });
                     }
                 }
             }
+            return validMoves;
+        }
 
-            // If no newline is found anywhere, revert to character count split
-            if (!foundNewline) {
-                splitIndex = idealSplitPoint;
+        // 石を置けるか判定
+        function canPlaceDisc(x, y, player, currentBoard) {
+            if (currentBoard[y][x] !== null) return false;
+
+            const opponent = player === 'black' ? 'white' : 'black';
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+            
+            for (const [dx, dy] of directions) {
+                let newX = x + dx;
+                let newY = y + dy;
+                let foundOpponent = false;
+
+                while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                    if (currentBoard[newY][newX] === opponent) {
+                        foundOpponent = true;
+                    } else if (currentBoard[newY][newX] === player) {
+                        if (foundOpponent) return true;
+                        break;
+                    } else {
+                        break;
+                    }
+                    newX += dx;
+                    newY += dy;
+                }
+            }
+            return false;
+        }
+
+        // ターンを交代
+        function switchTurn() {
+            currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            
+            const blackMoves = getValidMoves('black', board);
+            const whiteMoves = getValidMoves('white', board);
+
+            if (blackMoves.length === 0 && whiteMoves.length === 0) {
+                endGame();
+            } else if (getValidMoves(currentPlayer, board).length === 0) {
+                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はパスです`);
+                setTimeout(() => {
+                    switchTurn();
+                }, 1500);
+            } else {
+                messageElement.textContent = `${currentPlayer === 'black' ? 'あなたの' : 'AIの'}ターンです (${currentPlayer === 'black' ? '黒' : '白'})`;
+                if (gameMode === 'ai' && currentPlayer === 'white') {
+                    aiStartTime = performance.now();
+                    setTimeout(aiTurn, 500);
+                } else {
+                    highlightValidMoves();
+                }
+            }
+        }
+
+        // ゲーム終了処理
+        function endGame() {
+            isGameOver = true;
+            const blackCount = board.flat().filter(cell => cell === 'black').length;
+            const whiteCount = board.flat().filter(cell => cell === 'white').length;
+            let winnerMessage = '';
+
+            if (blackCount > whiteCount) {
+                winnerMessage = `ゲーム終了: 黒の勝ち！ (${blackCount}対${whiteCount})`;
+            } else if (whiteCount > blackCount) {
+                winnerMessage = `ゲーム終了: 白の勝ち！ (${whiteCount}対${blackCount})`;
+            } else {
+                winnerMessage = 'ゲーム終了: 引き分けです！';
+            }
+
+            showNotification(winnerMessage);
+            setTimeout(() => {
+                showMenuScreen();
+            }, 3000);
+        }
+
+        // プレイヤーのクリック処理
+        function handleCellClick(event) {
+            if (isGameOver || isAiThinking) return;
+            if (gameMode === 'ai' && currentPlayer !== 'black') return;
+
+            const x = parseInt(event.target.dataset.x);
+            const y = parseInt(event.target.dataset.y);
+
+            const result = flipDiscs(x, y, currentPlayer);
+            if (result.success) {
+                // 新しい石を配置
+                const newDisc = document.createElement('div');
+                newDisc.classList.add('disc', currentPlayer);
+                const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+                if (cell) cell.appendChild(newDisc);
+
+                // ひっくり返る石のアニメーション
+                result.flipped.forEach(pos => {
+                    const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                    if (disc) {
+                        disc.classList.add(`flip-${currentPlayer}`);
+                        // アニメーション終了後にクラスを削除
+                        setTimeout(() => {
+                            disc.classList.remove('black', 'white', `flip-${currentPlayer}`);
+                            disc.classList.add(currentPlayer);
+                        }, 500);
+                    }
+                });
+
+                updateScores();
+                setTimeout(switchTurn, 600);
+            } else {
+                showNotification('そこには置けません。');
+            }
+        }
+
+        // AIのターン
+        function aiTurn() {
+            isAiThinking = true;
+            messageElement.textContent = `AIのターンです (白) 思考中...`;
+            let bestMove = null;
+            let moves = getValidMoves('white', board);
+
+            if (moves.length === 0) {
+                isAiThinking = false;
+                switchTurn();
+                return;
+            }
+
+            switch (difficulty) {
+                case 'easy':
+                    bestMove = easyAI(moves);
+                    break;
+                case 'normal':
+                    bestMove = normalAI(moves);
+                    break;
+                case 'hard':
+                    bestMove = hardAI(board, moves);
+                    break;
             }
             
-            const textPart1 = textInput.substring(0, splitIndex);
-            const textPart2 = textInput.substring(splitIndex);
+            if (bestMove) {
+                const result = flipDiscs(bestMove.x, bestMove.y, 'white');
+                const aiEndTime = performance.now();
+                const aiTime = (aiEndTime - aiStartTime).toFixed(2);
+                messageElement.textContent = `AIのターンです (白) 思考時間: ${aiTime}ms`;
+                
+                const newDisc = document.createElement('div');
+                newDisc.classList.add('disc', 'white');
+                const cell = document.querySelector(`.cell[data-x="${bestMove.x}"][data-y="${bestMove.y}"]`);
+                if (cell) cell.appendChild(newDisc);
 
-            document.getElementById('textPart1').textContent = textPart1;
-            document.getElementById('textPart2').textContent = textPart2;
+                result.flipped.forEach(pos => {
+                    const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                    if (disc) {
+                        disc.classList.add('flip-white');
+                        setTimeout(() => {
+                            disc.classList.remove('black', 'white', 'flip-white');
+                            disc.classList.add('white');
+                        }, 500);
+                    }
+                });
 
-            document.getElementById('textPart1').classList.remove('no-content');
-            document.getElementById('textPart2').classList.remove('no-content');
-        }
-
-        // クリップボードにコピーする関数
-        async function copyToClipboard(elementId) {
-            const element = document.getElementById(elementId);
-            const textToCopy = element.textContent;
-
-            try {
-                // `no-content` クラスのテキストはコピーしない
-                if (element.classList.contains('no-content') && textToCopy.startsWith('ここに文字列の')) {
-                    alert('まだ分割されていません、またはコンテンツがありません。');
-                    return;
-                }
-                await navigator.clipboard.writeText(textToCopy);
-                alert('コピーしました！');
-            } catch (err) {
-                console.error('コピーに失敗しました:', err);
-                alert('コピーに失敗しました。ブラウザのセキュリティ設定を確認してください。');
+                updateScores();
+                isAiThinking = false;
+                setTimeout(switchTurn, 600);
             }
         }
+
+        // AIアルゴリズム: 簡単
+        function easyAI(moves) {
+            return moves[Math.floor(Math.random() * moves.length)];
+        }
+
+        // AIアルゴリズム: 普通
+        function normalAI(moves) {
+            let bestMove = null;
+            let maxFlips = -1;
+
+            moves.forEach(move => {
+                const tempBoard = JSON.parse(JSON.stringify(board));
+                let flips = 0;
+                const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+                const opponent = 'black';
+
+                directions.forEach(([dx, dy]) => {
+                    const lineToFlip = [];
+                    let newX = move.x + dx;
+                    let newY = move.y + dy;
+
+                    while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                        if (tempBoard[newY][newX] === opponent) {
+                            lineToFlip.push({ x: newX, y: newY });
+                        } else if (tempBoard[newY][newX] === 'white') {
+                            flips += lineToFlip.length;
+                            break;
+                        } else {
+                            break;
+                        }
+                        newX += dx;
+                        newY += dy;
+                    }
+                });
+
+                if (flips > maxFlips) {
+                    maxFlips = flips;
+                    bestMove = move;
+                }
+            });
+            return bestMove;
+        }
+
+        // AIアルゴリズム: 難しい (ミニマックス法を強化)
+        function hardAI(currentBoard, moves) {
+            let bestScore = -Infinity;
+            let bestMove = null;
+
+            moves.forEach(move => {
+                const nextBoard = makeMove(currentBoard, move.x, move.y, 'white');
+                const score = minimax(nextBoard, 0, 4, false);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            });
+            return bestMove;
+        }
+        
+        // ミニマックス法 (αβ枝刈りなし)
+        function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer) {
+            if (depth === maxDepth || (getValidMoves('black', currentBoard).length === 0 && getValidMoves('white', currentBoard).length === 0)) {
+                return evaluateBoard(currentBoard);
+            }
+            
+            const player = isMaximizingPlayer ? 'white' : 'black';
+            const moves = getValidMoves(player, currentBoard);
+
+            if (moves.length === 0) {
+                return minimax(currentBoard, depth + 1, maxDepth, !isMaximizingPlayer);
+            }
+
+            if (isMaximizingPlayer) {
+                let bestScore = -Infinity;
+                moves.forEach(move => {
+                    const nextBoard = makeMove(currentBoard, move.x, move.y, player);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, false);
+                    bestScore = Math.max(bestScore, score);
+                });
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                moves.forEach(move => {
+                    const nextBoard = makeMove(currentBoard, move.x, move.y, player);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, true);
+                    bestScore = Math.min(bestScore, score);
+                });
+                return bestScore;
+            }
+        }
+
+        // 盤面評価関数 (重み付けを強化)
+        function evaluateBoard(currentBoard) {
+            let score = 0;
+            const myPlayer = 'white';
+            const opponent = 'black';
+
+            const myCount = currentBoard.flat().filter(cell => cell === myPlayer).length;
+            const opponentCount = currentBoard.flat().filter(cell => cell === opponent).length;
+            score += (myCount - opponentCount);
+
+            const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
+            corners.forEach(pos => {
+                if (currentBoard[pos.y][pos.x] === myPlayer) score += 50;
+                if (currentBoard[pos.y][pos.x] === opponent) score -= 50;
+            });
+
+            const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
+            const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
+            score += (myStableDiscs - opponentStableDiscs) * 20;
+
+            const myEdgeCount = getEdgeCount(myPlayer, currentBoard);
+            const opponentEdgeCount = getEdgeCount(opponent, currentBoard);
+            score += (myEdgeCount - opponentEdgeCount) * 5;
+
+            return score;
+        }
+
+        // 確定石を数える
+        function getStableDiscs(player, currentBoard) {
+            const stableDiscs = [];
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            
+            for (let y = 0; y < boardSize; y++) {
+                for (let x = 0; x < boardSize; x++) {
+                    if (currentBoard[y][x] !== player) continue;
+                    
+                    let isStable = true;
+                    for (const [dx, dy] of directions) {
+                        let isFull = true;
+                        let newX1 = x + dx, newY1 = y + dy;
+                        while(newX1 >= 0 && newX1 < 8 && newY1 >= 0 && newY1 < 8) {
+                            if (currentBoard[newY1][newX1] !== player) { isFull = false; break; }
+                            newX1 += dx; newY1 += dy;
+                        }
+                        if (!isFull) continue;
+                        
+                        let newX2 = x - dx, newY2 = y - dy;
+                        while(newX2 >= 0 && newX2 < 8 && newY2 >= 0 && newY2 < 8) {
+                            if (currentBoard[newY2][newX2] !== player) { isFull = false; break; }
+                            newX2 -= dx; newY2 -= dy;
+                        }
+                        if (!isFull) {
+                            isStable = false;
+                            break;
+                        }
+                    }
+                    if (isStable) stableDiscs.push({x, y});
+                }
+            }
+            return stableDiscs;
+        }
+
+        // 辺の石を数える
+        function getEdgeCount(player, currentBoard) {
+            let count = 0;
+            for(let i = 0; i < 8; i++) {
+                if(currentBoard[0][i] === player) count++;
+                if(currentBoard[7][i] === player) count++;
+                if(currentBoard[i][0] === player) count++;
+                if(currentBoard[i][7] === player) count++;
+            }
+            return count;
+        }
+
+        // 仮想的な石の配置
+        function makeMove(currentBoard, x, y, player) {
+            const newBoard = JSON.parse(JSON.stringify(currentBoard));
+            newBoard[y][x] = player;
+            const opponent = player === 'black' ? 'white' : 'black';
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+
+            directions.forEach(([dx, dy]) => {
+                const lineToFlip = [];
+                let newX = x + dx;
+                let newY = y + dy;
+
+                while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                    if (newBoard[newY][newX] === opponent) {
+                        lineToFlip.push({ x: newX, y: newY });
+                    } else if (newBoard[newY][newX] === player) {
+                        lineToFlip.forEach(pos => {
+                            newBoard[pos.y][pos.x] = player;
+                        });
+                        break;
+                    } else {
+                        break;
+                    }
+                    newX += dx;
+                    newY += dy;
+                }
+            });
+            return newBoard;
+        }
+        
+        // 初期画面の表示
+        window.onload = showMenuScreen;
     </script>
 </body>
 </html>
