@@ -1157,45 +1157,29 @@
                 });
         }
 
-        function renderRankingPage() {
-            rankingList.innerHTML = '';
-            const startIndex = currentPage * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const scoresToDisplay = allScores.slice(startIndex, endIndex);
+function renderRankingPage() {
+  rankingList.innerHTML = '';
+  allScores.forEach((d, index) => {
+    const displayName = d.name.length > 10 ? d.name.substring(0, 10) + '...' : d.name;
+    const linesDisplay = d.linesCleared !== undefined ? `${d.linesCleared}` : '不明';
+    const comboDisplay = d.maxCombo !== undefined ? `${d.maxCombo}` : '';
+    const difficultyDisplay = d.difficulty ? `(${d.difficulty})` : '';
+    rankingList.innerHTML += `
+      <li>
+        <span class="col-rank">${index + 1}.</span>
+        <span class="col-name">${displayName} ${difficultyDisplay}</span>
+        <span class="col-score">${d.score}点</span>
+        <span class="col-lines">${linesDisplay}</span>
+        <span class="col-combo">${comboDisplay}</span>
+      </li>
+    `;
+  });
 
-            if (scoresToDisplay.length === 0 && currentPage === 0) {
-                rankingList.innerHTML = "<p style='text-align: center;'>まだランキングデータがありません。</p>";
-                console.log("No scores to display on first page."); // デバッグログ
-            } else if (scoresToDisplay.length === 0 && currentPage > 0) {
-                currentPage--; // データがない場合は前のページに戻る
-                console.log("No scores on current page, going back to previous."); // デバッグログ
-                renderRankingPage();
-                return;
-            } else {
-                console.log("Displaying scores from index", startIndex, "to", endIndex); // デバッグログ
-            }
+  // ページボタンを非表示にする
+  prevPageBtn.style.display = 'none';
+  nextPageBtn.style.display = 'none';
+}
 
-            scoresToDisplay.forEach((d, index) => {
-                const displayName = d.name.length > 10 ? d.name.substring(0, 10) + '...' : d.name;
-                const linesDisplay = d.linesCleared !== undefined ? `${d.linesCleared}` : '不明';
-                const comboDisplay = d.maxCombo !== undefined ? `${d.maxCombo}` : ''; 
-                const difficultyDisplay = d.difficulty ? `(${d.difficulty})` : ''; // 難易度表示を追加
-                
-
-                rankingList.innerHTML += `
-                    <li>
-                        <span class="col-rank">${startIndex + index + 1}.</span>
-                        <span class="col-name">${displayName} ${difficultyDisplay}</span>
-                        <span class="col-score">${d.score}点</span>
-                        <span class="col-lines">${linesDisplay}</span>
-                        <span class="col-combo">${comboDisplay}</span>
-                    </li>
-                `;
-            });
-
-            prevPageBtn.disabled = currentPage === 0;
-            nextPageBtn.disabled = endIndex >= allScores.length;
-        }
 
         prevPageBtn.addEventListener('click', () => {
             if (currentPage > 0) {
