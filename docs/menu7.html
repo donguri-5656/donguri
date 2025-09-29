@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AIオセロ</title>
+    <title>オセロ</title>
     <style>
         html, body {
             height: 100%;
@@ -156,16 +156,16 @@
 <body>
 
     <div id="menu-container">
-        <h2>AIオセロ</h2>
+        <h2>オセロ</h2>
         <button onclick="showDifficultyScreen()">AIと対戦</button>
         <button onclick="startGame('twoPlayer')">2人で対戦</button>
     </div>
 
     <div id="difficulty-container">
         <h2>難易度を選んでください</h2>
-        <button onclick="startGame('ai', 'easy')">簡単 (ランダム)</button>
-        <button onclick="startGame('ai', 'normal')">普通 (最大獲得)</button>
-        <button onclick="startGame('ai', 'hard')">難しい (ミニマックス+αβ)</button>
+        <button onclick="startGame('ai', 'easy')">簡単</button>
+        <button onclick="startGame('ai', 'normal')">普通</button>
+        <button onclick="startGame('ai', 'hard')">難しい</button>
         <button onclick="showMenuScreen()">メニューに戻る</button>
     </div>
 
