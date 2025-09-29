@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>オセロ</title>
+    <title>AIオセロ</title>
     <style>
         html, body {
             height: 100%;
@@ -156,16 +156,16 @@
 <body>
 
     <div id="menu-container">
-        <h2>オセロ</h2>
+        <h2>AIオセロ</h2>
         <button onclick="showDifficultyScreen()">AIと対戦</button>
         <button onclick="startGame('twoPlayer')">2人で対戦</button>
     </div>
 
     <div id="difficulty-container">
         <h2>難易度を選んでください</h2>
-        <button onclick="startGame('ai', 'easy')">簡単</button>
-        <button onclick="startGame('ai', 'normal')">普通</button>
-        <button onclick="startGame('ai', 'hard')">難しい</button>
+        <button onclick="startGame('ai', 'easy')">簡単 (ランダム)</button>
+        <button onclick="startGame('ai', 'normal')">普通 (最大獲得)</button>
+        <button onclick="startGame('ai', 'hard')">難しい (ミニマックス+αβ)</button>
         <button onclick="showMenuScreen()">メニューに戻る</button>
     </div>
 
@@ -305,7 +305,7 @@
             });
         }
 
-        // 石をひっくり返す
+        // 石をひっくり返す (成功した場合に**盤面データを更新する**ことに注意)
         function flipDiscs(x, y, player) {
             const opponent = player === 'black' ? 'white' : 'black';
             const flipped = [];
@@ -331,6 +331,7 @@
             });
 
             if (flipped.length > 0) {
+                // 盤面データの更新
                 board[y][x] = player;
                 flipped.forEach(pos => {
                     board[pos.y][pos.x] = player;
@@ -398,8 +399,9 @@
             } else {
                 messageElement.textContent = `${currentPlayer === 'black' ? 'あなたの' : 'AIの'}ターンです (${currentPlayer === 'black' ? '黒' : '白'})`;
                 if (gameMode === 'ai' && currentPlayer === 'white') {
-                    aiStartTime = performance.now();
-                    setTimeout(aiTurn, 500);
+                    aiStartTime = performance.now(); // AIの思考時間計測開始
+                    // 遅延をなくし、AI思考を「一瞬」に
+                    aiTurn(); 
                 } else {
                     highlightValidMoves();
                 }
@@ -432,35 +434,43 @@
             if (isGameOver || isAiThinking) return;
             if (gameMode === 'ai' && currentPlayer !== 'black') return;
 
-            const x = parseInt(event.target.dataset.x);
-            const y = parseInt(event.target.dataset.y);
+            let targetCell = event.target.closest('.cell');
+            if (!targetCell) return;
 
+            const x = parseInt(targetCell.dataset.x);
+            const y = parseInt(targetCell.dataset.y);
+
+            if (!canPlaceDisc(x, y, currentPlayer, board)) {
+                showNotification('そこには置けません。');
+                return;
+            }
+
+            // flipDiscs内で盤面データが更新される
             const result = flipDiscs(x, y, currentPlayer);
+            
             if (result.success) {
-                // 新しい石を配置
-                const newDisc = document.createElement('div');
-                newDisc.classList.add('disc', currentPlayer);
-                const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-                if (cell) cell.appendChild(newDisc);
-
-                // ひっくり返る石のアニメーション
+                isAiThinking = true; 
+                
+                // 盤面全体を再描画（バグ修正）
+                renderBoard(); 
+                
+                // アニメーションのためにDOM要素を再取得し、アニメーションを適用
                 result.flipped.forEach(pos => {
-                    const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
-                    if (disc) {
-                        disc.classList.add(`flip-${currentPlayer}`);
-                        // アニメーション終了後にクラスを削除
+                    const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                    if (flippedDisc) {
+                        flippedDisc.classList.add(`flip-${currentPlayer}`);
                         setTimeout(() => {
-                            disc.classList.remove('black', 'white', `flip-${currentPlayer}`);
-                            disc.classList.add(currentPlayer);
-                        }, 500);
+                            flippedDisc.classList.remove(`flip-${currentPlayer}`);
+                        }, 500); 
                     }
                 });
 
-                updateScores();
-                setTimeout(switchTurn, 600);
-            } else {
-                showNotification('そこには置けません。');
-            }
+                // アニメーション完了後にターン交代
+                setTimeout(() => {
+                    isAiThinking = false;
+                    switchTurn();
+                }, 600);
+            } 
         }
 
         // AIのターン
@@ -484,7 +494,9 @@
                     bestMove = normalAI(moves);
                     break;
                 case 'hard':
-                    bestMove = hardAI(board, moves);
+                    aiStartTime = performance.now(); 
+                    const searchDepth = 4; 
+                    bestMove = hardAI(board, moves, searchDepth);
                     break;
             }
             
@@ -492,42 +504,44 @@
                 const result = flipDiscs(bestMove.x, bestMove.y, 'white');
                 const aiEndTime = performance.now();
                 const aiTime = (aiEndTime - aiStartTime).toFixed(2);
+                
+                // 盤面全体を再描画
+                renderBoard(); 
+                
                 messageElement.textContent = `AIのターンです (白) 思考時間: ${aiTime}ms`;
                 
-                const newDisc = document.createElement('div');
-                newDisc.classList.add('disc', 'white');
-                const cell = document.querySelector(`.cell[data-x="${bestMove.x}"][data-y="${bestMove.y}"]`);
-                if (cell) cell.appendChild(newDisc);
-
+                // アニメーションのためにDOM要素を再取得し、アニメーションを適用
                 result.flipped.forEach(pos => {
                     const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
                     if (disc) {
                         disc.classList.add('flip-white');
                         setTimeout(() => {
-                            disc.classList.remove('black', 'white', 'flip-white');
-                            disc.classList.add('white');
+                            disc.classList.remove('flip-white');
                         }, 500);
                     }
                 });
 
-                updateScores();
-                isAiThinking = false;
-                setTimeout(switchTurn, 600);
+                // アニメーション完了後にターン交代
+                setTimeout(() => {
+                    isAiThinking = false;
+                    switchTurn();
+                }, 600);
             }
         }
 
-        // AIアルゴリズム: 簡単
+        // --- AIアルゴリズム定義 ---
+
+        // AIアルゴリズム: 簡単 (ランダムに選択)
         function easyAI(moves) {
             return moves[Math.floor(Math.random() * moves.length)];
         }
 
-        // AIアルゴリズム: 普通
+        // AIアルゴリズム: 普通 (最も多くひっくり返せる手を選択)
         function normalAI(moves) {
             let bestMove = null;
             let maxFlips = -1;
 
             moves.forEach(move => {
-                const tempBoard = JSON.parse(JSON.stringify(board));
                 let flips = 0;
                 const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
                 const opponent = 'black';
@@ -538,9 +552,9 @@
                     let newY = move.y + dy;
 
                     while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                        if (tempBoard[newY][newX] === opponent) {
+                        if (board[newY][newX] === opponent) {
                             lineToFlip.push({ x: newX, y: newY });
-                        } else if (tempBoard[newY][newX] === 'white') {
+                        } else if (board[newY][newX] === 'white') {
                             flips += lineToFlip.length;
                             break;
                         } else {
@@ -559,14 +573,20 @@
             return bestMove;
         }
 
-        // AIアルゴリズム: 難しい (ミニマックス法を強化)
-        function hardAI(currentBoard, moves) {
+        // AIアルゴリズム: 難しい (ミニマックス法 with αβ枝刈り)
+        function hardAI(currentBoard, moves, maxDepth) {
             let bestScore = -Infinity;
             let bestMove = null;
+            
+            const cornerMoves = moves.filter(m => (m.x === 0 || m.x === 7) && (m.y === 0 || m.y === 7));
+            if (cornerMoves.length > 0) {
+                return cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
+            }
 
             moves.forEach(move => {
                 const nextBoard = makeMove(currentBoard, move.x, move.y, 'white');
-                const score = minimax(nextBoard, 0, 4, false);
+                const score = minimax(nextBoard, 0, maxDepth, false, -Infinity, Infinity); 
+                
                 if (score > bestScore) {
                     bestScore = score;
                     bestMove = move;
@@ -574,35 +594,45 @@
             });
             return bestMove;
         }
-        
-        // ミニマックス法 (αβ枝刈りなし)
-        function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer) {
-            if (depth === maxDepth || (getValidMoves('black', currentBoard).length === 0 && getValidMoves('white', currentBoard).length === 0)) {
+
+        // ミニマックス法 (αβ枝刈りあり)
+        function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer, alpha, beta) {
+            const blackMoves = getValidMoves('black', currentBoard);
+            const whiteMoves = getValidMoves('white', currentBoard);
+            if (depth === maxDepth || (blackMoves.length === 0 && whiteMoves.length === 0)) {
                 return evaluateBoard(currentBoard);
             }
             
             const player = isMaximizingPlayer ? 'white' : 'black';
-            const moves = getValidMoves(player, currentBoard);
+            const moves = isMaximizingPlayer ? whiteMoves : blackMoves;
 
             if (moves.length === 0) {
-                return minimax(currentBoard, depth + 1, maxDepth, !isMaximizingPlayer);
+                return minimax(currentBoard, depth, maxDepth, !isMaximizingPlayer, alpha, beta); 
             }
 
             if (isMaximizingPlayer) {
                 let bestScore = -Infinity;
-                moves.forEach(move => {
+                for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, false);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, false, alpha, beta);
                     bestScore = Math.max(bestScore, score);
-                });
+                    alpha = Math.max(alpha, bestScore);
+                    if (beta <= alpha) { 
+                        break; 
+                    }
+                }
                 return bestScore;
             } else {
                 let bestScore = Infinity;
-                moves.forEach(move => {
+                for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, true);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, true, alpha, beta);
                     bestScore = Math.min(bestScore, score);
-                });
+                    beta = Math.min(beta, bestScore);
+                    if (beta <= alpha) { 
+                        break;
+                    }
+                }
                 return bestScore;
             }
         }
@@ -615,21 +645,38 @@
 
             const myCount = currentBoard.flat().filter(cell => cell === myPlayer).length;
             const opponentCount = currentBoard.flat().filter(cell => cell === opponent).length;
-            score += (myCount - opponentCount);
+            const discCount = myCount + opponentCount;
+            const countWeight = discCount > 50 ? 100 : 1; 
+            score += (myCount - opponentCount) * countWeight;
 
+            const cornerWeight = 500;
             const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
             corners.forEach(pos => {
-                if (currentBoard[pos.y][pos.x] === myPlayer) score += 50;
-                if (currentBoard[pos.y][pos.x] === opponent) score -= 50;
+                if (currentBoard[pos.y][pos.x] === myPlayer) score += cornerWeight;
+                if (currentBoard[pos.y][pos.x] === opponent) score -= cornerWeight;
             });
-
+            
+            const stableWeight = 50;
             const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
             const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
-            score += (myStableDiscs - opponentStableDiscs) * 20;
+            score += (myStableDiscs - opponentStableDiscs) * stableWeight;
 
-            const myEdgeCount = getEdgeCount(myPlayer, currentBoard);
-            const opponentEdgeCount = getEdgeCount(opponent, currentBoard);
-            score += (myEdgeCount - opponentEdgeCount) * 5;
+            const mobilityWeight = 10;
+            const myMoves = getValidMoves(myPlayer, currentBoard).length;
+            const opponentMoves = getValidMoves(opponent, currentBoard).length;
+            score += (myMoves - opponentMoves) * mobilityWeight;
+
+            const dangerWeight = -30;
+            const dangerMoves = [
+                {x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, 
+                {x: 6, y: 0}, {x: 7, y: 1}, {x: 6, y: 1}, 
+                {x: 0, y: 6}, {x: 1, y: 7}, {x: 1, y: 6}, 
+                {x: 7, y: 6}, {x: 6, y: 7}, {x: 6, y: 6}  
+            ];
+            dangerMoves.forEach(pos => {
+                if (currentBoard[pos.y][pos.x] === myPlayer) score += dangerWeight;
+                if (currentBoard[pos.y][pos.x] === opponent) score -= dangerWeight;
+            });
 
             return score;
         }
@@ -637,28 +684,30 @@
         // 確定石を数える
         function getStableDiscs(player, currentBoard) {
             const stableDiscs = [];
-            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
-            
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]]; 
+
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
                     if (currentBoard[y][x] !== player) continue;
                     
                     let isStable = true;
                     for (const [dx, dy] of directions) {
-                        let isFull = true;
+                        
+                        let isFull1 = true;
                         let newX1 = x + dx, newY1 = y + dy;
                         while(newX1 >= 0 && newX1 < 8 && newY1 >= 0 && newY1 < 8) {
-                            if (currentBoard[newY1][newX1] !== player) { isFull = false; break; }
+                            if (currentBoard[newY1][newX1] !== player) { isFull1 = false; break; }
                             newX1 += dx; newY1 += dy;
                         }
-                        if (!isFull) continue;
-                        
+
+                        let isFull2 = true;
                         let newX2 = x - dx, newY2 = y - dy;
                         while(newX2 >= 0 && newX2 < 8 && newY2 >= 0 && newY2 < 8) {
-                            if (currentBoard[newY2][newX2] !== player) { isFull = false; break; }
+                            if (currentBoard[newY2][newX2] !== player) { isFull2 = false; break; }
                             newX2 -= dx; newY2 -= dy;
                         }
-                        if (!isFull) {
+                        
+                        if (!(isFull1 || isFull2)) {
                             isStable = false;
                             break;
                         }
@@ -667,18 +716,6 @@
                 }
             }
             return stableDiscs;
-        }
-
-        // 辺の石を数える
-        function getEdgeCount(player, currentBoard) {
-            let count = 0;
-            for(let i = 0; i < 8; i++) {
-                if(currentBoard[0][i] === player) count++;
-                if(currentBoard[7][i] === player) count++;
-                if(currentBoard[i][0] === player) count++;
-                if(currentBoard[i][7] === player) count++;
-            }
-            return count;
         }
 
         // 仮想的な石の配置
@@ -710,7 +747,7 @@
             });
             return newBoard;
         }
-        
+
         // 初期画面の表示
         window.onload = showMenuScreen;
     </script>
