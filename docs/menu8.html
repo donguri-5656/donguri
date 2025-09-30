@@ -6,98 +6,111 @@
     <title>落下する文字</title>
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
-            background-color: #000; /* 背景を黒に */
-            overflow: hidden; /* スクロールバーを非表示 */
-            font-family: 'Arial', sans-serif;
-            font-size: 4em; /* 文字の大きさを調整 */
-            color: #0f0; /* 文字色を緑に（マトリックス風） */
-        }
-
-        .char-container {
-            display: flex;
-            position: relative;
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace; /* マトリックス風フォント */
+            color: #0f0;
+            position: relative; /* 子要素の基準に */
         }
 
         .falling-char {
-            display: inline-block;
-            position: relative;
-            opacity: 0; /* 初期状態では透明 */
-            transform: translateY(-100vh); /* 画面上部外側に配置 */
+            position: absolute;
+            font-size: 1.5em; /* 文字の大きさを調整 */
+            opacity: 0.8;
+            /* JavaScriptで位置とアニメーションを設定 */
         }
 
         /* 落下アニメーションの定義 */
         @keyframes fall {
             0% {
-                opacity: 0;
-                transform: translateY(-100vh) scale(1);
-            }
-            20% {
-                opacity: 1;
-                transform: translateY(0) scale(1.1); /* 少しバウンドさせる */
-            }
-            80% {
-                opacity: 1;
-                transform: translateY(0) scale(1);
+                transform: translateY(-100px); /* 初期位置は少し上 */
             }
             100% {
-                opacity: 1;
-                transform: translateY(0);
+                transform: translateY(100vh); /* 画面下部まで移動 */
             }
         }
 
-        .falling-char.animate {
-            /* JavaScriptでanimationプロパティを設定するため、ここではキーフレーム名のみ定義 */
+        #info-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border: 2px solid #0f0;
+            z-index: 1000;
+            text-align: center;
+            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
-    <div id="text-container" class="char-container">
-        </div>
+    <div id="info-message">
+        <p>表示したい文字をURLパラメーターに追加してください。</p>
+        <p>例: **?text=あなたのメッセージ**</p>
+        <p>（例: `?text=Matrix%20Code`）</p>
+        <p>文字を入力すると、このメッセージは消え、文字が降ってきます。</p>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('text-container');
-            
-            // 1. URLからクエリパラメーターを取得
             const urlParams = new URLSearchParams(window.location.search);
-            // 'text'パラメーターの値を取得。ない場合はデフォルトの文字列を使用。
-            // URLデコードも自動で行われます。
             let textToDisplay = urlParams.get('text');
 
             if (!textToDisplay || textToDisplay.trim() === '') {
-                textToDisplay = 'NO TEXT PARAMETER'; // パラメーターがない場合のデフォルト
+                // パラメーターがない場合、情報メッセージを表示したまま処理を終了
+                return;
+            }
+
+            // パラメーターがある場合、情報メッセージを非表示にする
+            const infoMessage = document.getElementById('info-message');
+            if (infoMessage) {
+                infoMessage.style.display = 'none';
             }
 
             const characters = textToDisplay.split('');
-            const baseDuration = 1.5; // 基本の落下時間（秒）
-            const delayIncrement = 0.1; // 一文字あたりの遅延増加量（秒）
+            const body = document.body;
 
-            // 2. 文字列を一文字ずつ分割し、DOM要素として追加
-            characters.forEach((char, index) => {
+            // 1秒間に生成する文字の数
+            const spawnRate = 20; 
+            
+            // 降ってくる文字をランダムに生成する関数
+            function createFallingChar() {
+                // 1. 表示する文字をランダムに選択
+                const char = characters[Math.floor(Math.random() * characters.length)];
+
                 const charElement = document.createElement('span');
+                charElement.textContent = char;
                 charElement.className = 'falling-char';
-                
-                // スペースの場合は透明なままアニメーション対象外にする
-                if (char === ' ') {
-                    charElement.innerHTML = '&nbsp;'; // HTMLスペース
-                    // スペースはアニメーションさせずにそのまま表示
-                    charElement.style.opacity = '1';
-                } else {
-                    charElement.textContent = char;
-                    
-                    // アニメーションを個別に設定
-                    const delay = index * delayIncrement;
-                    charElement.style.animation = `fall ${baseDuration}s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards ${delay}s`;
-                    charElement.classList.add('animate');
-                }
 
-                container.appendChild(charElement);
-            });
+                // 2. 初期位置 (X座標) をランダムに設定
+                const startX = Math.random() * window.innerWidth;
+                charElement.style.left = `${startX}px`;
+                charElement.style.top = '-50px'; // 画面外上部からスタート
+
+                // 3. アニメーションの速度（持続時間）をランダムに設定
+                const duration = Math.random() * 5 + 3; // 3秒から8秒の間
+                charElement.style.animation = `fall ${duration}s linear infinite`;
+
+                // 4. サイズや色相をランダムにしてバリエーションを出す
+                const randomSize = Math.random() * 0.8 + 0.5; // 0.5emから1.3em
+                charElement.style.fontSize = `${randomSize}em`;
+                charElement.style.filter = `hue-rotate(${Math.random() * 360}deg)`; // 色相を少し変える
+                
+                body.appendChild(charElement);
+
+                // 5. 画面外に出た文字を削除してメモリを解放
+                // 落下アニメーションの持続時間＋少しの遅延後に削除する
+                setTimeout(() => {
+                    charElement.remove();
+                }, duration * 1000 + 500); 
+            }
+
+            // 一定間隔で新しい文字を生成し続ける
+            setInterval(createFallingChar, 1000 / spawnRate);
         });
     </script>
 </body>
