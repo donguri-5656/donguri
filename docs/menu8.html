@@ -3,99 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Falling Text from URL Parameter</title>
+    <title>落下する文字</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #222; /* 背景色 */
-            overflow: hidden; /* 落下する文字が画面外に消えるように */
+            margin: 0;
+            background-color: #000; /* 背景を黒に */
+            overflow: hidden; /* スクロールバーを非表示 */
+            font-family: 'Arial', sans-serif;
+            font-size: 4em; /* 文字の大きさを調整 */
+            color: #0f0; /* 文字色を緑に（マトリックス風） */
         }
 
-        #text-container {
+        .char-container {
+            display: flex;
             position: relative;
-            display: flex; /* 文字を横並びにする */
-            font-size: 48px; /* 文字サイズ */
-            font-weight: bold;
-            color: #fff; /* 文字色 */
-            font-family: Arial, sans-serif;
-            z-index: 10;
         }
 
         .falling-char {
             display: inline-block;
-            position: relative; /* transformの基準 */
-            opacity: 0; /* 初期状態では非表示 */
-            /* アニメーションの定義 (JavaScriptで追加される) */
-            transition: transform 1.5s ease-in, opacity 0.5s;
+            position: relative;
+            opacity: 0; /* 初期状態では透明 */
+            transform: translateY(-100vh); /* 画面上部外側に配置 */
         }
 
-        .fall {
-            opacity: 1;
-            transform: translateY(100vh) rotate(360deg); /* 画面下部まで移動し、回転 */
+        /* 落下アニメーションの定義 */
+        @keyframes fall {
+            0% {
+                opacity: 0;
+                transform: translateY(-100vh) scale(1);
+            }
+            20% {
+                opacity: 1;
+                transform: translateY(0) scale(1.1); /* 少しバウンドさせる */
+            }
+            80% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .falling-char.animate {
+            /* JavaScriptでanimationプロパティを設定するため、ここではキーフレーム名のみ定義 */
         }
     </style>
 </head>
 <body>
-
-    <div id="text-container"></div>
+    <div id="text-container" class="char-container">
+        </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('text-container');
             
-            // 1. URLパラメータから 'text' の値を取得
-            const params = new URLSearchParams(window.location.search);
-            let inputText = params.get('text');
+            // 1. URLからクエリパラメーターを取得
+            const urlParams = new URLSearchParams(window.location.search);
+            // 'text'パラメーターの値を取得。ない場合はデフォルトの文字列を使用。
+            // URLデコードも自動で行われます。
+            let textToDisplay = urlParams.get('text');
 
-            // パラメータがない場合、デフォルトのテキストを使用
-            if (!inputText) {
-                inputText = "Hello, World!"; 
-                container.textContent = "URLパラメータがないため、デフォルトのテキストを使用します。例: ?text=FALLING%20TEXT";
-                container.style.fontSize = "20px";
-                container.style.color = "#ccc";
-                return; // ここで処理を終了
+            if (!textToDisplay || textToDisplay.trim() === '') {
+                textToDisplay = 'NO TEXT PARAMETER'; // パラメーターがない場合のデフォルト
             }
 
-            // 2. 文字列を一文字ずつ<span>要素としてDOMに追加
-            const chars = inputText.split('');
-            container.textContent = ''; // デフォルトメッセージをクリア
-            
-            chars.forEach((char, index) => {
-                const span = document.createElement('span');
-                span.textContent = char === ' ' ? '\u00A0' : char; // スペースは\u00A0 (非改行スペース)に変換
-                span.classList.add('falling-char');
-                span.style.transform = `translateY(-100vh)`; // 初期位置を画面外の上部に設定
-                span.style.left = `${Math.random() * 20 - 10}px`; // 各文字にわずかな水平方向のランダムなずれを設定
+            const characters = textToDisplay.split('');
+            const baseDuration = 1.5; // 基本の落下時間（秒）
+            const delayIncrement = 0.1; // 一文字あたりの遅延増加量（秒）
 
-                // 落下開始のタイミングをずらす
-                const delay = index * 100 + Math.random() * 200; // 0.1秒ずつ遅延 + ランダムなずれ
-                span.style.transitionDelay = `${delay}ms`;
+            // 2. 文字列を一文字ずつ分割し、DOM要素として追加
+            characters.forEach((char, index) => {
+                const charElement = document.createElement('span');
+                charElement.className = 'falling-char';
+                
+                // スペースの場合は透明なままアニメーション対象外にする
+                if (char === ' ') {
+                    charElement.innerHTML = '&nbsp;'; // HTMLスペース
+                    // スペースはアニメーションさせずにそのまま表示
+                    charElement.style.opacity = '1';
+                } else {
+                    charElement.textContent = char;
+                    
+                    // アニメーションを個別に設定
+                    const delay = index * delayIncrement;
+                    charElement.style.animation = `fall ${baseDuration}s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards ${delay}s`;
+                    charElement.classList.add('animate');
+                }
 
-                container.appendChild(span);
-
-                // 3. 遅延後に落下アニメーションを開始
-                // transformが初期位置から最終位置へスムーズに変化するためにsetTimeoutで少し待つ
-                setTimeout(() => {
-                    span.classList.add('fall');
-                }, delay + 50); // delay + 50ms後にfallクラスを追加してアニメーション開始
+                container.appendChild(charElement);
             });
-
-            // 4. アニメーション終了後に要素を削除（オプション）
-            const lastDelay = (chars.length - 1) * 100 + 200; 
-            setTimeout(() => {
-                // アニメーションが完了する時間を考慮して、全ての文字を透明にする
-                document.querySelectorAll('.falling-char').forEach(span => {
-                    span.style.opacity = 0;
-                });
-            }, lastDelay + 1500); // 最後の文字が落ち始めてから1.5秒後
-
         });
     </script>
-
 </body>
 </html>
