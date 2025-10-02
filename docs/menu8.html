@@ -102,7 +102,7 @@
             <p style="margin-top: 20px;">生成されたQRコード:</p>
             <div id="qrcode"></div>
             <p id="short-url-display" style="font-size: 14px; word-wrap: break-word;"></p>
-            <p class="worker-info">※URL短縮には、デプロイ済みのCloudflare Workerを経由しています。</p>
+            <p class="worker-info">※URL短縮には、Cloudflare Workerを経由しています。</p>
         </div>
     </div>
 
@@ -116,10 +116,8 @@
         const message = urlParams.get(MESSAGE_PARAM_KEY);
         
         if (message) {
-            // パラメーターあり: メッセージ表示モード
             initResultMode(message);
         } else {
-            // パラメーターなし: 入力・生成モード
             initInputMode();
         }
 
@@ -131,24 +129,25 @@
          */
         async function shortenUrlWithXgd(longUrl) {
             // Workerに、短縮したい長いURLを 'targetUrl' パラメーターとして渡す
+            // ここでのencodeURIComponentは、クエリパラメータの値をURLセーフにするためのものです
             const proxyUrl = `${WORKER_URL}?targetUrl=${encodeURIComponent(longUrl)}`;
             
             try {
-                // Worker経由でAPI呼び出し
                 const response = await fetch(proxyUrl);
-                const shortUrl = await response.text();
+                const result = await response.text();
 
-                // response.okでステータスコード200-299をチェックし、結果がURL形式か確認
-                if (response.ok && shortUrl.startsWith('http')) {
-                    return shortUrl;
+                if (response.ok && result.startsWith('http')) {
+                    // X.gdが短縮URLを返した場合
+                    return result;
                 } else {
-                    console.error('WorkerまたはX.gd APIエラー:', shortUrl);
-                    alert('URL短縮に失敗しました。WorkerまたはX.gdからの応答エラーです。\n元の長いURLでQRコードを作成します。');
+                    // Workerからエラーが返された場合（例: 404, APIキーエラーなど）
+                    console.error('URL短縮失敗:', result);
+                    alert(`URL短縮に失敗しました。\nエラー詳細: ${result}\n元の長いURLでQRコードを作成します。`);
                     return longUrl; 
                 }
             } catch (error) {
-                console.error('Worker呼び出しエラー:', error);
-                alert('Workerへの接続に失敗しました。ネットワーク接続を確認してください。\n元の長いURLでQRコードを作成します。');
+                console.error('Worker接続エラー:', error);
+                alert('Workerへの接続に失敗しました。ネットワークエラーまたはWorkerのURLが間違っている可能性があります。\n元の長いURLでQRコードを作成します。');
                 return longUrl; 
             }
         }
@@ -162,13 +161,12 @@
             const decodedMessage = decodeURIComponent(encodedMessage);
             document.getElementById('message-display').textContent = decodedMessage;
 
-            // コピーボタンの処理
             document.getElementById('copy-button').addEventListener('click', () => {
                 navigator.clipboard.writeText(decodedMessage).then(() => {
                     alert('メッセージがコピーされました:\n' + decodedMessage);
                 }).catch(err => {
                     console.error('コピーに失敗しました', err);
-                    alert('コピーに失敗しました。お手数ですが手動でコピーしてください。');
+                    alert('コピーに失敗しました。');
                 });
             });
         }
@@ -192,7 +190,7 @@
                 generateButton.disabled = true;
 
                 // 1. 送信用の新しい長いURLを生成
-                // window.location.href全体をベースにして、クエリとハッシュを削除
+                // 現在のページURL（クエリ/ハッシュなし）を取得し、メッセージパラメーターを付与
                 const baseUrl = window.location.href.split('?')[0].split('#')[0];
                 const encodedText = encodeURIComponent(text);
                 const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
@@ -217,7 +215,6 @@
          */
         function generateQRCode(url) {
             const qrcodeElement = document.getElementById("qrcode");
-            // 既存のQRコードをクリア
             qrcodeElement.innerHTML = ''; 
 
             new QRCode(qrcodeElement, {
