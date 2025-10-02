@@ -129,25 +129,24 @@
          */
         async function shortenUrlWithXgd(longUrl) {
             // Workerに、短縮したい長いURLを 'targetUrl' パラメーターとして渡す
-            // ここでのencodeURIComponentは、クエリパラメータの値をURLセーフにするためのものです
+            // ここで longUrl は既にエンコードされています
             const proxyUrl = `${WORKER_URL}?targetUrl=${encodeURIComponent(longUrl)}`;
             
             try {
+                // Worker経由でAPI呼び出し
                 const response = await fetch(proxyUrl);
-                const result = await response.text();
+                const shortUrl = await response.text();
 
-                if (response.ok && result.startsWith('http')) {
-                    // X.gdが短縮URLを返した場合
-                    return result;
+                if (response.ok && shortUrl.startsWith('http')) {
+                    return shortUrl;
                 } else {
-                    // Workerからエラーが返された場合（例: 404, APIキーエラーなど）
-                    console.error('URL短縮失敗:', result);
-                    alert(`URL短縮に失敗しました。\nエラー詳細: ${result}\n元の長いURLでQRコードを作成します。`);
+                    console.error('WorkerまたはX.gd APIエラー:', shortUrl);
+                    alert(`URL短縮に失敗しました。WorkerまたはX.gdからの応答エラー: ${response.status} (${shortUrl}) \n元の長いURLでQRコードを作成します。`);
                     return longUrl; 
                 }
             } catch (error) {
-                console.error('Worker接続エラー:', error);
-                alert('Workerへの接続に失敗しました。ネットワークエラーまたはWorkerのURLが間違っている可能性があります。\n元の長いURLでQRコードを作成します。');
+                console.error('Worker呼び出しエラー:', error);
+                alert('Workerへの接続に失敗しました。ネットワーク接続を確認してください。\n元の長いURLでQRコードを作成します。');
                 return longUrl; 
             }
         }
@@ -161,12 +160,13 @@
             const decodedMessage = decodeURIComponent(encodedMessage);
             document.getElementById('message-display').textContent = decodedMessage;
 
+            // コピーボタンの処理
             document.getElementById('copy-button').addEventListener('click', () => {
                 navigator.clipboard.writeText(decodedMessage).then(() => {
                     alert('メッセージがコピーされました:\n' + decodedMessage);
                 }).catch(err => {
                     console.error('コピーに失敗しました', err);
-                    alert('コピーに失敗しました。');
+                    alert('コピーに失敗しました。お手数ですが手動でコピーしてください。');
                 });
             });
         }
@@ -190,8 +190,11 @@
                 generateButton.disabled = true;
 
                 // 1. 送信用の新しい長いURLを生成
-                // 現在のページURL（クエリ/ハッシュなし）を取得し、メッセージパラメーターを付与
-                const baseUrl = window.location.href.split('?')[0].split('#')[0];
+                // GitHub Pagesの正確なパスを取得 (ハッシュとクエリを除く)
+                const pathName = window.location.pathname.split('?')[0].split('#')[0];
+                const baseUrl = window.location.origin + pathName;
+
+                // メッセージをパラメーターに付与（ここではまだ二重エンコードしない）
                 const encodedText = encodeURIComponent(text);
                 const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
 
@@ -215,6 +218,7 @@
          */
         function generateQRCode(url) {
             const qrcodeElement = document.getElementById("qrcode");
+            // 既存のQRコードをクリア
             qrcodeElement.innerHTML = ''; 
 
             new QRCode(qrcodeElement, {
