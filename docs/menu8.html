@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文字おくりサイト (X.gd URL短縮対応)</title>
+    <title>文字おくりサイト (X.gd + Cloudflare Worker)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
@@ -75,9 +75,9 @@
         #copy-button:hover {
             background-color: #138496;
         }
-        .info {
-            font-size: 14px;
-            color: #666;
+        .worker-info {
+            font-size: 12px;
+            color: #6c757d;
             margin-top: 10px;
         }
     </style>
@@ -92,7 +92,6 @@
                 <div id="message-display"></div>
             </div>
             <button id="copy-button">メッセージをコピー</button>
-            <p class="info">※このページは短縮URLからリダイレクトされています。</p>
         </div>
 
         <div id="input-mode" style="display: none;">
@@ -103,12 +102,13 @@
             <p style="margin-top: 20px;">生成されたQRコード:</p>
             <div id="qrcode"></div>
             <p id="short-url-display" style="font-size: 14px; word-wrap: break-word;"></p>
+            <p class="worker-info">※URL短縮には、デプロイ済みのCloudflare Workerを経由しています。</p>
         </div>
     </div>
 
     <script>
-        // Cloudflare WorkerのURL (ユーザーがデプロイしたプロキシサーバー)
-        const WORKER_URL = 'https://urlshort.donguri5656-1209.workers.dev/'; 
+        // 【重要】デプロイしたCloudflare WorkerのURL
+        const WORKER_URL = 'https://urlshort.donguri5656-1209.workers.dev'; 
         const MESSAGE_PARAM_KEY = 'text';
 
         // 1. URLパラメーターのチェックとモードの切り替え
@@ -124,10 +124,10 @@
         }
 
         // ===================================================
-        // X.gd短縮APIの関数 (Worker経由)
+        // Worker経由でのURL短縮関数
         // ===================================================
         /**
-         * X.gdのAPIを使ってURLを短縮します。（Cloudflare Workerを経由）
+         * Cloudflare Workerを介してX.gd APIでURLを短縮します。
          */
         async function shortenUrlWithXgd(longUrl) {
             // Workerに、短縮したい長いURLを 'targetUrl' パラメーターとして渡す
@@ -138,16 +138,17 @@
                 const response = await fetch(proxyUrl);
                 const shortUrl = await response.text();
 
+                // response.okでステータスコード200-299をチェックし、結果がURL形式か確認
                 if (response.ok && shortUrl.startsWith('http')) {
                     return shortUrl;
                 } else {
                     console.error('WorkerまたはX.gd APIエラー:', shortUrl);
-                    alert('URL短縮に失敗しました。Workerの設定またはX.gdの応答を確認してください。元の長いURLでQRコードを作成します。');
+                    alert('URL短縮に失敗しました。WorkerまたはX.gdからの応答エラーです。\n元の長いURLでQRコードを作成します。');
                     return longUrl; 
                 }
             } catch (error) {
                 console.error('Worker呼び出しエラー:', error);
-                alert('Workerへの接続に失敗しました。元の長いURLでQRコードを作成します。');
+                alert('Workerへの接続に失敗しました。ネットワーク接続を確認してください。\n元の長いURLでQRコードを作成します。');
                 return longUrl; 
             }
         }
@@ -191,10 +192,9 @@
                 generateButton.disabled = true;
 
                 // 1. 送信用の新しい長いURLを生成
-                // GitHub PagesのURL全体をベースにし、クエリパラメーターとハッシュを削除
+                // window.location.href全体をベースにして、クエリとハッシュを削除
                 const baseUrl = window.location.href.split('?')[0].split('#')[0];
                 const encodedText = encodeURIComponent(text);
-                // パラメーターを付与した長いURL
                 const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
 
                 // 2. Worker経由でURLを短縮
