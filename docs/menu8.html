@@ -3,241 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文字おくりサイト (X.gd + Cloudflare Worker)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>X.gd Worker テスト</title>
     <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            padding: 20px;
-            background-color: #f4f4f9;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #333;
-        }
-        #message-display {
-            font-size: 28px;
-            font-weight: bold;
-            color: #007bff;
-            padding: 20px 0;
-            word-wrap: break-word;
-        }
-        #message-box {
-            border: 1px solid #ccc;
-            background-color: #eee;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        #qrcode {
-            margin: 20px auto;
-            padding: 15px;
-            width: fit-content;
-            border: 1px solid #007bff;
-            border-radius: 4px;
-        }
-        input[type="text"] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        #generate-button {
-            background-color: #28a745;
-            color: white;
-        }
-        #generate-button:hover {
-            background-color: #218838;
-        }
-        #copy-button {
-            background-color: #17a2b8;
-            color: white;
-            margin-top: 10px;
-        }
-        #copy-button:hover {
-            background-color: #138496;
-        }
-        .worker-info {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 10px;
-        }
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 50px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 id="main-title">文字おくり & QRコード作成</h1>
-
-        <div id="result-mode" style="display: none;">
-            <p>送られてきたメッセージ:</p>
-            <div id="message-box">
-                <div id="message-display"></div>
-            </div>
-            <button id="copy-button">メッセージをコピー</button>
-        </div>
-
-        <div id="input-mode" style="display: none;">
-            <p>送りたいメッセージを入力してください:</p>
-            <input type="text" id="input-text" placeholder="ここにメッセージを入力">
-            <button id="generate-button">URLを生成してQRコードを作成</button>
-            
-            <p style="margin-top: 20px;">生成されたQRコード:</p>
-            <div id="qrcode"></div>
-            <p id="short-url-display" style="font-size: 14px; word-wrap: break-word;"></p>
-            <p class="worker-info">※URL短縮には、デプロイ済みのCloudflare Workerを経由しています。</p>
-        </div>
+    <h1>X.gd Worker 疎通テスト</h1>
+    <p>GoogleのURLを短縮します。</p>
+    <p>対象URL: <strong id="long-url">https://www.google.com/search?q=hello</strong></p>
+    <button id="test-button">Worker経由で短縮を実行</button>
+    
+    <h2>結果</h2>
+    <div id="result">
+        短縮結果がここに表示されます。
     </div>
 
     <script>
         // 【重要】デプロイしたCloudflare WorkerのURL
         const WORKER_URL = 'https://urlshort.donguri5656-1209.workers.dev'; 
-        const MESSAGE_PARAM_KEY = 'text';
+        const testButton = document.getElementById('test-button');
+        const resultDiv = document.getElementById('result');
+        const longUrl = document.getElementById('long-url').textContent;
 
-        // 1. URLパラメーターのチェックとモードの切り替え
-        const urlParams = new URLSearchParams(window.location.search);
-        const message = urlParams.get(MESSAGE_PARAM_KEY);
-        
-        if (message) {
-            initResultMode(message);
-        } else {
-            initInputMode();
-        }
+        testButton.addEventListener('click', async () => {
+            resultDiv.innerHTML = "短縮処理中...";
+            testButton.disabled = true;
 
-        // ===================================================
-        // Worker経由でのURL短縮関数
-        // ===================================================
-        async function shortenUrlWithXgd(longUrl) {
+            // Workerに渡すためのURLを構築
+            // longUrl全体をエンコードする
             const proxyUrl = `${WORKER_URL}?targetUrl=${encodeURIComponent(longUrl)}`;
             
+            console.log("WorkerへのリクエストURL:", proxyUrl);
+
             try {
+                // Worker経由でAPI呼び出し
                 const response = await fetch(proxyUrl);
                 const shortUrl = await response.text();
 
                 if (response.ok && shortUrl.startsWith('http')) {
-                    return shortUrl;
+                    // 成功
+                    resultDiv.innerHTML = `✅ 成功! <br> 短縮URL: <a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
+                    console.log("短縮成功:", shortUrl);
                 } else {
-                    console.error('WorkerまたはX.gd APIエラー:', shortUrl);
-                    alert(`URL短縮に失敗しました（エラーコード: ${response.status}）。元の長いURLでQRコードを作成します。\nWorkerからの応答: ${shortUrl}`);
-                    return longUrl; 
+                    // 失敗 (404やその他のエラー)
+                    resultDiv.innerHTML = `❌ 失敗! (ステータス: ${response.status}) <br> Workerからの応答: ${shortUrl}`;
+                    console.error('短縮失敗:', response.status, shortUrl);
                 }
             } catch (error) {
-                console.error('Worker呼び出しエラー:', error);
-                alert('Workerへの接続に失敗しました。ネットワーク接続を確認してください。\n元の長いURLでQRコードを作成します。');
-                return longUrl; 
+                // ネットワークエラーなど
+                resultDiv.innerHTML = `致命的なエラーが発生しました: ${error.message}`;
+                console.error('フェッチエラー:', error);
+            } finally {
+                testButton.disabled = false;
+                testButton.textContent = 'Worker経由で短縮を実行';
             }
-        }
-
-        // ===================================================
-        // 【モード1】パラメーターありの場合の処理
-        // ===================================================
-        function initResultMode(encodedMessage) {
-            document.getElementById('result-mode').style.display = 'block';
-            
-            const decodedMessage = decodeURIComponent(encodedMessage);
-            document.getElementById('message-display').textContent = decodedMessage;
-
-            document.getElementById('copy-button').addEventListener('click', () => {
-                navigator.clipboard.writeText(decodedMessage).then(() => {
-                    alert('メッセージがコピーされました:\n' + decodedMessage);
-                }).catch(err => {
-                    console.error('コピーに失敗しました', err);
-                    alert('コピーに失敗しました。お手数ですが手動でコピーしてください。');
-                });
-            });
-        }
-
-        // ===================================================
-        // 【モード2】パラメーターなしの場合の処理 (修正箇所あり)
-        // ===================================================
-        function initInputMode() {
-            document.getElementById('input-mode').style.display = 'block';
-            const inputText = document.getElementById('input-text');
-            const generateButton = document.getElementById('generate-button');
-
-            generateButton.addEventListener('click', async () => {
-                const text = inputText.value.trim();
-                if (!text) {
-                    alert('メッセージを入力してください。');
-                    return;
-                }
-
-                generateButton.textContent = '短縮中...';
-                generateButton.disabled = true;
-
-                // 1. 送信用の新しい長いURLを生成
-                
-                // 現在のURLパスを取得
-                const currentPath = window.location.pathname; // 例: /donguri/menu8.html
-                
-                // 【修正箇所】パスからファイル名を削除し、ディレクトリパスをベースにする
-                // ファイル名を含む最後の部分を空文字に置き換える（/donguri/menu8.html -> /donguri/）
-                // ただし、/で終わっていない場合は / を加える
-                let baseUrl = window.location.origin + currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-
-                // もしページがindex.htmlではない場合、index.htmlを付けておく（短縮URLからのアクセス用）
-                // GitHub Pagesでは / が index.html を指すため、これは必須ではないが安全策
-                if (!currentPath.endsWith('/') && !currentPath.endsWith('.html')) {
-                    // もしパスが /donguri のようにフォルダ名で終わっていたら / を加える
-                    baseUrl += '/';
-                }
-                
-                // メッセージをエンコードしてURLに結合
-                const encodedText = encodeURIComponent(text);
-                
-                // 【最終的な短縮対象URL】 パスをファイル名なしのディレクトリレベルまでにして、クエリを付与
-                const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
-                
-                console.log("短縮対象の長いURL:", newLongUrl);
-
-                // 2. Worker経由でURLを短縮
-                const finalUrl = await shortenUrlWithXgd(newLongUrl);
-                
-                // 3. QRコードを生成
-                generateQRCode(finalUrl);
-                
-                // 4. 短縮URLを表示
-                document.getElementById('short-url-display').innerHTML = 
-                    `短縮されたURL (QRコードの内容): <a href="${finalUrl}" target="_blank">${finalUrl}</a>`;
-
-                generateButton.textContent = 'URLを生成してQRコードを作成';
-                generateButton.disabled = false;
-            });
-        }
-
-        /**
-         * 指定されたURLでQRコードを生成するヘルパー関数
-         */
-        function generateQRCode(url) {
-            const qrcodeElement = document.getElementById("qrcode");
-            qrcodeElement.innerHTML = ''; 
-
-            new QRCode(qrcodeElement, {
-                text: url,
-                width: 180,
-                height: 180,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
-        }
+        });
     </script>
 </body>
 </html>
