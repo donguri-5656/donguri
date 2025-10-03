@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ページ移行のお知らせ</title>
+    <meta http-equiv="refresh" content="5; url=https://donguri5656.f5.si/">
+    <style>
+      
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #e44d26; /* 目立つ色 */
+        }
+
+        a {
+            color: #2a6496;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        #timer {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ページ移行のお知らせ 📢</h1>
+        <p>このページは以下の新しいURLに移行しました。</p>
+        <p>
+            **<a href="https://donguri5656.f5.si/">https://donguri5656.f5.si/</a>**
+        </p>
+        <p>5秒後に自動的に新しいページへ移動します。</p>
+        <div id="timer">自動移動まで: <span id="countdown">5</span> 秒</div>
+        <p>自動的に移動しない場合は、上記リンクをクリックしてください。</p>
+    </div>
+
+    <script>
+        // JavaScriptをここに記述
+        let countdownElement = document.getElementById('countdown');
+        let seconds = 5;
+
+        function updateCountdown() {
+            seconds--;
+            if (seconds >= 0) {
+                countdownElement.textContent = seconds;
+                setTimeout(updateCountdown, 1000);
+            }
+            // リダイレクトはmetaタグで行うため、JavaScriptでのリダイレクト処理は必須ではありませんが、
+            // フォールバックとして用意しておくこともできます。
+            // if (seconds < 0) {
+            //     window.location.href = 'https://donguri5656.f5.si/';
+            // }
+        }
+
+        // ページ読み込みから1秒後にカウントダウンを開始
+        setTimeout(updateCountdown, 1000);
+    </script>
+</body>
+</html>
