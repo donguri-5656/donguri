@@ -169,7 +169,7 @@
         }
 
         // ===================================================
-        // 【モード2】パラメーターなしの場合の処理 (修正箇所)
+        // 【モード2】パラメーターなしの場合の処理 (URL生成ロジックを修正)
         // ===================================================
         function initInputMode() {
             document.getElementById('input-mode').style.display = 'block';
@@ -188,13 +188,14 @@
 
                 // 1. 送信用の新しい長いURLを生成
                 
-                // 現在のURL全体からクエリとハッシュを削除し、ファイルパス（/donguri/menu8.html）を維持
-                const baseUrl = window.location.origin + window.location.pathname;
-                
+                // 【修正点】現在のURLからクエリパラメーターとハッシュを削除したURLをベースにする
+                // これにより、menu8.htmlを短縮対象に含めることができます。
+                const baseUrl = window.location.href.split('?')[0].split('#')[0]; 
+
                 // メッセージをエンコードしてURLに結合
                 const encodedText = encodeURIComponent(text);
                 
-                // 【修正箇所】 ファイル名（menu8.html）までを含めたパスにクエリを付与
+                // 短縮対象URLの形式: https://donguri-5656.github.io/donguri/menu8.html?text=...
                 const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
                 
                 console.log("短縮対象の長いURL:", newLongUrl);
