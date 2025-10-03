@@ -116,26 +116,18 @@
         const message = urlParams.get(MESSAGE_PARAM_KEY);
         
         if (message) {
-            // パラメーターあり: メッセージ表示モード
             initResultMode(message);
         } else {
-            // パラメーターなし: 入力・生成モード
             initInputMode();
         }
 
         // ===================================================
         // Worker経由でのURL短縮関数
         // ===================================================
-        /**
-         * Cloudflare Workerを介してX.gd APIでURLを短縮します。
-         */
         async function shortenUrlWithXgd(longUrl) {
-            // ここが修正点: longUrl全体を**1回だけ**encodeURIComponentでエンコードし、
-            // Workerの'targetUrl'パラメーターの値として安全に渡す
             const proxyUrl = `${WORKER_URL}?targetUrl=${encodeURIComponent(longUrl)}`;
             
             try {
-                // Worker経由でAPI呼び出し
                 const response = await fetch(proxyUrl);
                 const shortUrl = await response.text();
 
@@ -143,7 +135,7 @@
                     return shortUrl;
                 } else {
                     console.error('WorkerまたはX.gd APIエラー:', shortUrl);
-                    alert('URL短縮に失敗しました。WorkerまたはX.gdからの応答エラーです。\n元の長いURLでQRコードを作成します。\n詳細: ' + shortUrl);
+                    alert(`URL短縮に失敗しました（エラーコード: ${response.status}）。元の長いURLでQRコードを作成します。\nWorkerからの応答: ${shortUrl}`);
                     return longUrl; 
                 }
             } catch (error) {
@@ -159,12 +151,9 @@
         function initResultMode(encodedMessage) {
             document.getElementById('result-mode').style.display = 'block';
             
-            // 最初にURLから取得したメッセージは、ブラウザによってすでに1回デコードされている可能性があるため、
-            // ここではそのまま表示するか、またはdecodeURIComponentで安全に表示します。
             const decodedMessage = decodeURIComponent(encodedMessage);
             document.getElementById('message-display').textContent = decodedMessage;
 
-            // コピーボタンの処理
             document.getElementById('copy-button').addEventListener('click', () => {
                 navigator.clipboard.writeText(decodedMessage).then(() => {
                     alert('メッセージがコピーされました:\n' + decodedMessage);
@@ -176,7 +165,7 @@
         }
 
         // ===================================================
-        // 【モード2】パラメーターなしの場合の処理
+        // 【モード2】パラメーターなしの場合の処理 (修正箇所あり)
         // ===================================================
         function initInputMode() {
             document.getElementById('input-mode').style.display = 'block';
@@ -194,13 +183,29 @@
                 generateButton.disabled = true;
 
                 // 1. 送信用の新しい長いURLを生成
-                // window.location.href全体をベースにして、クエリとハッシュを削除
-                const baseUrl = window.location.href.split('?')[0].split('#')[0];
                 
-                // 【修正点】メッセージをエンコードしてURLに結合
-                // encodeURIComponentをここで使用し、メッセージをURLセーフな形に変換
+                // 現在のURLパスを取得
+                const currentPath = window.location.pathname; // 例: /donguri/menu8.html
+                
+                // 【修正箇所】パスからファイル名を削除し、ディレクトリパスをベースにする
+                // ファイル名を含む最後の部分を空文字に置き換える（/donguri/menu8.html -> /donguri/）
+                // ただし、/で終わっていない場合は / を加える
+                let baseUrl = window.location.origin + currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+
+                // もしページがindex.htmlではない場合、index.htmlを付けておく（短縮URLからのアクセス用）
+                // GitHub Pagesでは / が index.html を指すため、これは必須ではないが安全策
+                if (!currentPath.endsWith('/') && !currentPath.endsWith('.html')) {
+                    // もしパスが /donguri のようにフォルダ名で終わっていたら / を加える
+                    baseUrl += '/';
+                }
+                
+                // メッセージをエンコードしてURLに結合
                 const encodedText = encodeURIComponent(text);
+                
+                // 【最終的な短縮対象URL】 パスをファイル名なしのディレクトリレベルまでにして、クエリを付与
                 const newLongUrl = `${baseUrl}?${MESSAGE_PARAM_KEY}=${encodedText}`;
+                
+                console.log("短縮対象の長いURL:", newLongUrl);
 
                 // 2. Worker経由でURLを短縮
                 const finalUrl = await shortenUrlWithXgd(newLongUrl);
@@ -222,7 +227,6 @@
          */
         function generateQRCode(url) {
             const qrcodeElement = document.getElementById("qrcode");
-            // 既存のQRコードをクリア
             qrcodeElement.innerHTML = ''; 
 
             new QRCode(qrcodeElement, {
