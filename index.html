@@ -6,7 +6,6 @@
     <title>ページ移行</title>
     <meta http-equiv="refresh" content="5; url=https://donguri-5656.github.io/donguri/docs/">
     <style>
-      
         body {
             font-family: sans-serif;
             text-align: center;
@@ -48,30 +47,36 @@
 <body>
     <div class="container">
         <h1>ページ移行</h1>
-        <p>このページは以下の新しいURLに移行しました。</p>
         <p>
-            **<a href="https://donguri5656.f5.si/">https://donguri-5656.github.io/donguri/docs/</a>**
+            新しいURL: <a href="https://donguri-5656.github.io/donguri/docs/">https://donguri-5656.github.io/donguri/docs/</a>
         </p>
+
         <p>5秒後に自動的に新しいページへ移動します。</p>
         <div id="timer">自動移動まで: <span id="countdown">5</span> 秒</div>
         <p>自動的に移動しない場合は、上記リンクをクリックしてください。</p>
-        <p>作成中……https://donguri5656.f5.si/</p>
+
+        <p style="margin-top: 30px; font-size: 0.9em; color: #999;">
+            *ツール系（作成中）のリンク: <a href="https://donguri5656.f5.si/">https://donguri5656.f5.si/</a>*
+        </p>
     </div>
 
     <script>
-        // JavaScriptをここに記述
+        // カウントダウン用
         let countdownElement = document.getElementById('countdown');
         let seconds = 5;
 
         function updateCountdown() {
+            // カウントを減らす
             seconds--;
+            
             if (seconds >= 0) {
+                // カウントダウン表示を更新
                 countdownElement.textContent = seconds;
+                // 1秒後に再度実行
                 setTimeout(updateCountdown, 1000);
             }
         }
 
-        // ページ読み込みから1秒後にカウントダウンを開始
         setTimeout(updateCountdown, 1000);
     </script>
 </body>
