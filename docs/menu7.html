@@ -186,10 +186,9 @@
 
         const boardSize = 8;
         // ------------------------------------------------------------------
-        // ★ 修正箇所 A: 盤面データをグローバル(window)に公開
-        // ブックマークレットからアクセスできるようにします。
-        window.board = []; 
+        // ★ 修正箇所 A: 盤面データをグローバル(window)に公開 (変更なし)
         // ------------------------------------------------------------------
+        window.board = []; 
         let currentPlayer = 'black';
         let isGameOver = false;
         let isAiThinking = false;
@@ -244,7 +243,7 @@
         // ゲームの状態を初期化
         function initializeBoard() {
             // ------------------------------------------------------------------
-            // ★ 修正箇所 B: 初期化時もwindow.boardを使用
+            // ★ 修正箇所 B: 初期化時もwindow.boardを使用 (変更なし)
             // ------------------------------------------------------------------
             window.board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
             window.board[3][3] = 'white';
@@ -494,7 +493,10 @@
                     break;
                 case 'hard':
                     aiStartTime = performance.now(); 
-                    const searchDepth = 4; 
+                    // ------------------------------------------------------------------
+                    // ★ 強化箇所 1: 探索深度を5に上げる
+                    // ------------------------------------------------------------------
+                    const searchDepth = 5; 
                     bestMove = hardAI(window.board, moves, searchDepth); // window.boardを使用
                     break;
             }
@@ -539,6 +541,15 @@
             let bestMove = null;
             let maxFlips = -1;
 
+            // ------------------------------------------------------------------
+            // ★ 強化箇所 2: 普通AIに角を優先させる簡単なロジックを追加
+            // ------------------------------------------------------------------
+            const cornerMoves = moves.filter(m => (m.x === 0 || m.x === 7) && (m.y === 0 || m.y === 7));
+            if (cornerMoves.length > 0) {
+                return cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
+            }
+            // ------------------------------------------------------------------
+
             moves.forEach(move => {
                 let flips = 0;
                 const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
@@ -576,6 +587,7 @@
             let bestScore = -Infinity;
             let bestMove = null;
             
+            // 角は常に最優先 (探索を省略)
             const cornerMoves = moves.filter(m => (m.x === 0 || m.x === 7) && (m.y === 0 || m.y === 7));
             if (cornerMoves.length > 0) {
                 return cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
@@ -583,6 +595,7 @@
 
             moves.forEach(move => {
                 const nextBoard = makeMove(currentBoard, move.x, move.y, 'white');
+                // 次のターンは相手(Black)の番なので、isMaximizingPlayer=false
                 const score = minimax(nextBoard, 0, maxDepth, false, -Infinity, Infinity); 
                 
                 if (score > bestScore) {
@@ -597,18 +610,21 @@
         function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer, alpha, beta) {
             const blackMoves = getValidMoves('black', currentBoard);
             const whiteMoves = getValidMoves('white', currentBoard);
+            
+            // 探索深度に達するか、ゲームが終了した場合
             if (depth === maxDepth || (blackMoves.length === 0 && whiteMoves.length === 0)) {
-                return evaluateBoard(currentBoard);
+                return evaluateBoard(currentBoard, depth);
             }
             
             const player = isMaximizingPlayer ? 'white' : 'black';
             const moves = isMaximizingPlayer ? whiteMoves : blackMoves;
 
+            // パスの場合
             if (moves.length === 0) {
                 return minimax(currentBoard, depth, maxDepth, !isMaximizingPlayer, alpha, beta); 
             }
 
-            if (isMaximizingPlayer) { // White (AI)
+            if (isMaximizingPlayer) { // White (AI, 最大化)
                 let bestScore = -Infinity;
                 for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
@@ -620,7 +636,7 @@
                     }
                 }
                 return bestScore;
-            } else { // Black (Player)
+            } else { // Black (Player, 最小化)
                 let bestScore = Infinity;
                 for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
@@ -635,85 +651,109 @@
             }
         }
 
-        // 盤面評価関数 (重み付けを強化)
-        function evaluateBoard(currentBoard) {
+        // 盤面評価関数 (重み付けを強化し、ゲームステージに応じて調整)
+        function evaluateBoard(currentBoard, depth) {
             let score = 0;
             const myPlayer = 'white';
             const opponent = 'black';
+            const discCount = currentBoard.flat().filter(cell => cell !== null).length;
 
+            // ------------------------------------------------------------------
+            // ★ 強化箇所 3: 評価関数の強化 (重要)
+            // ------------------------------------------------------------------
+
+            // 評価ウェイト
+            const WEIGHTS = {
+                CORNER: 500,    // 角 (a1, h1, a8, h8)
+                EDGE: 10,       // 辺 (2～7マス目)
+                C_MOVE: -150,   // 角の隣のマス (a2, b1, g1, h2, ...): 最悪手
+                X_MOVE: -50,    // Xマス (b2, b7, g2, g7): 悪い手
+                MOBILITY: 30,   // 可動性 (次に置ける手の数)
+                STABLE: 100,    // 確定石
+                DISC_COUNT_END: 1000 // 終盤の石数差のウェイト
+            };
+            
+            // ゲームのステージ判定
+            let stageWeight = 1;
+            if (discCount > 50) { // 終盤
+                stageWeight = WEIGHTS.DISC_COUNT_END;
+            }
+
+
+            // 1. 石の数 (終盤に重要)
             const myCount = currentBoard.flat().filter(cell => cell === myPlayer).length;
             const opponentCount = currentBoard.flat().filter(cell => cell === opponent).length;
-            const discCount = myCount + opponentCount;
-            const countWeight = discCount > 50 ? 100 : 1; 
-            score += (myCount - opponentCount) * countWeight;
+            score += (myCount - opponentCount) * stageWeight;
 
-            const cornerWeight = 500;
+            // 2. 角の確保 (常に重要)
             const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
             corners.forEach(pos => {
-                if (currentBoard[pos.y][pos.x] === myPlayer) score += cornerWeight;
-                if (currentBoard[pos.y][pos.x] === opponent) score -= cornerWeight;
+                if (currentBoard[pos.y][pos.x] === myPlayer) score += WEIGHTS.CORNER;
+                if (currentBoard[pos.y][pos.x] === opponent) score -= WEIGHTS.CORNER;
             });
             
-            const stableWeight = 50;
-            const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
-            const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
-            score += (myStableDiscs - opponentStableDiscs) * stableWeight;
-
-            const mobilityWeight = 10;
-            const myMoves = getValidMoves(myPlayer, currentBoard).length;
-            const opponentMoves = getValidMoves(opponent, currentBoard).length;
-            score += (myMoves - opponentMoves) * mobilityWeight;
-
-            const dangerWeight = -30;
+            // 3. 危険マスのペナルティ (C打ち、X打ちの回避)
+            // Cマス: (0,1), (1,0), (6,0), (7,1), (0,6), (1,7), (6,7), (7,6)
+            // Xマス: (1,1), (1,6), (6,1), (6,6)
             const dangerMoves = [
-                {x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, 
-                {x: 6, y: 0}, {x: 7, y: 1}, {x: 6, y: 1}, 
-                {x: 0, y: 6}, {x: 1, y: 7}, {x: 1, y: 6}, 
-                {x: 7, y: 6}, {x: 6, y: 7}, {x: 6, y: 6}  
+                {x: 1, y: 0, w: WEIGHTS.C_MOVE}, {x: 0, y: 1, w: WEIGHTS.C_MOVE}, 
+                {x: 6, y: 0, w: WEIGHTS.C_MOVE}, {x: 7, y: 1, w: WEIGHTS.C_MOVE},
+                {x: 0, y: 6, w: WEIGHTS.C_MOVE}, {x: 1, y: 7, w: WEIGHTS.C_MOVE}, 
+                {x: 7, y: 6, w: WEIGHTS.C_MOVE}, {x: 6, y: 7, w: WEIGHTS.C_MOVE}, 
+                {x: 1, y: 1, w: WEIGHTS.X_MOVE}, {x: 6, y: 1, w: WEIGHTS.X_MOVE}, 
+                {x: 1, y: 6, w: WEIGHTS.X_MOVE}, {x: 6, y: 6, w: WEIGHTS.X_MOVE} 
             ];
             dangerMoves.forEach(pos => {
-                if (currentBoard[pos.y][pos.x] === myPlayer) score += dangerWeight;
-                if (currentBoard[pos.y][pos.x] === opponent) score -= dangerWeight;
+                if (currentBoard[pos.y][pos.x] === myPlayer) score += pos.w;
+                if (currentBoard[pos.y][pos.x] === opponent) score -= pos.w; 
             });
 
+            // 4. 可動性 (序盤・中盤に重要)
+            // 可動性(打てる手の数)が多い方が有利
+            const myMoves = getValidMoves(myPlayer, currentBoard).length;
+            const opponentMoves = getValidMoves(opponent, currentBoard).length;
+            score += (myMoves - opponentMoves) * WEIGHTS.MOBILITY;
+
+            // 5. 確定石 (安定した石)
+            const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
+            const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
+            score += (myStableDiscs - opponentStableDiscs) * WEIGHTS.STABLE;
+
+            // ------------------------------------------------------------------
+            
             return score;
         }
 
-        // 確定石を数える
+        // 確定石を数える (角からの安定した石のみを簡易的に判定)
+        // ------------------------------------------------------------------
+        // ★ 強化箇所 4: 確定石の判定を簡易化・安定化
+        // (元のコードは正確な確定石の判定が非常に難しいため、角からつながる石に絞る)
+        // ------------------------------------------------------------------
         function getStableDiscs(player, currentBoard) {
-            const stableDiscs = [];
-            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]]; 
+            const stableDiscs = new Set();
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]]; // 水平、垂直、斜め
+            const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
 
-            for (let y = 0; y < boardSize; y++) {
-                for (let x = 0; x < boardSize; x++) {
-                    if (currentBoard[y][x] !== player) continue;
+            for (const corner of corners) {
+                if (currentBoard[corner.y][corner.x] === player) {
+                    stableDiscs.add(`${corner.x},${corner.y}`);
                     
-                    let isStable = true;
+                    // 角から伸びる辺に沿って確定石を探索
                     for (const [dx, dy] of directions) {
-                        
-                        let isFull1 = true;
-                        let newX1 = x + dx, newY1 = y + dy;
-                        while(newX1 >= 0 && newX1 < 8 && newY1 >= 0 && newY1 < 8) {
-                            if (currentBoard[newY1][newX1] !== player) { isFull1 = false; break; }
-                            newX1 += dx; newY1 += dy;
-                        }
-
-                        let isFull2 = true;
-                        let newX2 = x - dx, newY2 = y - dy;
-                        while(newX2 >= 0 && newX2 < 8 && newY2 >= 0 && newY2 < 8) {
-                            if (currentBoard[newY2][newX2] !== player) { isFull2 = false; break; }
-                            newX2 -= dx; newY2 -= dy;
-                        }
-                        
-                        if (!(isFull1 || isFull2)) {
-                            isStable = false;
-                            break;
+                        // 4方向全てをチェックするのではなく、角から伸びる辺2方向のみチェック
+                        if ((corner.x + dx === 0 || corner.x + dx === 7) && (corner.y + dy === 0 || corner.y + dy === 7)) {
+                            let x = corner.x + dx, y = corner.y + dy;
+                            // 辺に沿って続く限り確定石とする
+                            while (x >= 0 && x < 8 && y >= 0 && y < 8 && currentBoard[y][x] === player) {
+                                stableDiscs.add(`${x},${y}`);
+                                x += dx;
+                                y += dy;
+                            }
                         }
                     }
-                    if (isStable) stableDiscs.push({x, y});
                 }
             }
-            return stableDiscs;
+            return Array.from(stableDiscs);
         }
 
         // 仮想的な石の配置
