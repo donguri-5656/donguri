@@ -33,7 +33,7 @@
             <button class="control-btn" data-type="slope">スロープ</button>
         </div>
         <div class="ui-panel">
-            <button class="control-btn" id="save-url-btn" style="background: #008CBA;">URL保存 (短縮)</button>
+            <button class="control-btn" id="save-url-btn" style="background: #008CBA;">URL保存 (短縮/高精度)</button>
         </div>
     </div>
     <div id="info-panel" class="ui-panel">
@@ -54,16 +54,16 @@
         import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
         import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
-        // --- 短縮化のための定数と辞書 ---
+        // --- 短縮化のための定数と辞書 (高精度化) ---
 
         // 座標・回転の最小値と最大値 (ここでは -10.0 から +10.0 の範囲を想定)
         const VALUE_RANGE = 20.0; // Max - Min (例: 10 - (-10) = 20)
         const VALUE_MIN = -10.0;
         
         // 使用する文字セット (62文字: a-z, A-Z, 0-9)
-        // 62種類を使えば、約0.32の精度で20の範囲をカバーできる (20 / 62 ≈ 0.32)
         const CHAR_SET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        const CHAR_COUNT = CHAR_SET.length;
+        const CHAR_COUNT = CHAR_SET.length; // 62
+        const MAX_INDEX = (CHAR_COUNT * CHAR_COUNT) - 1; // 62 * 62 - 1 = 3843
 
         // 辞書生成 (index -> char)
         const CHAR_MAP = CHAR_SET.split('');
@@ -73,44 +73,55 @@
             return map;
         }, {});
 
-        // --- 短縮エンコーダ/デコーダ関数 ---
+        // --- 短縮エンコーダ/デコーダ関数 (2文字/高精度版) ---
 
         /**
-         * 数値 (位置 or 回転) を1文字のコードに変換する
+         * 数値 (位置 or 回転) を2文字のコードに変換する (62進数)
          * @param {number} value - エンコードする数値
-         * @returns {string} - 1文字のコード
+         * @returns {string} - 2文字のコード
          */
         function encodeValue(value) {
-            // 1. 値を範囲にクリップ (安全のため)
+            // 1. 値を範囲にクリップ
             const clippedValue = Math.min(Math.max(value, VALUE_MIN), VALUE_MIN + VALUE_RANGE);
             // 2. 最小値を引いて0から始まる値にする
             const normalizedValue = clippedValue - VALUE_MIN;
-            // 3. 0-CHAR_COUNT の範囲にスケーリング
-            const scaledValue = (normalizedValue / VALUE_RANGE) * (CHAR_COUNT - 1);
+            // 3. 0-MAX_INDEX の範囲にスケーリング
+            const scaledIndex = (normalizedValue / VALUE_RANGE) * MAX_INDEX;
             // 4. 四捨五入してインデックスを取得
-            const index = Math.round(scaledValue);
-            return CHAR_MAP[index];
+            const index = Math.round(scaledIndex);
+
+            // 5. 62進数 (2文字) に変換
+            const char1 = CHAR_MAP[Math.floor(index / CHAR_COUNT)]; // 62の位
+            const char2 = CHAR_MAP[index % CHAR_COUNT];             // 1の位
+            return char1 + char2;
         }
 
         /**
-         * 1文字のコードを数値 (位置 or 回転) にデコードする
-         * @param {string} charCode - 1文字のコード
+         * 2文字のコードを数値 (位置 or 回転) にデコードする
+         * @param {string} charCode - 2文字のコード
          * @returns {number} - デコードされた数値
          */
         function decodeValue(charCode) {
-            const index = INDEX_MAP[charCode];
-            if (index === undefined) return 0; // 不正な文字の場合は0を返す
+            if (charCode.length !== 2) return 0;
 
-            // 1. インデックスを 0-1 の範囲にスケーリング
-            const normalizedIndex = index / (CHAR_COUNT - 1);
-            // 2. 0-VALUE_RANGE の範囲にスケーリング
+            const index1 = INDEX_MAP[charCode[0]];
+            const index2 = INDEX_MAP[charCode[1]];
+
+            if (index1 === undefined || index2 === undefined) return 0; // 不正な文字の場合は0を返す
+
+            // 1. 2文字のコードを10進数のインデックスに戻す (0-MAX_INDEX)
+            const index = index1 * CHAR_COUNT + index2;
+
+            // 2. インデックスを 0-1 の範囲にスケーリング
+            const normalizedIndex = index / MAX_INDEX;
+            // 3. 0-VALUE_RANGE の範囲にスケーリング
             const scaledValue = normalizedIndex * VALUE_RANGE;
-            // 3. 最小値を加えて元の値に戻す
+            // 4. 最小値を加えて元の値に戻す
             const value = scaledValue + VALUE_MIN;
             return value;
         }
 
-        // --- メインアプリケーションロジック (短縮化) ---
+        // --- メインアプリケーションロジック ---
 
         let scene, camera, renderer, world, controls, transformControls;
         let ballCount = 0;
@@ -120,6 +131,7 @@
         const ballMeshes = [];
         const ballBodies = [];
         const GENERATOR_POS = new THREE.Vector3(0, 5, 0);
+        const OBJECT_CODE_LENGTH = 13; // タイプコード1文字 + 座標/回転コード12文字 (6軸 * 2文字)
 
         const uiElements = {
             ballCountDisplay: document.getElementById('ball-count-display'),
@@ -141,10 +153,10 @@
                 const pos = m.position;
                 const rot = m.rotation;
 
-                // [type(1文字), px, py, pz, rx, ry, rz] の形式で保存 (合計7文字)
+                // [type(1文字), px(2文字), py(2文字), pz(2文字), rx(2文字), ry(2文字), rz(2文字)] の形式で保存 (合計13文字)
                 // スロープ(slope)を 's' に、他のタイプも増えたら1文字に変換する
-                const typeCode = m.name === 'slope' ? 's' : 'x'; 
-                
+                const typeCode = m.name === 'slope' ? 's' : 'x'; // 'x'は将来のタイプ用
+
                 data.push(typeCode +
                     encodeValue(pos.x) + encodeValue(pos.y) + encodeValue(pos.z) + 
                     encodeValue(rot.x) + encodeValue(rot.y) + encodeValue(rot.z)
@@ -162,15 +174,15 @@
                 if (obj.mesh.name !== 'generator') deleteObject(obj.mesh, false);
             });
 
-            // オブジェクトのデータは7文字で構成されている (タイプコード1 + 6つの座標/回転コード)
-            const OBJECT_CODE_LENGTH = 7;
-            
             for (let i = 0; i < encodedData.length; i += OBJECT_CODE_LENGTH) {
                 const objectCode = encodedData.substring(i, i + OBJECT_CODE_LENGTH);
                 if (objectCode.length !== OBJECT_CODE_LENGTH) continue; // 不正な長さはスキップ
 
                 const typeChar = objectCode[0];
-                const codes = objectCode.substring(1).split(''); // 6つの位置・回転コード
+                const codes = [];
+                for (let j = 1; j < OBJECT_CODE_LENGTH; j += 2) {
+                    codes.push(objectCode.substring(j, j + 2)); // 2文字ずつの位置・回転コード
+                }
 
                 // タイプコードをタイプ名に戻す
                 const type = typeChar === 's' ? 'slope' : null;
@@ -196,7 +208,7 @@
         decodeAndLoadScene(savedData);
         animate();
 
-        // --- その他の関数 (変更なし) ---
+        // --- その他の関数 (省略) ---
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x222222);
@@ -236,6 +248,7 @@
 
         function saveToUrl() {
             const data = encodeScene();
+            // URLSearchParamsで自動的にエンコードされるため、URIエンコードは不要
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${data}`;
             window.history.pushState({ path: newUrl }, '', newUrl);
             alert(`現在の配置をURLに保存しました！データ長: ${data.length}`);
