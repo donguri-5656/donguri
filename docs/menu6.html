@@ -5,70 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Machine Factory</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-            user-select: none;
-            touch-action: manipulation;
-        }
-        canvas {
-            display: block;
-        }
-        #ui-container {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .ui-panel {
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 8px;
-            padding: 10px;
-        }
-        #build-mode-btn {
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            background: #4CAF50;
-            border: none;
-            border-radius: 5px;
-            color: white;
-        }
-        #build-mode-btn.active {
-            background: #f44336;
-        }
-        #build-controls {
-            display: none;
-            flex-direction: column;
-            gap: 5px;
-        }
-        #build-controls.active {
-            display: flex;
-        }
-        .control-btn {
-            padding: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            background: #2196F3;
-            border: none;
-            border-radius: 5px;
-            color: white;
-        }
-        #info-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 8px;
-            padding: 10px;
-        }
-        #level-info {
-            font-size: 14px;
-        }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; color: white; user-select: none; touch-action: manipulation; }
+        canvas { display: block; }
+        #ui-container { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .ui-panel { background: rgba(0, 0, 0, 0.7); border-radius: 8px; padding: 10px; }
+        #build-mode-btn { padding: 10px 15px; font-size: 16px; cursor: pointer; background: #4CAF50; border: none; border-radius: 5px; color: white; }
+        #build-mode-btn.active { background: #f44336; }
+        #build-controls { display: none; flex-direction: column; gap: 5px; }
+        #build-controls.active { display: flex; }
+        .control-btn { padding: 8px; font-size: 14px; cursor: pointer; background: #2196F3; border: none; border-radius: 5px; color: white; }
+        #delete-btn { background: #ff4444; }
+        #info-panel { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border-radius: 8px; padding: 10px; }
     </style>
 </head>
 <body>
@@ -78,19 +25,19 @@
             <div id="build-controls">
                 <button class="control-btn" id="move-btn">移動</button>
                 <button class="control-btn" id="rotate-btn">回転</button>
-                <button class="control-btn" id="place-btn">設置</button>
+                <button class="control-btn" id="delete-btn">削除</button>
             </div>
         </div>
         <div class="ui-panel">
             <p>持ち物</p>
             <button class="control-btn" data-type="slope">スロープ</button>
-            <button class="control-btn" data-type="collector">収集機</button>
+        </div>
+        <div class="ui-panel">
+            <button class="control-btn" id="save-url-btn" style="background: #008CBA;">URL保存 (短縮)</button>
         </div>
     </div>
     <div id="info-panel" class="ui-panel">
-        <p>ポイント: <span id="score-display">0</span></p>
         <p>ボール数: <span id="ball-count-display">0</span></p>
-        <p>収集機レベル: <span id="collector-level">1</span></p>
     </div>
 
     <script type="importmap">
@@ -107,35 +54,150 @@
         import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
         import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
+        // --- 短縮化のための定数と辞書 ---
+
+        // 座標・回転の最小値と最大値 (ここでは -10.0 から +10.0 の範囲を想定)
+        const VALUE_RANGE = 20.0; // Max - Min (例: 10 - (-10) = 20)
+        const VALUE_MIN = -10.0;
+        
+        // 使用する文字セット (62文字: a-z, A-Z, 0-9)
+        // 62種類を使えば、約0.32の精度で20の範囲をカバーできる (20 / 62 ≈ 0.32)
+        const CHAR_SET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const CHAR_COUNT = CHAR_SET.length;
+
+        // 辞書生成 (index -> char)
+        const CHAR_MAP = CHAR_SET.split('');
+        // 逆引き辞書 (char -> index)
+        const INDEX_MAP = CHAR_MAP.reduce((map, char, index) => {
+            map[char] = index;
+            return map;
+        }, {});
+
+        // --- 短縮エンコーダ/デコーダ関数 ---
+
+        /**
+         * 数値 (位置 or 回転) を1文字のコードに変換する
+         * @param {number} value - エンコードする数値
+         * @returns {string} - 1文字のコード
+         */
+        function encodeValue(value) {
+            // 1. 値を範囲にクリップ (安全のため)
+            const clippedValue = Math.min(Math.max(value, VALUE_MIN), VALUE_MIN + VALUE_RANGE);
+            // 2. 最小値を引いて0から始まる値にする
+            const normalizedValue = clippedValue - VALUE_MIN;
+            // 3. 0-CHAR_COUNT の範囲にスケーリング
+            const scaledValue = (normalizedValue / VALUE_RANGE) * (CHAR_COUNT - 1);
+            // 4. 四捨五入してインデックスを取得
+            const index = Math.round(scaledValue);
+            return CHAR_MAP[index];
+        }
+
+        /**
+         * 1文字のコードを数値 (位置 or 回転) にデコードする
+         * @param {string} charCode - 1文字のコード
+         * @returns {number} - デコードされた数値
+         */
+        function decodeValue(charCode) {
+            const index = INDEX_MAP[charCode];
+            if (index === undefined) return 0; // 不正な文字の場合は0を返す
+
+            // 1. インデックスを 0-1 の範囲にスケーリング
+            const normalizedIndex = index / (CHAR_COUNT - 1);
+            // 2. 0-VALUE_RANGE の範囲にスケーリング
+            const scaledValue = normalizedIndex * VALUE_RANGE;
+            // 3. 最小値を加えて元の値に戻す
+            const value = scaledValue + VALUE_MIN;
+            return value;
+        }
+
+        // --- メインアプリケーションロジック (短縮化) ---
+
         let scene, camera, renderer, world, controls, transformControls;
-        let score = 0;
         let ballCount = 0;
-        let collectorLevel = 1;
         let buildMode = false;
         let selectedObject = null;
-
         const dynamicObjects = [];
         const ballMeshes = [];
         const ballBodies = [];
+        const GENERATOR_POS = new THREE.Vector3(0, 5, 0);
 
         const uiElements = {
-            scoreDisplay: document.getElementById('score-display'),
             ballCountDisplay: document.getElementById('ball-count-display'),
-            collectorLevel: document.getElementById('collector-level'),
             buildModeBtn: document.getElementById('build-mode-btn'),
             buildControls: document.getElementById('build-controls'),
             moveBtn: document.getElementById('move-btn'),
             rotateBtn: document.getElementById('rotate-btn'),
-            placeBtn: document.getElementById('place-btn'),
-            itemButtons: document.querySelectorAll('.control-btn[data-type]')
+            deleteBtn: document.getElementById('delete-btn'),
+            itemButtons: document.querySelectorAll('.control-btn[data-type]'),
+            saveUrlBtn: document.getElementById('save-url-btn'),
         };
 
+        function encodeScene() {
+            const data = [];
+            dynamicObjects.forEach(obj => {
+                if (obj.mesh.name === 'generator') return;
+                
+                const m = obj.mesh;
+                const pos = m.position;
+                const rot = m.rotation;
+
+                // [type(1文字), px, py, pz, rx, ry, rz] の形式で保存 (合計7文字)
+                // スロープ(slope)を 's' に、他のタイプも増えたら1文字に変換する
+                const typeCode = m.name === 'slope' ? 's' : 'x'; 
+                
+                data.push(typeCode +
+                    encodeValue(pos.x) + encodeValue(pos.y) + encodeValue(pos.z) + 
+                    encodeValue(rot.x) + encodeValue(rot.y) + encodeValue(rot.z)
+                );
+            });
+            // 各オブジェクトのデータを区切り文字なしで連結 (さらに短縮)
+            return data.join('');
+        }
+
+        function decodeAndLoadScene(encodedData) {
+            if (!encodedData) return;
+
+            // 既存の動的オブジェクト（ジェネレーター以外）を全て削除
+            dynamicObjects.slice().forEach(obj => {
+                if (obj.mesh.name !== 'generator') deleteObject(obj.mesh, false);
+            });
+
+            // オブジェクトのデータは7文字で構成されている (タイプコード1 + 6つの座標/回転コード)
+            const OBJECT_CODE_LENGTH = 7;
+            
+            for (let i = 0; i < encodedData.length; i += OBJECT_CODE_LENGTH) {
+                const objectCode = encodedData.substring(i, i + OBJECT_CODE_LENGTH);
+                if (objectCode.length !== OBJECT_CODE_LENGTH) continue; // 不正な長さはスキップ
+
+                const typeChar = objectCode[0];
+                const codes = objectCode.substring(1).split(''); // 6つの位置・回転コード
+
+                // タイプコードをタイプ名に戻す
+                const type = typeChar === 's' ? 'slope' : null;
+
+                if (type) {
+                    const [px, py, pz, rx, ry, rz] = codes.map(decodeValue);
+                    
+                    const position = new THREE.Vector3(px, py, pz);
+                    const rotation = new THREE.Euler(rx, ry, rz, 'XYZ');
+                    
+                    createObject(type, position, rotation);
+                }
+            }
+            selectObject(null);
+        }
+
+        // --- 実行コード ---
         init();
         setupEventListeners();
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const savedData = urlParams.get('data');
+        decodeAndLoadScene(savedData);
         animate();
 
+        // --- その他の関数 (変更なし) ---
         function init() {
-            // Scene, Camera, Renderer
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x222222);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -144,50 +206,39 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Physics World
             world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-
-            // Lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
             directionalLight.position.set(0, 10, 5);
             scene.add(directionalLight);
 
-            // Controls
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
-            // Transform Controls for Build Mode
             transformControls = new TransformControls(camera, renderer.domElement);
-            transformControls.addEventListener('dragging-changed', function (event) {
-                controls.enabled = !event.value;
-            });
+            transformControls.addEventListener('dragging-changed', (event) => { controls.enabled = !event.value; });
             scene.add(transformControls);
-
-            // Initial Objects (Ball Generator, Slope, Collector)
-            createObject('generator', new THREE.Vector3(0, 5, 0));
+            createObject('generator', GENERATOR_POS);
         }
 
         function setupEventListeners() {
             window.addEventListener('resize', onWindowResize, false);
             uiElements.buildModeBtn.addEventListener('click', toggleBuildMode);
-            uiElements.itemButtons.forEach(button => {
-                button.addEventListener('click', () => createObject(button.dataset.type));
-            });
-            uiElements.moveBtn.addEventListener('click', () => {
-                if (selectedObject) {
-                    transformControls.setMode('translate');
-                }
-            });
-            uiElements.rotateBtn.addEventListener('click', () => {
-                if (selectedObject) transformControls.setMode('rotate');
-            });
-            uiElements.placeBtn.addEventListener('click', () => {
-                if (selectedObject) selectObject(null);
-            });
+            uiElements.itemButtons.forEach(button => { button.addEventListener('click', () => createObject(button.dataset.type)); });
+            uiElements.moveBtn.addEventListener('click', () => { if (selectedObject) transformControls.setMode('translate'); });
+            uiElements.rotateBtn.addEventListener('click', () => { if (selectedObject) transformControls.setMode('rotate'); });
+            uiElements.deleteBtn.addEventListener('click', () => deleteObject(selectedObject));
             renderer.domElement.addEventListener('click', handleGameClick);
+            uiElements.saveUrlBtn.addEventListener('click', saveToUrl);
+        }
+
+        function saveToUrl() {
+            const data = encodeScene();
+            const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${data}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+            alert(`現在の配置をURLに保存しました！データ長: ${data.length}`);
         }
 
         function toggleBuildMode() {
@@ -195,56 +246,56 @@
             uiElements.buildModeBtn.classList.toggle('active');
             uiElements.buildControls.classList.toggle('active');
             selectObject(null);
-            if (!buildMode) {
-                transformControls.detach();
-            }
+            if (!buildMode) transformControls.detach();
         }
 
-        function createObject(type, position = null) {
-            let mesh, body, userData = {};
+        function createObject(type, position = null, rotation = null) {
+            let mesh, body;
+            const size = 3;
 
             if (type === 'generator') {
-                mesh = new THREE.Mesh(
-                    new THREE.BoxGeometry(1, 1, 1),
-                    new THREE.MeshStandardMaterial({ color: 0x4488ff })
-                );
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x4488ff }));
                 mesh.name = 'generator';
-                if (position) mesh.position.copy(position);
                 body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)) });
-                if (position) body.position.copy(position);
-
             } else if (type === 'slope') {
-                const size = 3;
-                mesh = new THREE.Mesh(
-                    new THREE.BoxGeometry(size, 0.2, size),
-                    new THREE.MeshStandardMaterial({ color: 0xdddddd })
-                );
+                mesh = new THREE.Mesh(new THREE.BoxGeometry(size, 0.2, size), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
                 mesh.name = 'slope';
                 body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(size / 2, 0.1, size / 2)) });
-                mesh.rotation.x = -Math.PI / 8;
-                body.quaternion.setFromEuler(mesh.rotation.x, 0, 0);
-
-            } else if (type === 'collector') {
-                mesh = new THREE.Mesh(
-                    new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32),
-                    new THREE.MeshStandardMaterial({ color: 0xffa500 })
-                );
-                mesh.name = 'collector';
-                userData = { level: 1 };
-                body = new CANNON.Body({ mass: 0, shape: new CANNON.Cylinder(1.5, 1.5, 0.5, 32) });
-                body.collisionResponse = false;
+                
+                if (!rotation) mesh.rotation.x = -Math.PI / 8;
+            } else {
+                return;
             }
 
-            mesh.userData = userData;
-            mesh.userData.body = body;
+            if (position) mesh.position.copy(position);
+            if (rotation) mesh.rotation.copy(rotation);
+
+            body.position.copy(mesh.position);
+            body.quaternion.setFromEuler(mesh.rotation.x, mesh.rotation.y, mesh.rotation.z);
+            
+            mesh.userData = { body: body };
             body.userData = mesh;
 
             scene.add(mesh);
             world.addBody(body);
             dynamicObjects.push({ mesh, body });
             
-            if (type !== 'generator') {
-                 selectObject(mesh);
+            if (type !== 'generator' && !position) selectObject(mesh);
+        }
+
+        function deleteObject(object, deselect = true) {
+            if (!object || object.name === 'generator') {
+                if (object) alert('ボール生成器は削除できません。');
+                return;
+            }
+
+            const index = dynamicObjects.findIndex(obj => obj.mesh === object);
+            if (index !== -1) {
+                const { mesh, body } = dynamicObjects[index];
+                scene.remove(mesh);
+                world.removeBody(body);
+                dynamicObjects.splice(index, 1);
+                if (deselect) selectObject(null);
             }
         }
 
@@ -276,12 +327,14 @@
             }
             if (object) {
                 selectedObject = object;
-                transformControls.attach(object);
-                object.material.emissive.setHex(0x222222);
-            } else {
-                if (selectedObject) {
+                if (object.name !== 'generator') {
+                    transformControls.attach(object);
+                } else {
                     transformControls.detach();
                 }
+                object.material.emissive.setHex(0x222222);
+            } else {
+                if (selectedObject) transformControls.detach();
                 selectedObject = null;
             }
         }
@@ -298,13 +351,6 @@
             const sphereShape = new CANNON.Sphere(0.3);
             const sphereBody = new CANNON.Body({ mass: 1, shape: sphereShape });
             sphereBody.position.copy(sphereMesh.position);
-            sphereBody.addEventListener('collide', (event) => {
-                const collidedMesh = event.body.userData;
-                if (collidedMesh && collidedMesh.name === 'collector') {
-                    score += 100 * collidedMesh.userData.level;
-                    uiElements.scoreDisplay.textContent = score;
-                }
-            });
             world.addBody(sphereBody);
             ballBodies.push(sphereBody);
             uiElements.ballCountDisplay.textContent = ballCount;
@@ -318,11 +364,8 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
-            // Update Physics
             world.fixedStep();
 
-            // Update objects with physics data
             dynamicObjects.forEach(obj => {
                 if (obj.mesh !== selectedObject) {
                     obj.mesh.position.copy(obj.body.position);
@@ -330,7 +373,6 @@
                 }
             });
 
-            // Update ball positions
             for (let i = 0; i < ballMeshes.length; i++) {
                 if (ballBodies[i].position.y < -10) {
                     scene.remove(ballMeshes[i]);
@@ -346,7 +388,6 @@
                 }
             }
 
-            // 同期処理
             if (selectedObject) {
                 const { body } = selectedObject.userData;
                 body.position.copy(selectedObject.position);
