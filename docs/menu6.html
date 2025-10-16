@@ -16,6 +16,9 @@
         .control-btn { padding: 8px; font-size: 14px; cursor: pointer; background: #2196F3; border: none; border-radius: 5px; color: white; }
         #delete-btn { background: #ff4444; }
         #info-panel { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border-radius: 8px; padding: 10px; }
+        /* 文字列入出力用のスタイル */
+        #save-data-input { width: 90%; height: 100px; margin-top: 10px; resize: none; background: #333; color: white; border: 1px solid #555; padding: 5px; font-size: 12px; display: none; }
+        #string-controls { display: flex; flex-direction: column; gap: 5px; }
     </style>
 </head>
 <body>
@@ -32,8 +35,17 @@
             <p>持ち物</p>
             <button class="control-btn" data-type="slope">スロープ</button>
         </div>
+        
         <div class="ui-panel">
-            <button class="control-btn" id="save-url-btn" style="background: #008CBA;">URL保存 (短縮/高精度)</button>
+            <div id="string-controls">
+                <button class="control-btn" id="copy-string-btn" style="background: #008CBA;">文字列コピー</button>
+                <button class="control-btn" id="load-string-btn" style="background: #e91e63;">文字列からロード</button>
+            </div>
+            <textarea id="save-data-input" placeholder="ここにセーブデータをペーストしてロードを押すか、コピーボタンで生成されたデータを取得"></textarea>
+        </div>
+        
+        <div class="ui-panel">
+            <button class="control-btn" id="save-url-btn" style="background: #008CBA;">URL保存 (#ハッシュ)</button>
         </div>
     </div>
     <div id="info-panel" class="ui-panel">
@@ -48,12 +60,15 @@
           }
         }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
         import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
         import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
         import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-
+        
+        // pakoはグローバル変数としてロードされる (pako)
+        
         // --- 短縮化のための定数と辞書 (高精度化) ---
 
         // 座標・回転の最小値と最大値 (ここでは -10.0 から +10.0 の範囲を想定)
@@ -121,6 +136,45 @@
             return value;
         }
 
+        // --- Base64URL エンコーダ/デコーダ関数 ---
+        
+        /**
+         * Uint8Array を Base64URL (パディングなし) 文字列に変換
+         * @param {Uint8Array} bytes 
+         * @returns {string} Base64URL 文字列
+         */
+        function base64urlencode(bytes) {
+            // Uint8Arrayをバイナリ文字列に変換
+            const binString = String.fromCodePoint(...bytes);
+            // Base64にエンコード
+            const base64 = btoa(binString);
+            // Base64からBase64URLに変換 ( + -> -, / -> _, = (パディング) を除去)
+            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        /**
+         * Base64URL 文字列を Uint8Array に変換
+         * @param {string} base64url Base64URL 文字列
+         * @returns {Uint8Array} Uint8Array
+         */
+        function base64urldecode(base64url) {
+            // Base64URLからBase64に変換 ( - -> +, _ -> /)
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            // パディングを追加 (atob のために必要だが、一部ブラウザでは不要。安全のため残す)
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            // Base64をバイナリ文字列にデコード
+            const binString = atob(base64);
+            // バイナリ文字列を Uint8Array に変換
+            const bytes = new Uint8Array(binString.length);
+            for (let i = 0; i < binString.length; i++) {
+                bytes[i] = binString.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+
         // --- メインアプリケーションロジック ---
 
         let scene, camera, renderer, world, controls, transformControls;
@@ -142,6 +196,9 @@
             deleteBtn: document.getElementById('delete-btn'),
             itemButtons: document.querySelectorAll('.control-btn[data-type]'),
             saveUrlBtn: document.getElementById('save-url-btn'),
+            copyStringBtn: document.getElementById('copy-string-btn'), // NEW
+            loadStringBtn: document.getElementById('load-string-btn'), // NEW
+            saveDataInput: document.getElementById('save-data-input'), // NEW
         };
 
         function encodeScene() {
@@ -154,8 +211,7 @@
                 const rot = m.rotation;
 
                 // [type(1文字), px(2文字), py(2文字), pz(2文字), rx(2文字), ry(2文字), rz(2文字)] の形式で保存 (合計13文字)
-                // スロープ(slope)を 's' に、他のタイプも増えたら1文字に変換する
-                const typeCode = m.name === 'slope' ? 's' : 'x'; // 'x'は将来のタイプ用
+                const typeCode = m.name === 'slope' ? 's' : 'x'; 
 
                 data.push(typeCode +
                     encodeValue(pos.x) + encodeValue(pos.y) + encodeValue(pos.z) + 
@@ -176,12 +232,12 @@
 
             for (let i = 0; i < encodedData.length; i += OBJECT_CODE_LENGTH) {
                 const objectCode = encodedData.substring(i, i + OBJECT_CODE_LENGTH);
-                if (objectCode.length !== OBJECT_CODE_LENGTH) continue; // 不正な長さはスキップ
+                if (objectCode.length !== OBJECT_CODE_LENGTH) continue;
 
                 const typeChar = objectCode[0];
                 const codes = [];
                 for (let j = 1; j < OBJECT_CODE_LENGTH; j += 2) {
-                    codes.push(objectCode.substring(j, j + 2)); // 2文字ずつの位置・回転コード
+                    codes.push(objectCode.substring(j, j + 2));
                 }
 
                 // タイプコードをタイプ名に戻す
@@ -197,43 +253,65 @@
                 }
             }
             selectObject(null);
+            console.log("シーンのロードが完了しました。");
         }
+
+        /**
+         * 圧縮されたBase64URL文字列をデコードし、シーンをロードする汎用関数
+         * @param {string} compressedBase64Url - 圧縮されたBase64URL文字列
+         */
+        function loadCompressedData(compressedBase64Url) {
+            if (!compressedBase64Url) return;
+
+            try {
+                // 1. Base64URLデコード -> Uint8Array
+                const compressedBytes = base64urldecode(compressedBase64Url);
+
+                // 2. zlib解凍
+                const decompressedBytes = pako.inflate(compressedBytes);
+                
+                // 3. Uint8Array -> 文字列
+                const originalData = new TextDecoder().decode(decompressedBytes);
+
+                // 4. シーンをロード
+                decodeAndLoadScene(originalData);
+                
+            } catch (e) {
+                console.error("データのデコードまたは解凍に失敗しました:", e);
+                alert("データの読み込みに失敗しました。データが正しいか確認してください。");
+            }
+        }
+
+        /**
+         * シーンをエンコード、圧縮し、Base64URL文字列を返す
+         * @returns {string} 圧縮されたBase64URL文字列
+         */
+        function compressScene() {
+            const originalData = encodeScene();
+            
+            // 1. 文字列をUint8Arrayに変換 (TextEncoderはグローバルに存在する)
+            const encoder = new TextEncoder();
+            const originalBytes = encoder.encode(originalData);
+
+            // 2. zlib圧縮 (pakoを使用)
+            const compressedBytes = pako.deflate(originalBytes);
+            
+            // 3. Base64URLエンコード
+            return base64urlencode(compressedBytes);
+        }
+
 
         // --- 実行コード ---
         init();
         setupEventListeners();
         
-        const urlParams = new URLSearchParams(window.location.search);
-        const savedData = urlParams.get('data');
-        decodeAndLoadScene(savedData);
+        // URLハッシュからデータを取得してロードを試みる
+        const urlHash = window.location.hash.substring(1); // #を除去
+        loadCompressedData(urlHash);
+        
         animate();
 
-        // --- その他の関数 (省略) ---
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x222222);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 15);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight.position.set(0, 10, 5);
-            scene.add(directionalLight);
-
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-
-            transformControls = new TransformControls(camera, renderer.domElement);
-            transformControls.addEventListener('dragging-changed', (event) => { controls.enabled = !event.value; });
-            scene.add(transformControls);
-            createObject('generator', GENERATOR_POS);
-        }
+        // --- イベントハンドラの実装 ---
 
         function setupEventListeners() {
             window.addEventListener('resize', onWindowResize, false);
@@ -243,17 +321,51 @@
             uiElements.rotateBtn.addEventListener('click', () => { if (selectedObject) transformControls.setMode('rotate'); });
             uiElements.deleteBtn.addEventListener('click', () => deleteObject(selectedObject));
             renderer.domElement.addEventListener('click', handleGameClick);
+            
+            // NEW: セーブ/ロードイベント
             uiElements.saveUrlBtn.addEventListener('click', saveToUrl);
+            uiElements.copyStringBtn.addEventListener('click', saveToClipboard);
+            uiElements.loadStringBtn.addEventListener('click', loadFromString);
         }
 
         function saveToUrl() {
-            const data = encodeScene();
-            // URLSearchParamsで自動的にエンコードされるため、URIエンコードは不要
-            const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?data=${data}`;
+            const compressedBase64Url = compressScene();
+            const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}#${compressedBase64Url}`;
             window.history.pushState({ path: newUrl }, '', newUrl);
-            alert(`現在の配置をURLに保存しました！データ長: ${data.length}`);
+            
+            alert(`現在の配置をURLハッシュに保存しました！圧縮後のデータ長: ${compressedBase64Url.length}`);
         }
 
+        function saveToClipboard() {
+            const compressedBase64Url = compressScene();
+            
+            // textareaに値をセットし、表示し、選択してコピー
+            const input = uiElements.saveDataInput;
+            input.value = compressedBase64Url;
+            input.style.display = 'block'; // 表示
+            input.select();
+            
+            try {
+                document.execCommand('copy');
+                alert(`セーブデータをクリップボードにコピーしました！\nデータ長: ${compressedBase64Url.length}\nテキストエリアから手動コピーも可能です。`);
+            } catch (err) {
+                alert('クリップボードへの自動コピーに失敗しました。テキストエリアから手動でコピーしてください。');
+            }
+        }
+        
+        function loadFromString() {
+            const compressedBase64Url = uiElements.saveDataInput.value.trim();
+            if (compressedBase64Url) {
+                loadCompressedData(compressedBase64Url);
+                uiElements.saveDataInput.value = ""; // ロード後はクリア
+                uiElements.saveDataInput.style.display = 'none'; // 非表示に戻す
+            } else {
+                alert("テキストエリアにデータが入力されていません。");
+            }
+        }
+        
+        // (その他、Three.js/Cannon.jsの初期化・更新関数は省略。前回のコードと同一です)
+        
         function toggleBuildMode() {
             buildMode = !buildMode;
             uiElements.buildModeBtn.classList.toggle('active');
@@ -373,6 +485,32 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 10, 5);
+            scene.add(directionalLight);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls.addEventListener('dragging-changed', (event) => { controls.enabled = !event.value; });
+            scene.add(transformControls);
+            createObject('generator', GENERATOR_POS);
         }
 
         function animate() {
