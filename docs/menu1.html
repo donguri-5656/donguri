@@ -1,1 +1,269 @@
-<html><head><title>kusoゲ</title></head><body><div class="game-container"><iframe width="100%" height="100%" src="https://www.addictinggames.com/embed/html5-games/20543" scrolling="no" style="border:none"></iframe></body></html>
+<?php
+// Your code here!
+
+?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kus0ゲ</title>
+    <style>
+        /* CSSセクション */
+        :root {
+            /* CSS変数でメニュー幅を定義。変更しやすいように */
+            --menu-width: 250px;
+        }
+
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            /* Flexboxで主要なコンテンツを横に並べる準備 */
+            display: flex;
+            height: 100vh; /* 画面の高さいっぱいを使う */
+            overflow: hidden; /* スクロールをボディではなくコンテンツ側で制御 */
+        }
+
+        /* 1. メインコンテンツラッパー */
+        .main-wrapper {
+            display: flex;
+            width: 100%;
+            transition: transform 0.3s ease; /* アニメーション用 */
+        }
+
+        /* 2. ゲームコンテナ */
+        .game-area {
+            flex-grow: 1; /* 残りのスペースを全て使用 */
+            background-color: #fff;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* レスポンシブなiframeのためのラッパー */
+        .iframe-wrapper {
+            width: 100%;
+            max-width: 1200px; /* ゲームの最大幅 */
+            height: calc(100vh - 40px); /* ビューポートの高さから上下paddingを引く */
+            position: relative;
+        }
+
+        .iframe-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 3. ゲームメニュー */
+        #game-menu {
+            width: var(--menu-width);
+            min-width: var(--menu-width); /* 幅を固定 */
+            height: 100%;
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            position: fixed; /* 画面右端に固定 */
+            right: 0;
+            top: 0;
+            transform: translateX(var(--menu-width)); /* 初期状態は完全に画面外へ */
+            transition: transform 0.3s ease;
+            z-index: 99;
+        }
+
+        /* 4. メニューボタン */
+        #menu-toggle-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100; /* 最前面に表示 */
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+        }
+        #menu-toggle-button:hover {
+            background-color: #45a049;
+        }
+
+        /* -------------------------------------- */
+        /* メニューが開いた時のスタイル */
+        /* -------------------------------------- */
+
+        /* メニューが開いたとき、メインラッパー全体をメニュー幅分左に移動 */
+        .main-wrapper.menu-open {
+            /* 画面左端は固定のまま、右側をメニュー幅分ずらす */
+            width: calc(100% - var(--menu-width)); 
+        }
+
+        /* メニューが開いたとき、メニュー自体を画面内に移動 */
+        #game-menu.open {
+            transform: translateX(0);
+        }
+        
+        /* メニューボタンの調整 (メニューが開いたら左にずらす) */
+        #menu-toggle-button.open {
+            right: calc(20px + var(--menu-width));
+            background-color: #f44336; /* 色を変えて閉じるボタンを強調 */
+        }
+        /* メニューボタンのテキスト変更はJSで行う */
+
+
+        /* メニュー内のスタイル */
+        .menu-header {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #555;
+            padding-bottom: 10px;
+        }
+
+        .game-list-item {
+            list-style: none;
+            padding: 10px 0;
+            cursor: pointer;
+            border-bottom: 1px solid #555;
+            transition: background-color 0.3s;
+        }
+        .game-list-item:hover {
+            background-color: #555;
+        }
+        .game-list-item:last-child {
+            border-bottom: none;
+        }
+
+        /* 閉じるボタンをメニューから削除し、トグルボタンに役割を統合するため非表示 */
+        #close-menu-button {
+            display: none; 
+        }
+
+        /* スマートフォン向け（任意） */
+        @media (max-width: 600px) {
+            :root {
+                --menu-width: 80vw; /* スマホでは画面幅の80%を使用 */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <button id="menu-toggle-button">メニューを開く ☰</button>
+
+    <div class="main-wrapper" id="main-wrapper">
+        <div class="game-area">
+            <div class="iframe-wrapper">
+                <iframe id="game-iframe" src="" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+    
+    <div id="game-menu">
+        <div class="menu-header">よくわからんゲーム一覧</div>
+        <ul id="game-list">
+            </ul>
+        <button id="close-menu-button">閉じる</button>
+    </div>
+
+    <script>
+        // JavaScriptセクション
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameIframe = document.getElementById('game-iframe');
+            const menuToggleBtn = document.getElementById('menu-toggle-button');
+            const gameMenu = document.getElementById('game-menu');
+            const gameList = document.getElementById('game-list');
+            const mainWrapper = document.getElementById('main-wrapper'); // 新しく追加
+
+            // 🌟 【重要】ゲームの定義配列 🌟
+            // ゲームを追加する際は、この配列に新しいオブジェクトを追加してください。
+            const games = [
+                { name: "トロッコ問題", url: "https://plicy.net/GameEmbed/157948" },
+                { name: "よくわからんゲームサイト", url: "https://www.retrogames.cz/404.php" },
+                { name: "いろいろ", url: "https://samples.wgc-cosmo.com/game-site/" },
+                { name: "シューティング", url: "https://plicy.net/GameEmbed/212321" },
+                { name: "360度ブロック崩し", url: "https://plicy.net/GameEmbed/212318" }
+                // 👇 ここに新しいゲームを追加できます 👇
+                // { name: "新しいゲーム名", url: "ゲームの埋め込みURL" } 
+            ];
+
+            /**
+             * ゲームリストをメニューにレンダリング
+             */
+            function renderGameList() {
+                gameList.innerHTML = ''; // リストをクリア
+                games.forEach(game => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'game-list-item';
+                    listItem.textContent = game.name;
+                    // クリックイベントでiframeのsrcを変更
+                    listItem.addEventListener('click', () => {
+                        loadGame(game.url);
+                        toggleMenu(false); // ゲームを選択したらメニューを閉じる
+                    });
+                    gameList.appendChild(listItem);
+                });
+            }
+
+            /**
+             * iframeにゲームをロード
+             * @param {string} url - ロードするゲームのURL
+             */
+            function loadGame(url) {
+                gameIframe.src = url;
+            }
+
+            /**
+             * メニューの表示/非表示を切り替える
+             * CSSクラスを操作して、メニューの移動とゲームエリアの縮小を同時に行う
+             * @param {boolean} [force] - trueで表示、falseで非表示 (省略時はトグル)
+             */
+            function toggleMenu(force) {
+                const is_open = gameMenu.classList.contains('open');
+                let should_open;
+                
+                if (typeof force === 'boolean') {
+                    should_open = force;
+                } else {
+                    should_open = !is_open; // トグル
+                }
+
+                if (should_open) {
+                    gameMenu.classList.add('open');
+                    mainWrapper.classList.add('menu-open'); // ゲームエリアを縮小
+                    menuToggleBtn.classList.add('open');
+                    menuToggleBtn.textContent = '閉じる ✖';
+                } else {
+                    gameMenu.classList.remove('open');
+                    mainWrapper.classList.remove('menu-open'); // ゲームエリアを元に戻す
+                    menuToggleBtn.classList.remove('open');
+                    menuToggleBtn.textContent = 'メニューを開く ☰';
+                }
+            }
+
+            // イベントリスナーの設定
+            menuToggleBtn.addEventListener('click', () => toggleMenu());
+            // closeMenuBtn.addEventListener('click', () => toggleMenu(false)); // 不要になった
+
+            // 初期化
+            renderGameList();
+            // ページロード時に最初のゲームをロード
+            if (games.length > 0) {
+                loadGame(games[0].url);
+            }
+        });
+    </script>
+
+</body>
+</html>
