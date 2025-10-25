@@ -379,6 +379,7 @@
             <h2>操作モード選択</h2>
             <button id="btn-mode-button">ボタン操作</button>
             <button id="btn-mode-gesture">ジェスチャー操作</button>
+            <button id="btn-mode-gesture" onclick="openButtonSettings()">ジェスチャー操作</button>
             <button id="btn-show-ranking-from-main">ランキング表示</button>
         </div>
     </div>
@@ -426,7 +427,7 @@
 
     <div id="pause-overlay" style="display: none;">
         <div id="pause-modal">
-            <h2>設定</h2>
+            <h2>一時停止中</h2>
             <button onclick="resumeGame()">ゲーム再開</button>
             <button onclick="openButtonSettings()">ボタン位置設定</button>
             <button onclick="endGame()">ゲーム終了</button>
