@@ -43,19 +43,17 @@
             left: 0;
             z-index: 1;
         }
-        #ui {
-            display: grid;
-            grid-template-areas:
-                "rotL hard rotR"
-                "left . right"
-                ". down hold";
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
-            padding: 0 10px;
-            width: 100%;
-            max-width: 400px;
-        }
+#ui {
+    display: block; /* gridからblockに変更 */
+    /* grid-template-areas, grid-template-columns, gap は適用されなくなる */
+    margin-top: 20px;
+    padding: 0 10px;
+    width: 100%;
+    max-width: 400px;
+    position: relative; /* ボタン絶対配置の基準 */
+    height: 400px; /* 適切な高さを設定 */
+    border: 1px solid #ddd; /* 範囲確認用 */
+}
         .btn {
             padding: 15px 0;
             font-size: 18px;
@@ -70,13 +68,13 @@
             align-items: center;
             box-sizing: border-box;
         }
-        .btn-left { grid-area: left; }
-        .btn-right { grid-area: right; }
-        .btn-rotate-left { grid-area: rotL; }
-        .btn-rotate-right { grid-area: rotR; }
-        .btn-down { grid-area: down; }
-        .btn-hard-drop { grid-area: hard; }
-        .btn-hold { grid-area: hold; }
+.btn-left { /* grid-area: left; */ }
+.btn-right { /* grid-area: right; */ }
+.btn-rotate-left { /* grid-area: rotL; */ }
+.btn-rotate-right { /* grid-area: rotR; */ }
+.btn-down { /* grid-area: down; */ }
+.btn-hard-drop { /* grid-area: hard; */ }
+.btn-hold { /* grid-area: hold; */ }
 
         .info {
             display: flex;
@@ -263,25 +261,19 @@
     overflow-y: auto;
 }
 
-/* 編集用のUIプレビュー */
 #settings-ui-preview {
-    display: grid;
-    grid-template-areas:
-        "rotL hard rotR"
-        "left . right"
-        ". down hold";
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
+    /* grid から block に変更 */
+    display: block;
+    /* grid-template-areas などを削除 */
     margin: 20px 0;
     max-width: 400px;
     width: 100%;
     border: 2px dashed #ccc;
     padding: 10px;
-    /* ! important: ドラッグ時のz-indexが効くように position: relative を設定 */
-    position: relative; 
+    position: relative; /* 内部ボタンの絶対配置の基準 */
+    height: 400px; /* プレビューの高さは適切に設定 */
 }
 
-/* 編集モード用のボタンの基本スタイル */
 .draggable-btn {
     /* .btn クラスのスタイルを継承/再定義し、中央揃えを維持 */
     padding: 15px 0;
@@ -301,6 +293,8 @@
     cursor: grab;
     box-sizing: border-box;
     border: 1px solid #999;
+    
+    position: absolute;
 }
 
 /* ドラッグ中の要素のスタイル */
@@ -362,8 +356,8 @@
 
 <div id="settings-modal" style="display: none;">
     <div id="settings-content">
-        <h2>ボタン位置設定 ⚙️</h2>
-        <p>ボタンをドラッグ＆ドロップして位置を変更できます。</p>
+        <h2>ボタン位置設定</h2>
+        <p>ボタンをドラッグ＆ドロップして位置を変更できます。これから色々修正予定</p>
 
         <div id="settings-ui-preview">
             </div>
@@ -455,20 +449,23 @@
 
 
 
+// 💡 デフォルトのボタン配置 (座標管理: x, y は #ui の左上からの相対ピクセル座標)
+// 実際のゲームUIは #ui 内に配置されます。
 const defaultButtonLayout = {
-    'btn-rotate-left': 'rotL',
-    'btn-hard-drop': 'hard',
-    'btn-rotate-right': 'rotR',
-    'btn-left': 'left',
-    'btn-right': 'right',
-    'btn-down': 'down',
-    'btn-hold': 'hold'
+    // 適切な初期座標を設定してください。ここでは #ui (max-width: 400px, height: 400px) を想定した相対座標
+    'btn-rotate-left': { x: 20, y: 20, w: 100, h: 60 },
+    'btn-hard-drop': { x: 150, y: 20, w: 100, h: 60 },
+    'btn-rotate-right': { x: 280, y: 20, w: 100, h: 60 },
+    'btn-left': { x: 20, y: 100, w: 100, h: 60 },
+    'btn-right': { x: 280, y: 100, w: 100, h: 60 },
+    'btn-down': { x: 150, y: 180, w: 100, h: 60 },
+    'btn-hold': { x: 280, y: 180, w: 100, h: 60 }
 };
 
 // 💡 現在のボタン配置を格納する変数
 let currentButtonLayout = { ...defaultButtonLayout };
-let draggedElement = null; // ドラッグ中の要素
-let initialTouchX, initialTouchY; // タッチ開始時の座標
+let draggedElement = null;
+let dragOffsetX, dragOffsetY;
 
 // 💡 ページの読み込み時に保存された設定をロード
 document.addEventListener('DOMContentLoaded', () => {
@@ -481,24 +478,56 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadButtonSettings() {
     const savedLayout = localStorage.getItem('buttonLayout');
     if (savedLayout) {
-        // 保存された設定が現在のデフォルト設定のキーと一致するか確認し、未定義のキーがあれば追加するなどの処理を入れるとより堅牢になりますが、今回はシンプルに上書きします。
-        currentButtonLayout = JSON.parse(savedLayout);
+        const parsedLayout = JSON.parse(savedLayout);
+        let isValidLayout = true;
+        for (const className in defaultButtonLayout) {
+            if (!parsedLayout[className] || typeof parsedLayout[className].x !== 'number') {
+                isValidLayout = false;
+                break;
+            }
+        }
+        if (isValidLayout) {
+            currentButtonLayout = parsedLayout;
+        } else {
+            currentButtonLayout = { ...defaultButtonLayout };
+        }
     }
     applyButtonSettings(currentButtonLayout);
 }
 
 /**
  * 実際のゲームUIにボタン配置を適用する
- * @param {object} layout - {クラス名: grid-area} のオブジェクト
+ * @param {object} layout - {クラス名: {x, y, w, h}} のオブジェクト
  */
 function applyButtonSettings(layout) {
+    const uiContainer = document.getElementById('ui');
+    if (uiContainer) {
+        // UIコンテナを絶対配置の基準にする
+        uiContainer.style.position = 'relative';
+        // Gridレイアウトを解除
+        uiContainer.style.display = 'block';
+        uiContainer.style.gridTemplateAreas = 'none';
+        uiContainer.style.gridTemplateColumns = 'none';
+        uiContainer.style.gap = '0';
+        uiContainer.style.height = '400px'; // 適切な高さを設定
+        uiContainer.style.width = '100%';
+        uiContainer.style.maxWidth = '400px';
+    }
+
     for (const className in layout) {
-        const button = document.querySelector(`.${className}`);
+        const button = document.querySelector(`#ui .${className}`);
+        const pos = layout[className];
         if (button) {
-            button.style.gridArea = layout[className];
+            button.style.position = 'absolute';
+            // #ui の左上からの相対座標を適用
+            button.style.left = `${pos.x}px`;
+            button.style.top = `${pos.y}px`;
+            if (pos.w) button.style.width = `${pos.w}px`;
+            if (pos.h) button.style.height = `${pos.h}px`;
         }
     }
 }
+
 
 /**
  * 設定モーダルを開く
@@ -506,7 +535,49 @@ function applyButtonSettings(layout) {
 function openButtonSettings() {
     const modal = document.getElementById('settings-modal');
     if (modal) {
+        // モーダルを画面いっぱいに広げる
         modal.style.display = 'flex';
+        modal.style.padding = '0';
+
+        // 設定コンテンツ（#settings-content）を画面全体に広げるよう調整
+        const content = document.getElementById('settings-content');
+        if (content) {
+            content.style.maxWidth = '100%';
+            content.style.width = '100%';
+            content.style.height = '100%';
+            content.style.maxHeight = '100%';
+            content.style.borderRadius = '0';
+            content.style.padding = '10px';
+            content.style.boxSizing = 'border-box';
+        }
+
+        // プレビューコンテナ（#settings-ui-preview）をゲームUIと同じ位置/サイズに配置
+        const preview = document.getElementById('settings-ui-preview');
+        const uiContainer = document.getElementById('ui');
+
+        if (preview && uiContainer) {
+            // #ui の位置とサイズを取得し、#settings-ui-preview に適用
+            const uiRect = uiContainer.getBoundingClientRect();
+            
+            // #settings-ui-preview は #settings-content 内にあるため、
+            // position: absolute を使って #settings-content (親要素) の左上に固定する
+            preview.style.position = 'absolute'; 
+            preview.style.left = `${uiRect.left}px`;
+            preview.style.top = `${uiRect.top}px`;
+            preview.style.width = `${uiRect.width}px`;
+            preview.style.height = `${uiRect.height}px`;
+            preview.style.margin = '0';
+            preview.style.padding = '0'; // borderのみ残す
+            preview.style.zIndex = '50'; // ボタンより下に設定
+
+            preview.style.display = 'block'; // Grid解除
+            preview.style.gridTemplateAreas = 'none';
+
+            // ボタンの座標管理基準とするため、#ui の位置を基準点とするための準備
+            preview.setAttribute('data-offset-x', uiRect.left);
+            preview.setAttribute('data-offset-y', uiRect.top);
+        }
+
         createSettingsPreview();
         setupDragAndDrop();
     } else {
@@ -521,6 +592,17 @@ function closeButtonSettings() {
     const modal = document.getElementById('settings-modal');
     if (modal) {
         modal.style.display = 'none';
+        // スタイルを元に戻す (この部分はCSS側で調整した方が良いですが、JSでも可能)
+        const content = document.getElementById('settings-content');
+        if (content) {
+             content.style.maxWidth = '';
+             content.style.width = '';
+             content.style.height = '';
+             content.style.maxHeight = '';
+             content.style.borderRadius = '';
+             content.style.padding = '';
+             content.style.boxSizing = '';
+        }
     }
 }
 
@@ -531,62 +613,31 @@ function createSettingsPreview() {
     const preview = document.getElementById('settings-ui-preview');
     if (!preview) return;
 
-    preview.innerHTML = ''; 
+    preview.innerHTML = '';
 
-    // `currentButtonLayout` に基づいて、プレビューボタンを作成する
     for (const controlClass in currentButtonLayout) {
-        // オリジナルのボタンからテキストを取得するため、一度照会する (実際のUI要素がなくても動作するように調整しても良いですが、ここでは既存のロジックに従います)
-        const originalButton = document.querySelector(`.${controlClass}`);
+        const originalButton = document.querySelector(`#ui .${controlClass}`);
         if (!originalButton) continue;
-        
-        const areaName = currentButtonLayout[controlClass];
-        
-        const clone = document.createElement('div');
-        
-        clone.classList.add('draggable-btn');
-        clone.setAttribute('data-area-name', areaName);
-        clone.setAttribute('draggable', 'true');
-        clone.textContent = originalButton.textContent; // オリジナルボタンのテキストを使用
 
-        clone.style.gridArea = areaName; 
+        const pos = currentButtonLayout[controlClass];
+
+        const clone = document.createElement('div');
+
+        clone.classList.add('draggable-btn');
         clone.setAttribute('data-control-class', controlClass);
+        clone.setAttribute('draggable', 'true');
+        clone.textContent = originalButton.textContent;
+
+        // 絶対配置の座標を適用 (この座標は #ui の左上からの相対座標)
+        clone.style.position = 'absolute';
+        clone.style.left = `${pos.x}px`;
+        clone.style.top = `${pos.y}px`;
+        clone.style.width = `${pos.w || 100}px`;
+        clone.style.height = `${pos.h || 60}px`;
+        clone.style.boxSizing = 'border-box';
 
         preview.appendChild(clone);
     }
-}
-
-/**
- * ドロップ処理の共通化関数
- * @param {HTMLElement} targetElement - ドロップ先のボタン要素
- */
-function handleDrop(targetElement) {
-    if (!draggedElement) return;
-
-    // ドロップされた場所が別のボタン上だった場合、かつ自分自身でない場合
-    if (targetElement && targetElement.classList.contains('draggable-btn') && targetElement !== draggedElement) {
-        // 2つのボタンのgrid-areaを交換する
-        const targetArea = targetElement.style.gridArea;
-        const draggedArea = draggedElement.style.gridArea;
-
-        const targetControlClass = targetElement.getAttribute('data-control-class');
-        const draggedControlClass = draggedElement.getAttribute('data-control-class');
-
-        // スワップ実行 (DOM要素のスタイルと属性を更新)
-        draggedElement.style.gridArea = targetArea;
-        draggedElement.setAttribute('data-area-name', targetArea);
-
-        targetElement.style.gridArea = draggedArea;
-        targetElement.setAttribute('data-area-name', draggedArea);
-
-        // ★★★ 修正箇所：currentButtonLayout も更新する ★★★
-        if (draggedControlClass && targetControlClass) {
-            currentButtonLayout[draggedControlClass] = targetArea;
-            currentButtonLayout[targetControlClass] = draggedArea;
-        }
-
-    }
-    // ドロップ対象がボタンではない場合（プレビューエリア内の空きスペースなど）は、
-    // ドラッグ要素は元の位置（grid-area）に戻る動作をタッチ終了時に行うため、ここでは何もしなくてOK
 }
 
 /**
@@ -595,168 +646,128 @@ function handleDrop(targetElement) {
 function setupDragAndDrop() {
     const preview = document.getElementById('settings-ui-preview');
     const draggableButtons = preview.querySelectorAll('.draggable-btn');
+    
+    // UIコンテナ（#ui）の画面上の絶対位置（オフセット）を取得
+    // ボタンの座標は #ui の相対座標で管理するため、ドラッグ時にこのオフセットを使用
+    const uiContainer = document.getElementById('ui');
+    if (!uiContainer) return;
+    const uiRect = uiContainer.getBoundingClientRect();
+    const uiOffsetX = uiRect.left;
+    const uiOffsetY = uiRect.top;
 
-    // どの要素がドロップターゲットと見なされるかを判断するヘルパー関数
-    const getDropTarget = (x, y) => {
-        if (!draggedElement) return null;
 
-        // ドラッグ要素を一時的に非表示にし、その下の要素を取得
-        draggedElement.style.display = 'none';
-        
-        // window.requestAnimationFrameで実行することで、ブラウザの描画パイプラインとの整合性が高まり、
-        // より正確な要素検出が期待できます。しかし今回は同期的に実行。
-        const target = document.elementFromPoint(x, y);
+    // ドラッグ/タッチ移動のイベントハンドラ
+    const onMove = (clientX, clientY) => {
+        if (!draggedElement) return;
 
-        // ドラッグ要素を再表示 (タッチ終了時にスタイルはリセットされるため、ここでは position/top/left/display はリセットしません)
-        draggedElement.style.display = 'flex'; 
-        
-        // closestでdraggable-btnを探す
-        return target ? target.closest('.draggable-btn') : null;
+        // ★★★ 座標計算の修正 ★★★
+        // 新しい座標 = (現在のクライアント座標 - #ui の画面上の絶対位置 - 掴んだオフセット)
+        let newX = clientX - uiOffsetX - dragOffsetX;
+        let newY = clientY - uiOffsetY - dragOffsetY;
+
+        // プレビューコンテナ内 (つまり #ui の位置) の相対位置を計算
+        // ドラッグ要素は #settings-ui-preview の子要素として、その親の相対位置に配置される
+        draggedElement.style.left = `${newX}px`;
+        draggedElement.style.top = `${newY}px`;
     };
 
-    // --- PC向け (Drag and Drop API) ---
-    draggableButtons.forEach(btn => {
-        btn.addEventListener('dragstart', (e) => {
-            draggedElement = btn;
-            e.dataTransfer.effectAllowed = 'move';
-            btn.classList.add('dragging');
-        });
+    // ドロップ/タッチ終了のイベントハンドラ
+    const onEnd = () => {
+        if (!draggedElement) return;
 
-        preview.addEventListener('dragover', (e) => e.preventDefault()); // ドロップを許可
+        const finalX = parseFloat(draggedElement.style.left);
+        const finalY = parseFloat(draggedElement.style.top);
+        const finalW = parseFloat(draggedElement.style.width);
+        const finalH = parseFloat(draggedElement.style.height);
 
-        // dragend での処理は drop で完了するため、ここでは cleanup のみ
-        btn.addEventListener('dragend', (e) => {
-             if (draggedElement) {
-                 draggedElement.classList.remove('dragging');
-                 // draggedElement = null; // drop イベントの後に呼ばれるため、ここではリセットしないほうが安全
-             }
-        });
-    });
-
-    preview.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const targetElement = e.target.closest('.draggable-btn');
-        handleDrop(targetElement);
-        // PC向けドラッグ終了時のクリーンアップ
-        if (draggedElement) {
-             draggedElement.classList.remove('dragging');
-             draggedElement = null;
+        // 座標を整数に丸め、currentButtonLayout を更新
+        const controlClass = draggedElement.getAttribute('data-control-class');
+        if (controlClass) {
+            currentButtonLayout[controlClass] = {
+                x: Math.round(finalX),
+                y: Math.round(finalY),
+                w: Math.round(finalW),
+                h: Math.round(finalH)
+            };
         }
-    });
 
-    // --- モバイル向け (Touch Events) ---
+        // クリーンアップ
+        draggedElement.classList.remove('dragging');
+        draggedElement.style.zIndex = 'auto';
+        draggedElement.style.pointerEvents = 'auto';
+
+        draggedElement = null;
+        dragOffsetX = 0;
+        dragOffsetY = 0;
+    };
+
+
     draggableButtons.forEach(btn => {
-        // タッチ開始 (mousedownに近い)
+        // マウスダウン (PC向けドラッグ開始)
+        btn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            draggedElement = btn;
+            btn.classList.add('dragging');
+
+            const rect = btn.getBoundingClientRect();
+            // 掴んだ位置のオフセットは、ボタンの絶対位置とマウスカーソル位置から計算
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            btn.style.zIndex = 100001; // モーダルより高い z-index
+            btn.style.pointerEvents = 'none';
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // タッチ開始 (モバイル向けドラッグ開始)
         btn.addEventListener('touchstart', (e) => {
-            // 長押しでスクロールを防ぐ目的で、移動が始まるまで e.preventDefault() はしないことが多い。
-            // しかし、即座にドラッグを開始したい場合は必要。ここでは移動時に preventDefault を行う。
             draggedElement = btn;
             const touch = e.touches[0];
-            initialTouchX = touch.clientX;
-            initialTouchY = touch.clientY;
-            
-            // Gridレイアウトから一時的に切り離し、絶対位置で配置を開始
+
             const rect = btn.getBoundingClientRect();
-            // position: fixed を使ってスクロールの影響を受けないようにする
-            btn.style.position = 'fixed'; 
-            btn.style.top = `${rect.top}px`;
-            btn.style.left = `${rect.left}px`;
-            btn.style.width = `${rect.width}px`;
-            btn.style.height = `${rect.height}px`;
-            
+            dragOffsetX = touch.clientX - rect.left;
+            dragOffsetY = touch.clientY - rect.top;
+
             btn.classList.add('dragging');
-            btn.style.zIndex = 10; 
-            btn.style.pointerEvents = 'none'; // タッチ移動中に下の要素を検出できるようにする
+            btn.style.zIndex = 100001;
+            btn.style.pointerEvents = 'none';
         }, { passive: false });
 
-        // タッチ移動 (mousemoveに近い)
+        // タッチ移動
         btn.addEventListener('touchmove', (e) => {
             if (!draggedElement || draggedElement !== btn) return;
-            e.preventDefault(); // ここでprevent defaultを入れて、スクロールと競合しないようにする
-            
+            e.preventDefault();
             const touch = e.touches[0];
-            const dx = touch.clientX - initialTouchX;
-            const dy = touch.clientY - initialTouchY;
-
-            // 要素を移動させる (fixed position の座標を更新)
-            const currentTop = parseFloat(btn.style.top);
-            const currentLeft = parseFloat(btn.style.left);
-            
-            btn.style.top = `${currentTop + dy}px`;
-            btn.style.left = `${currentLeft + dx}px`;
-
-            // 次の移動の基点を更新
-            initialTouchX = touch.clientX;
-            initialTouchY = touch.clientY;
+            onMove(touch.clientX, touch.clientY);
         }, { passive: false });
 
-        // タッチ終了 (mouseupに近い)
-        btn.addEventListener('touchend', (e) => {
-            if (!draggedElement || draggedElement !== btn) return;
-
-            const touch = e.changedTouches[0];
-            // ドロップ先の要素を検出
-            const targetElement = getDropTarget(touch.clientX, touch.clientY);
-            
-            handleDrop(targetElement); // スワップ処理と currentButtonLayout の更新
-
-            // ★★★ 修正箇所：クリーンアップ時に新しい Grid Area を適用する ★★★
-            // 新しい grid-area を取得 (handleDropで更新されている)
-            const newAreaName = btn.getAttribute('data-area-name'); 
-
-            // クリーンアップ: スタイルをリセットしてGridに戻す
-            btn.classList.remove('dragging');
-            btn.style.zIndex = 'auto';
-            btn.style.pointerEvents = 'auto'; // pointer-events を元に戻す
-            btn.style.position = '';
-            btn.style.top = '';
-            btn.style.left = '';
-            btn.style.width = '';
-            btn.style.height = '';
-            
-            // Gridレイアウトに戻すために、更新された gridArea を適用
-            if (newAreaName) {
-                btn.style.gridArea = newAreaName;
-            }
-            
-            draggedElement = null;
-        });
+        // タッチ終了
+        btn.addEventListener('touchend', onEnd);
+        btn.addEventListener('touchcancel', onEnd);
     });
+
+    // マウス移動とマウスアップのイベントハンドラを定義 (PC向け)
+    const onMouseMove = (e) => {
+        if (!draggedElement) return;
+        e.preventDefault();
+        onMove(e.clientX, e.clientY);
+    };
+
+    const onMouseUp = (e) => {
+        if (!draggedElement) return;
+        onEnd();
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    };
 }
+
 
 /**
  * 変更されたボタン配置を保存し、ゲームUIに適用する
  */
 function saveButtonSettings() {
-    // currentButtonLayout は handleDrop の中で既に更新されているため、
-    // プレビューのDOM要素から再構築する必要はありません。
-    
-    // プレビューのDOMを元に currentButtonLayout を再構築する場合のコードを残しますが、
-    // handleDropでリアルタイムに currentButtonLayout を更新しているため、この部分は
-    // currentButtonLayout をそのまま使う形で簡略化できます。
-
-    /*
-    const preview = document.getElementById('settings-ui-preview');
-    if (!preview) return;
-    
-    const draggableButtons = preview.querySelectorAll('.draggable-btn');
-    const newLayout = {};
-
-    // プレビューの配置から新しいレイアウトオブジェクトを作成
-    draggableButtons.forEach(btn => {
-        const controlClass = btn.getAttribute('data-control-class');
-        // DOMのstyle.gridAreaはタッチイベントで一時的に上書きされるため、
-        // 永続的な配置は data-area-name (handleDropで更新される) から取得する方がより確実です。
-        const areaName = btn.getAttribute('data-area-name'); 
-        if (controlClass && areaName) {
-            newLayout[controlClass] = areaName;
-        }
-    });
-
-    currentButtonLayout = newLayout;
-    */
-    
-    // handleDropで更新済みの currentButtonLayout をそのまま保存・適用
     localStorage.setItem('buttonLayout', JSON.stringify(currentButtonLayout));
     applyButtonSettings(currentButtonLayout);
     closeButtonSettings();
@@ -769,13 +780,13 @@ function resetButtonSettings() {
     currentButtonLayout = { ...defaultButtonLayout };
     localStorage.removeItem('buttonLayout');
     applyButtonSettings(currentButtonLayout);
-    
-    if (document.getElementById('settings-modal').style.display !== 'none') {
+
+    const modal = document.getElementById('settings-modal');
+    if (modal && modal.style.display !== 'none') {
         createSettingsPreview();
         setupDragAndDrop();
     }
 }
-
 
         const firebaseConfig = {
             apiKey: "AIzaSyAiWLR5xBKMpKEYdGUL2mL7HVY2LWAbwX0",
