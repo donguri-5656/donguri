@@ -235,9 +235,7 @@
             font-size: 16px;
             margin: 0;
         }
-        
-        /* モーダル表示のためのCSS */
-/* モーダル表示のためのCSS (前回提供したものとほぼ同じですが、再掲) */
+
 #settings-modal {
     position: fixed;
     top: 0;
@@ -262,34 +260,28 @@
 }
 
 #settings-ui-preview {
-    /* grid から block に変更 */
     display: block;
-    /* grid-template-areas などを削除 */
     margin: 20px 0;
     max-width: 400px;
     width: 100%;
-    border: 2px dashed #ccc;
     padding: 10px;
-    position: relative; /* 内部ボタンの絶対配置の基準 */
-    height: 400px; /* プレビューの高さは適切に設定 */
+    position: relative;
+    height: 400px;
 }
 
 .draggable-btn {
-    /* .btn クラスのスタイルを継承/再定義し、中央揃えを維持 */
     padding: 15px 0;
     font-size: 18px;
     border-radius: 10px;
-    background: #f0f0f0; /* オリジナルと区別するため色を変える */
+    background: #f0f0f0;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     width: 100%;
     height: 60px;
     
-    /* 文字の中央揃えを維持するための Flexbox 設定 */
     display: flex;
-    justify-content: center; /* センター寄せ */
+    justify-content: center;
     align-items: center;
     
-    /* ドラッグしやすくする */
     cursor: grab;
     box-sizing: border-box;
     border: 1px solid #999;
@@ -297,13 +289,11 @@
     position: absolute;
 }
 
-/* ドラッグ中の要素のスタイル */
 .dragging {
     opacity: 0.7;
     z-index: 10; 
 }
 
-        /* Pause Button - 画面右上に固定 */
         #pause-button {
             position: fixed;
             top: 10px;
@@ -443,16 +433,7 @@
 
 
 
-
-
-
-
-
-
-// 💡 デフォルトのボタン配置 (座標管理: x, y は #ui の左上からの相対ピクセル座標)
-// 実際のゲームUIは #ui 内に配置されます。
 const defaultButtonLayout = {
-    // 適切な初期座標を設定してください。ここでは #ui (max-width: 400px, height: 400px) を想定した相対座標
     'btn-rotate-left': { x: 20, y: 20, w: 100, h: 60 },
     'btn-hard-drop': { x: 150, y: 20, w: 100, h: 60 },
     'btn-rotate-right': { x: 280, y: 20, w: 100, h: 60 },
@@ -462,19 +443,17 @@ const defaultButtonLayout = {
     'btn-hold': { x: 280, y: 180, w: 100, h: 60 }
 };
 
-// 💡 現在のボタン配置を格納する変数
+
 let currentButtonLayout = { ...defaultButtonLayout };
 let draggedElement = null;
 let dragOffsetX, dragOffsetY;
 
-// 💡 ページの読み込み時に保存された設定をロード
+
 document.addEventListener('DOMContentLoaded', () => {
     loadButtonSettings();
 });
 
-/**
- * ボタン配置をlocalStorageから読み込み、UIに適用する
- */
+
 function loadButtonSettings() {
     const savedLayout = localStorage.getItem('buttonLayout');
     if (savedLayout) {
