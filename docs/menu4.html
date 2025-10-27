@@ -242,17 +242,17 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
     z-index: 100000;
     display: flex;
     justify-content: center;
+    background-color: rgba(0, 0, 0, 0.8);
     align-items: center;
+    background-color: white;
 }
 
 #settings-content {
-    background-color: white;
+　　background-color: white;
     padding: 20px;
-    border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     max-width: 90%;
     max-height: 90%;
@@ -261,6 +261,7 @@
 
 #settings-ui-preview {
     display: block;
+    border-radius: 10px;
     margin: 20px 0;
     max-width: 400px;
     width: 100%;
@@ -287,11 +288,13 @@
     border: 1px solid #999;
     
     position: absolute;
+    z-index: 50;
 }
 
 .dragging {
     opacity: 0.7;
     z-index: 10; 
+    position: absolute;
 }
 
         #pause-button {
@@ -347,10 +350,10 @@
 <div id="settings-modal" style="display: none;">
     <div id="settings-content">
         <h2>ボタン位置設定</h2>
-        <p>ボタンをドラッグ＆ドロップして位置を変更できます。これから色々修正予定</p>
+        <p>ボタンをドラッグ＆ドロップして位置を変更できます。右下の赤い丸をドラッグすると大きさを変更できます。</p>
 
-        <div id="settings-ui-preview">
-            </div>
+        <div id="settings-ui-preview" style="border: 1px dashed #999;">
+        </div>
 
         <button onclick="saveButtonSettings()">保存</button>
         <button onclick="closeButtonSettings()">閉じる</button>
@@ -431,238 +434,365 @@
 
 
 
+// =========================================================================
+// 新しいボタン管理の仕組み (ユニークIDと複数配置、リサイズ対応)
+// =========================================================================
 
-
-const defaultButtonLayout = {
-    'btn-rotate-left': { x: 20, y: 20, w: 100, h: 60 },
-    'btn-hard-drop': { x: 150, y: 20, w: 100, h: 60 },
-    'btn-rotate-right': { x: 280, y: 20, w: 100, h: 60 },
-    'btn-left': { x: 20, y: 100, w: 100, h: 60 },
-    'btn-right': { x: 280, y: 100, w: 100, h: 60 },
-    'btn-down': { x: 150, y: 180, w: 100, h: 60 },
-    'btn-hold': { x: 280, y: 180, w: 100, h: 60 }
+// コントロールアクションとボタンテキストの対応表
+const CONTROL_ACTIONS = {
+    'rotate-left': { text: '左回転', action: 'playerRotate(false)' },
+    'rotate-right': { text: '右回転', action: 'playerRotate(true)' },
+    'left': { text: '←', action: 'playerMove(-1)' },
+    'right': { text: '→', action: 'playerMove(1)' },
+    'down': { text: '↓', action: 'startSoftDrop()', events: { mousedown: 'startSoftDrop()', mouseup: 'stopSoftDrop()', mouseleave: 'stopSoftDrop()', touchstart: 'startSoftDrop()', touchend: 'stopSoftDrop()', touchcancel: 'stopSoftDrop()' } },
+    'hard-drop': { text: '↑', action: 'hardDrop()' },
+    'hold': { text: 'HOLD', action: 'holdPiece()' }
 };
 
+// 初期ボタン配置 (ユニークIDをキーとして使用)
+// 複数配置のため、それぞれのボタンにユニークなID (例: rotate-left-1) を付与
+const defaultButtonLayout = {
+    'rotate-left-1': { action: 'rotate-left', x: 20, y: 20, w: 100, h: 60 },
+    'hard-drop-1': { action: 'hard-drop', x: 150, y: 20, w: 100, h: 60 },
+    'rotate-right-1': { action: 'rotate-right', x: 280, y: 20, w: 100, h: 60 },
+    'left-1': { action: 'left', x: 20, y: 100, w: 100, h: 60 },
+    'right-1': { action: 'right', x: 280, y: 100, w: 100, h: 60 },
+    'down-1': { action: 'down', x: 150, y: 180, w: 100, h: 60 },
+    'hold-1': { action: 'hold', x: 280, y: 180, w: 100, h: 60 }
+};
 
 let currentButtonLayout = { ...defaultButtonLayout };
 let draggedElement = null;
-let dragOffsetX, dragOffsetY;
-
+let dragOffsetX = 0, dragOffsetY = 0;
+let isResizing = false;
+let resizeHandle = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadButtonSettings();
+    // ここで初期のUIボタンを生成・配置する必要がある
+    applyButtonSettings(currentButtonLayout);
+    // ボタン追加UIの初期化
+    initializeAddButtonUI();
 });
 
-
+/**
+ * ローカルストレージからボタン設定を読み込む。無効ならデフォルトを使用。
+ */
 function loadButtonSettings() {
     const savedLayout = localStorage.getItem('buttonLayout');
     if (savedLayout) {
-        const parsedLayout = JSON.parse(savedLayout);
-        let isValidLayout = true;
-        for (const className in defaultButtonLayout) {
-            if (!parsedLayout[className] || typeof parsedLayout[className].x !== 'number') {
-                isValidLayout = false;
-                break;
+        try {
+            const parsedLayout = JSON.parse(savedLayout);
+            let isValidLayout = true;
+            // 全てのキーが 'action', 'x', 'y', 'w', 'h' を持っているかチェック
+            for (const id in parsedLayout) {
+                const item = parsedLayout[id];
+                if (!item.action || typeof item.x !== 'number' || typeof item.y !== 'number' || typeof item.w !== 'number' || typeof item.h !== 'number') {
+                    isValidLayout = false;
+                    break;
+                }
             }
-        }
-        if (isValidLayout) {
-            currentButtonLayout = parsedLayout;
-        } else {
+            if (isValidLayout) {
+                currentButtonLayout = parsedLayout;
+            } else {
+                currentButtonLayout = { ...defaultButtonLayout };
+            }
+        } catch (e) {
+            console.error("Failed to parse buttonLayout from localStorage:", e);
             currentButtonLayout = { ...defaultButtonLayout };
         }
     }
-    applyButtonSettings(currentButtonLayout);
 }
 
 /**
- * 実際のゲームUIにボタン配置を適用する
- * @param {object} layout - {クラス名: {x, y, w, h}} のオブジェクト
+ * 実際のゲームUIにボタン配置を適用する (ボタンを動的に生成)
+ * @param {object} layout - {ユニークID: {action, x, y, w, h}} のオブジェクト
  */
 function applyButtonSettings(layout) {
     const uiContainer = document.getElementById('ui');
-    if (uiContainer) {
-        // UIコンテナを絶対配置の基準にする
-        uiContainer.style.position = 'relative';
-        // Gridレイアウトを解除
-        uiContainer.style.display = 'block';
-        uiContainer.style.gridTemplateAreas = 'none';
-        uiContainer.style.gridTemplateColumns = 'none';
-        uiContainer.style.gap = '0';
-        uiContainer.style.height = '400px'; // 適切な高さを設定
-        uiContainer.style.width = '100%';
-        uiContainer.style.maxWidth = '400px';
-    }
+    if (!uiContainer) return;
 
-    for (const className in layout) {
-        const button = document.querySelector(`#ui .${className}`);
-        const pos = layout[className];
-        if (button) {
-            button.style.position = 'absolute';
-            // #ui の左上からの相対座標を適用
-            button.style.left = `${pos.x}px`;
-            button.style.top = `${pos.y}px`;
-            if (pos.w) button.style.width = `${pos.w}px`;
-            if (pos.h) button.style.height = `${pos.h}px`;
+    // 既存のボタンを全て削除
+    uiContainer.innerHTML = '';
+    
+    // UIコンテナのスタイル設定
+    uiContainer.style.position = 'relative';
+    uiContainer.style.display = 'block';
+    uiContainer.style.height = '400px'; 
+    uiContainer.style.width = '100%';
+    uiContainer.style.maxWidth = '400px';
+
+    for (const id in layout) {
+        const item = layout[id];
+        const control = CONTROL_ACTIONS[item.action];
+        if (!control) continue;
+
+        const button = document.createElement('button');
+        button.classList.add('btn');
+        // 元のクラス名を識別用に追加 (cssスタイルはbtnクラスで制御)
+        button.classList.add(`btn-${item.action}`); 
+        button.setAttribute('data-button-id', id); // ユニークIDを付与
+        button.textContent = control.text;
+
+        // onclick属性またはイベントリスナーを設定
+        if (control.events) {
+            for (const eventName in control.events) {
+                // downアクションのボタンはイベントリスナーを設定
+                if (item.action === 'down') {
+                    // onmousedown, ontouchstartなどのイベントを動的に設定
+                    button.setAttribute(eventName, control.events[eventName]);
+                } else {
+                    button.setAttribute('onclick', control.action);
+                }
+            }
+        } else {
+             button.setAttribute('onclick', control.action);
         }
+
+        // 絶対配置の座標とサイズを適用
+        button.style.position = 'absolute';
+        button.style.left = `${item.x}px`;
+        button.style.top = `${item.y}px`;
+        button.style.width = `${item.w}px`;
+        button.style.height = `${item.h}px`;
+        button.style.boxSizing = 'border-box';
+        button.style.pointerEvents = 'auto'; // ボタンを操作可能に
+
+        uiContainer.appendChild(button);
     }
 }
-
 
 /**
  * 設定モーダルを開く
  */
 function openButtonSettings() {
     const modal = document.getElementById('settings-modal');
-    if (modal) {
-        // モーダルを画面いっぱいに広げる
-        modal.style.display = 'flex';
-        modal.style.padding = '0';
-
-        // 設定コンテンツ（#settings-content）を画面全体に広げるよう調整
-        const content = document.getElementById('settings-content');
-        if (content) {
-            content.style.maxWidth = '100%';
-            content.style.width = '100%';
-            content.style.height = '100%';
-            content.style.maxHeight = '100%';
-            content.style.borderRadius = '0';
-            content.style.padding = '10px';
-            content.style.boxSizing = 'border-box';
-        }
-
-        // プレビューコンテナ（#settings-ui-preview）をゲームUIと同じ位置/サイズに配置
-        const preview = document.getElementById('settings-ui-preview');
-        const uiContainer = document.getElementById('ui');
-
-        if (preview && uiContainer) {
-            // #ui の位置とサイズを取得し、#settings-ui-preview に適用
-            const uiRect = uiContainer.getBoundingClientRect();
-            
-            // #settings-ui-preview は #settings-content 内にあるため、
-            // position: absolute を使って #settings-content (親要素) の左上に固定する
-            preview.style.position = 'absolute'; 
-            preview.style.left = `${uiRect.left}px`;
-            preview.style.top = `${uiRect.top}px`;
-            preview.style.width = `${uiRect.width}px`;
-            preview.style.height = `${uiRect.height}px`;
-            preview.style.margin = '0';
-            preview.style.padding = '0'; // borderのみ残す
-            preview.style.zIndex = '50'; // ボタンより下に設定
-
-            preview.style.display = 'block'; // Grid解除
-            preview.style.gridTemplateAreas = 'none';
-
-            // ボタンの座標管理基準とするため、#ui の位置を基準点とするための準備
-            preview.setAttribute('data-offset-x', uiRect.left);
-            preview.setAttribute('data-offset-y', uiRect.top);
-        }
-
-        createSettingsPreview();
-        setupDragAndDrop();
-    } else {
-        console.error("ID 'settings-modal' の要素が見つかりません。HTMLを確認してください。");
+    if (!modal) return;
+    
+    // UIの表示設定
+    modal.style.display = 'flex';
+    modal.style.padding = '0';
+    
+    // #settings-content を画面全体に広げる
+    const content = document.getElementById('settings-content');
+    if (content) {
+        content.style.maxWidth = '100%';
+        content.style.width = '100%';
+        content.style.height = '100%';
+        content.style.maxHeight = '100%';
+        content.style.borderRadius = '0';
+        content.style.padding = '10px';
+        content.style.boxSizing = 'border-box';
     }
-}
 
-/**
- * 設定モーダルを閉じる
- */
-function closeButtonSettings() {
-    const modal = document.getElementById('settings-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        // スタイルを元に戻す (この部分はCSS側で調整した方が良いですが、JSでも可能)
-        const content = document.getElementById('settings-content');
-        if (content) {
-             content.style.maxWidth = '';
-             content.style.width = '';
-             content.style.height = '';
-             content.style.maxHeight = '';
-             content.style.borderRadius = '';
-             content.style.padding = '';
-             content.style.boxSizing = '';
-        }
+    // #settings-ui-preview を #ui と同じ位置/サイズに配置
+    const preview = document.getElementById('settings-ui-preview');
+    const uiContainer = document.getElementById('ui');
+
+    if (preview && uiContainer) {
+        const uiRect = uiContainer.getBoundingClientRect();
+        
+        preview.style.position = 'absolute'; 
+        preview.style.left = `${uiRect.left}px`;
+        preview.style.top = `${uiRect.top}px`;
+        preview.style.width = `${uiRect.width}px`;
+        preview.style.height = `${uiRect.height}px`;
+        preview.style.margin = '0';
+        preview.style.padding = '0'; 
+        preview.style.zIndex = '50'; 
+
+        preview.setAttribute('data-offset-x', uiRect.left);
+        preview.setAttribute('data-offset-y', uiRect.top);
+        
+        // #settings-content のスクロールを許可
+        preview.style.overflow = 'hidden'; 
+        
     }
+
+    createSettingsPreview();
+    setupDragAndDrop();
 }
 
 /**
  * プレビューエリアにボタンのコピーを作成し、現在の配置を反映する
+ * リサイズハンドルを追加
  */
 function createSettingsPreview() {
     const preview = document.getElementById('settings-ui-preview');
     if (!preview) return;
 
     preview.innerHTML = '';
-
-    for (const controlClass in currentButtonLayout) {
-        const originalButton = document.querySelector(`#ui .${controlClass}`);
-        if (!originalButton) continue;
-
-        const pos = currentButtonLayout[controlClass];
+    
+    // ドラッグ＆ドロップ対象となるボタンの追加とリサイズハンドルの追加
+    for (const id in currentButtonLayout) {
+        const item = currentButtonLayout[id];
+        const control = CONTROL_ACTIONS[item.action];
+        if (!control) continue;
 
         const clone = document.createElement('div');
-
         clone.classList.add('draggable-btn');
-        clone.setAttribute('data-control-class', controlClass);
-        clone.setAttribute('draggable', 'true');
-        clone.textContent = originalButton.textContent;
+        clone.setAttribute('data-button-id', id);
+        clone.setAttribute('data-action', item.action);
+        clone.setAttribute('draggable', 'false'); // ブラウザのネイティブドラッグを無効化
+        clone.textContent = control.text;
 
-        // 絶対配置の座標を適用 (この座標は #ui の左上からの相対座標)
+        // 絶対配置の座標とサイズを適用
         clone.style.position = 'absolute';
-        clone.style.left = `${pos.x}px`;
-        clone.style.top = `${pos.y}px`;
-        clone.style.width = `${pos.w || 100}px`;
-        clone.style.height = `${pos.h || 60}px`;
-        clone.style.boxSizing = 'border-box';
+        clone.style.left = `${item.x}px`;
+        clone.style.top = `${item.y}px`;
+        clone.style.width = `${item.w}px`;
+        clone.style.height = `${item.h}px`;
+
+        // リサイズハンドル (右下)
+        const resizeHandle = document.createElement('div');
+        resizeHandle.classList.add('resize-handle');
+        resizeHandle.style.position = 'absolute';
+        resizeHandle.style.bottom = '-5px';
+        resizeHandle.style.right = '-5px';
+        resizeHandle.style.width = '10px';
+        resizeHandle.style.height = '10px';
+        resizeHandle.style.background = 'red';
+        resizeHandle.style.borderRadius = '50%';
+        resizeHandle.style.cursor = 'nwse-resize';
+        resizeHandle.setAttribute('data-direction', 'se');
+        clone.appendChild(resizeHandle);
+        
+        // 削除ボタン (右上の小さな赤いボタン)
+        const deleteButton = document.createElement('div');
+        deleteButton.classList.add('delete-button');
+        deleteButton.style.position = 'absolute';
+        deleteButton.style.top = '-8px';
+        deleteButton.style.right = '-8px';
+        deleteButton.style.width = '16px';
+        deleteButton.style.height = '16px';
+        deleteButton.style.background = '#ff4d4d';
+        deleteButton.style.color = 'white';
+        deleteButton.style.borderRadius = '50%';
+        deleteButton.style.textAlign = 'center';
+        deleteButton.style.lineHeight = '14px';
+        deleteButton.style.fontSize = '12px';
+        deleteButton.style.cursor = 'pointer';
+        deleteButton.textContent = '×';
+        
+        deleteButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // ドラッグイベントを抑止
+            deleteButtonFromLayout(id);
+        });
+        
+        clone.appendChild(deleteButton);
 
         preview.appendChild(clone);
     }
 }
 
 /**
- * ドラッグ＆ドロップ機能（タッチ対応版）を設定する
+ * ボタンをレイアウトから削除
+ * @param {string} id - 削除するボタンのユニークID
+ */
+function deleteButtonFromLayout(id) {
+    if (confirm('このボタンを削除しますか？')) {
+        delete currentButtonLayout[id];
+        createSettingsPreview(); // プレビューを再生成
+        setupDragAndDrop(); // イベントリスナーを再設定
+    }
+}
+
+
+/**
+ * リサイズ中に使用する座標計算 (タッチ/マウス対応)
+ * @param {number} clientX - クライアントX座標
+ * @param {number} clientY - クライアントY座標
+ * @param {object} uiRect - #ui のgetBoundingClientRect()結果
+ * @param {string} direction - リサイズ方向
+ */
+const resizeMove = (clientX, clientY, uiRect, direction) => {
+    if (!draggedElement || !isResizing) return;
+
+    const currentX = parseFloat(draggedElement.style.left);
+    const currentY = parseFloat(draggedElement.style.top);
+    const initialW = parseFloat(draggedElement.getAttribute('data-initial-w'));
+    const initialH = parseFloat(draggedElement.getAttribute('data-initial-h'));
+    const initialX = parseFloat(draggedElement.getAttribute('data-initial-x'));
+    const initialY = parseFloat(draggedElement.getAttribute('data-initial-y'));
+    
+    // マウス/タッチ座標の #ui 内での相対座標
+    const relativeX = clientX - uiRect.left;
+    const relativeY = clientY - uiRect.top;
+
+    let newX = currentX;
+    let newY = currentY;
+    let newW = initialW;
+    let newH = initialH;
+
+    // リサイズ方向 ('se' のみ実装)
+    if (direction.includes('e')) { // 右方向
+        newW = relativeX - initialX;
+    }
+    if (direction.includes('s')) { // 下方向
+        newH = relativeY - initialY;
+    }
+    
+    // 最小サイズを設定 (例: 30x30)
+    newW = Math.max(30, newW);
+    newH = Math.max(30, newH);
+
+    // スタイルに適用
+    draggedElement.style.width = `${newW}px`;
+    draggedElement.style.height = `${newH}px`;
+    
+    // x, y が変わった場合は style.left/top も更新 (ここではseなので不要だが、別方向用に残す)
+    // draggedElement.style.left = `${newX}px`;
+    // draggedElement.style.top = `${newY}px`;
+};
+
+
+/**
+ * ドラッグ＆ドロップ機能（タッチ/リサイズ対応版）を設定する
  */
 function setupDragAndDrop() {
     const preview = document.getElementById('settings-ui-preview');
     const draggableButtons = preview.querySelectorAll('.draggable-btn');
     
-    // UIコンテナ（#ui）の画面上の絶対位置（オフセット）を取得
-    // ボタンの座標は #ui の相対座標で管理するため、ドラッグ時にこのオフセットを使用
     const uiContainer = document.getElementById('ui');
     if (!uiContainer) return;
     const uiRect = uiContainer.getBoundingClientRect();
-    const uiOffsetX = uiRect.left;
-    const uiOffsetY = uiRect.top;
 
-
-    // ドラッグ/タッチ移動のイベントハンドラ
+    // 移動/リサイズ中の処理
     const onMove = (clientX, clientY) => {
         if (!draggedElement) return;
 
-        // ★★★ 座標計算の修正 ★★★
-        // 新しい座標 = (現在のクライアント座標 - #ui の画面上の絶対位置 - 掴んだオフセット)
-        let newX = clientX - uiOffsetX - dragOffsetX;
-        let newY = clientY - uiOffsetY - dragOffsetY;
+        if (isResizing) {
+            resizeMove(clientX, clientY, uiRect, resizeHandle.getAttribute('data-direction'));
+        } else {
+            // 移動処理
+            let newX = clientX - uiRect.left - dragOffsetX;
+            let newY = clientY - uiRect.top - dragOffsetY;
+            
+            // プレビューコンテナの境界内に制限 (オプション)
+            // newX = Math.max(0, Math.min(uiRect.width - parseFloat(draggedElement.style.width), newX));
+            // newY = Math.max(0, Math.min(uiRect.height - parseFloat(draggedElement.style.height), newY));
 
-        // プレビューコンテナ内 (つまり #ui の位置) の相対位置を計算
-        // ドラッグ要素は #settings-ui-preview の子要素として、その親の相対位置に配置される
-        draggedElement.style.left = `${newX}px`;
-        draggedElement.style.top = `${newY}px`;
+            draggedElement.style.left = `${newX}px`;
+            draggedElement.style.top = `${newY}px`;
+        }
     };
 
-    // ドロップ/タッチ終了のイベントハンドラ
+    // 終了処理
     const onEnd = () => {
         if (!draggedElement) return;
 
+        const id = draggedElement.getAttribute('data-button-id');
+        const action = draggedElement.getAttribute('data-action');
+        
         const finalX = parseFloat(draggedElement.style.left);
         const finalY = parseFloat(draggedElement.style.top);
         const finalW = parseFloat(draggedElement.style.width);
         const finalH = parseFloat(draggedElement.style.height);
 
-        // 座標を整数に丸め、currentButtonLayout を更新
-        const controlClass = draggedElement.getAttribute('data-control-class');
-        if (controlClass) {
-            currentButtonLayout[controlClass] = {
+        // currentButtonLayout を更新
+        if (id) {
+            currentButtonLayout[id] = {
+                action: action,
                 x: Math.round(finalX),
                 y: Math.round(finalY),
                 w: Math.round(finalW),
@@ -674,58 +804,21 @@ function setupDragAndDrop() {
         draggedElement.classList.remove('dragging');
         draggedElement.style.zIndex = 'auto';
         draggedElement.style.pointerEvents = 'auto';
+        draggedElement.removeAttribute('data-initial-w');
+        draggedElement.removeAttribute('data-initial-h');
+        draggedElement.removeAttribute('data-initial-x');
+        draggedElement.removeAttribute('data-initial-y');
+
 
         draggedElement = null;
         dragOffsetX = 0;
         dragOffsetY = 0;
+        isResizing = false;
+        resizeHandle = null;
+        
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
     };
-
-
-    draggableButtons.forEach(btn => {
-        // マウスダウン (PC向けドラッグ開始)
-        btn.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            draggedElement = btn;
-            btn.classList.add('dragging');
-
-            const rect = btn.getBoundingClientRect();
-            // 掴んだ位置のオフセットは、ボタンの絶対位置とマウスカーソル位置から計算
-            dragOffsetX = e.clientX - rect.left;
-            dragOffsetY = e.clientY - rect.top;
-
-            btn.style.zIndex = 100001; // モーダルより高い z-index
-            btn.style.pointerEvents = 'none';
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
-
-        // タッチ開始 (モバイル向けドラッグ開始)
-        btn.addEventListener('touchstart', (e) => {
-            draggedElement = btn;
-            const touch = e.touches[0];
-
-            const rect = btn.getBoundingClientRect();
-            dragOffsetX = touch.clientX - rect.left;
-            dragOffsetY = touch.clientY - rect.top;
-
-            btn.classList.add('dragging');
-            btn.style.zIndex = 100001;
-            btn.style.pointerEvents = 'none';
-        }, { passive: false });
-
-        // タッチ移動
-        btn.addEventListener('touchmove', (e) => {
-            if (!draggedElement || draggedElement !== btn) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            onMove(touch.clientX, touch.clientY);
-        }, { passive: false });
-
-        // タッチ終了
-        btn.addEventListener('touchend', onEnd);
-        btn.addEventListener('touchcancel', onEnd);
-    });
 
     // マウス移動とマウスアップのイベントハンドラを定義 (PC向け)
     const onMouseMove = (e) => {
@@ -733,13 +826,85 @@ function setupDragAndDrop() {
         e.preventDefault();
         onMove(e.clientX, e.clientY);
     };
+    const onMouseUp = (e) => onEnd();
 
-    const onMouseUp = (e) => {
+    // 各ボタンにイベントを設定
+    draggableButtons.forEach(btn => {
+        // リサイズハンドルのイベント設定
+        const handle = btn.querySelector('.resize-handle');
+        if (handle) {
+            const startResize = (e, clientX, clientY) => {
+                e.stopPropagation(); // ドラッグを抑止
+                draggedElement = btn;
+                resizeHandle = handle;
+                isResizing = true;
+                
+                // 初期値の保存
+                btn.setAttribute('data-initial-w', btn.offsetWidth);
+                btn.setAttribute('data-initial-h', btn.offsetHeight);
+                btn.setAttribute('data-initial-x', parseFloat(btn.style.left));
+                btn.setAttribute('data-initial-y', parseFloat(btn.style.top));
+
+                btn.classList.add('dragging');
+                btn.style.zIndex = 100001; 
+                btn.style.pointerEvents = 'none';
+            };
+            
+            handle.addEventListener('mousedown', (e) => {
+                startResize(e, e.clientX, e.clientY);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+            
+            handle.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                startResize(e, touch.clientX, touch.clientY);
+            }, { passive: false });
+        }
+        
+        // ドラッグ (移動) のイベント設定
+        const startDrag = (e, clientX, clientY) => {
+            if (isResizing) return;
+            e.preventDefault(); // リサイズハンドルの動作ではない場合にドラッグ開始
+            
+            draggedElement = btn;
+            
+            const rect = btn.getBoundingClientRect();
+            // 掴んだ位置のオフセット計算
+            dragOffsetX = clientX - rect.left;
+            dragOffsetY = clientY - rect.top;
+
+            btn.classList.add('dragging');
+            btn.style.zIndex = 100001; 
+            btn.style.pointerEvents = 'none';
+        };
+
+        btn.addEventListener('mousedown', (e) => {
+            if (e.target === handle || e.target.classList.contains('delete-button')) return; // リサイズ/削除の場合は無視
+            startDrag(e, e.clientX, e.clientY);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        btn.addEventListener('touchstart', (e) => {
+             if (e.target === handle || e.target.classList.contains('delete-button')) return; // リサイズ/削除の場合は無視
+            const touch = e.touches[0];
+            startDrag(e, touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        // タッチ移動と終了は全体に設定されているため、不要
+    });
+    
+    // タッチ移動/終了を document に設定
+    document.addEventListener('touchmove', (e) => {
         if (!draggedElement) return;
-        onEnd();
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-    };
+        e.preventDefault();
+        const touch = e.touches[0];
+        onMove(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
 }
 
 
@@ -747,8 +912,15 @@ function setupDragAndDrop() {
  * 変更されたボタン配置を保存し、ゲームUIに適用する
  */
 function saveButtonSettings() {
+    // ボタンが一つも残っていない場合は、警告を出して保存しない
+    if (Object.keys(currentButtonLayout).length === 0) {
+        if (!confirm('ボタンが一つも配置されていませんが、この設定を保存しますか？')) {
+            return;
+        }
+    }
+    
     localStorage.setItem('buttonLayout', JSON.stringify(currentButtonLayout));
-    applyButtonSettings(currentButtonLayout);
+    applyButtonSettings(currentButtonLayout); // 実際のゲームUIに適用
     closeButtonSettings();
 }
 
@@ -756,16 +928,144 @@ function saveButtonSettings() {
  * ボタン配置を初期値に戻す
  */
 function resetButtonSettings() {
-    currentButtonLayout = { ...defaultButtonLayout };
-    localStorage.removeItem('buttonLayout');
-    applyButtonSettings(currentButtonLayout);
+    if (confirm('ボタン配置を初期位置に戻しますか？')) {
+        currentButtonLayout = { ...defaultButtonLayout };
+        localStorage.removeItem('buttonLayout');
+        applyButtonSettings(currentButtonLayout);
 
-    const modal = document.getElementById('settings-modal');
-    if (modal && modal.style.display !== 'none') {
-        createSettingsPreview();
-        setupDragAndDrop();
+        const modal = document.getElementById('settings-modal');
+        if (modal && modal.style.display !== 'none') {
+            createSettingsPreview();
+            setupDragAndDrop();
+        }
     }
 }
+
+
+// =========================================================================
+// ボタン追加機能のサポート
+// =========================================================================
+
+/**
+ * ボタン追加UIを初期化し、設定モーダルに追加
+ */
+function initializeAddButtonUI() {
+    const settingsContent = document.getElementById('settings-content');
+    if (!settingsContent) return;
+
+    // 既存のボタンを一旦削除
+    const existingSection = document.getElementById('add-button-section');
+    if (existingSection) existingSection.remove();
+
+    const section = document.createElement('div');
+    section.id = 'add-button-section';
+    section.innerHTML = '<h3>ボタンを追加</h3><div id="add-buttons-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;"></div>';
+    
+    // 保存/閉じるボタンの上に追加
+    const saveButton = settingsContent.querySelector('button[onclick="saveButtonSettings()"]');
+    if (saveButton) {
+        settingsContent.insertBefore(section, saveButton);
+    } else {
+        settingsContent.appendChild(section);
+    }
+
+    const container = document.getElementById('add-buttons-container');
+    
+    for (const action in CONTROL_ACTIONS) {
+        const control = CONTROL_ACTIONS[action];
+        const btn = document.createElement('button');
+        btn.textContent = `+ ${control.text}`;
+        btn.style.padding = '8px 15px';
+        btn.style.border = '1px solid #ccc';
+        btn.style.borderRadius = '5px';
+        btn.style.cursor = 'pointer';
+        btn.onclick = () => addButtonToLayout(action);
+        container.appendChild(btn);
+    }
+}
+
+/**
+ * 新しいボタンを currentButtonLayout に追加
+ * @param {string} action - 追加するボタンのアクション名
+ */
+function addButtonToLayout(action) {
+    // ユニークIDを生成 (アクション名-連番)
+    let count = 1;
+    let newId = `${action}-${count}`;
+    while (currentButtonLayout[newId]) {
+        count++;
+        newId = `${action}-${count}`;
+    }
+    
+    // プレビューエリアの中央付近に配置
+    const centerX = 150; 
+    const centerY = 150;
+
+    currentButtonLayout[newId] = {
+        action: action,
+        x: centerX, 
+        y: centerY,
+        w: 100,
+        h: 60
+    };
+    
+    // プレビューを再生成して新しいボタンを表示
+    createSettingsPreview();
+    setupDragAndDrop();
+    
+    // 追加したボタンが画面中央に表示されるようにスクロール (不要なら削除)
+    const preview = document.getElementById('settings-ui-preview');
+    preview.scrollTo(centerX - preview.clientWidth / 2, centerY - preview.clientHeight / 2);
+}
+
+
+// =========================================================================
+// 既存の関数 (変更なし)
+// =========================================================================
+
+// closeButtonSettings, togglePause, resumeGame, endGame,
+// registerRanking, hideGameOverModalAndShowMenu, hideRankingModal,
+// playerRotate, hardDrop, playerMove, startSoftDrop, stopSoftDrop, holdPiece 
+// などの関数は、元のJSファイルに定義されているものを使用します。
+// （提供されたHTMLには定義がありませんが、テトリスのゲームロジックに必要な関数です）
+
+function closeButtonSettings() {
+    const modal = document.getElementById('settings-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        
+        // スタイルを元に戻す
+        const content = document.getElementById('settings-content');
+        if (content) {
+             content.style.maxWidth = '90%';
+             content.style.width = '350px';
+             content.style.height = '';
+             content.style.maxHeight = '90%';
+             content.style.borderRadius = '10px';
+             content.style.padding = '30px';
+             content.style.boxSizing = 'content-box';
+        }
+    }
+}
+
+
+// 以下はゲームロジックの一部としてHTMLから呼び出されている関数 (ダミー/既存のコード)
+// 実際にはテトリスのゲームロジックJSで定義されている必要があります
+function togglePause() { console.log('togglePause called'); }
+function resumeGame() { console.log('resumeGame called'); }
+function endGame() { console.log('endGame called'); }
+function registerRanking() { console.log('registerRanking called'); }
+function hideGameOverModalAndShowMenu() { console.log('hideGameOverModalAndShowMenu called'); }
+function hideRankingModal() { console.log('hideRankingModal called'); }
+function playerRotate(right) { console.log(`playerRotate called: ${right ? 'Right' : 'Left'}`); }
+function hardDrop() { console.log('hardDrop called'); }
+function playerMove(dir) { console.log(`playerMove called: ${dir}`); }
+function startSoftDrop() { console.log('startSoftDrop called'); }
+function stopSoftDrop() { console.log('stopSoftDrop called'); }
+function holdPiece() { console.log('holdPiece called'); }
+// =========================================================================
+
+
 
         const firebaseConfig = {
             apiKey: "AIzaSyAiWLR5xBKMpKEYdGUL2mL7HVY2LWAbwX0",
