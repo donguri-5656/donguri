@@ -504,18 +504,12 @@ function loadButtonSettings() {
     }
 }
 
-/**
- * 実際のゲームUIにボタン配置を適用する (ボタンを動的に生成)
- * @param {object} layout - {ユニークID: {action, x, y, w, h}} のオブジェクト
- */
 function applyButtonSettings(layout) {
     const uiContainer = document.getElementById('ui');
     if (!uiContainer) return;
 
-    // 既存のボタンを全て削除
     uiContainer.innerHTML = '';
     
-    // UIコンテナのスタイル設定
     uiContainer.style.position = 'relative';
     uiContainer.style.display = 'block';
     uiContainer.style.height = '400px'; 
@@ -529,18 +523,13 @@ function applyButtonSettings(layout) {
 
         const button = document.createElement('button');
         button.classList.add('btn');
-        // 元のクラス名を識別用に追加 (cssスタイルはbtnクラスで制御)
         button.classList.add(`btn-${item.action}`); 
-        button.setAttribute('data-button-id', id); // ユニークIDを付与
+        button.setAttribute('data-button-id', id);
         button.textContent = control.text;
-
-        // onclick属性またはイベントリスナーを設定
         if (control.events) {
             for (const eventName in control.events) {
-                // downアクションのボタンはイベントリスナーを設定
                 if (item.action === 'down') {
-                    // onmousedown, ontouchstartなどのイベントを動的に設定
-                    button.setAttribute(eventName, control.events[eventName]);
+                    button.setAttribute('on' + eventName, control.events[eventName]);
                 } else {
                     button.setAttribute('onclick', control.action);
                 }
