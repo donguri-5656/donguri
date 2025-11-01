@@ -427,14 +427,224 @@
 
 
 
+/**
+ * カスタムボタンレイアウトの超短縮セーブ/ロード機能
+ * 短縮ルール:
+ * 1. 座標を 64進数 (0-9, a-z, A-Z, -, _) にエンコード。
+ * 2. action, x, y は必須でエンコードし、各ボタンは固定長 (3文字) で表現。
+ * 3. w, h はオプションでエンコードし、エンコードされる場合は固定長 (2文字) を追加。
+ */
+
+// アクションとコードの対応を数値に変更（短縮のため）
+const _actionToCode = {
+  'rotate-left': 0,
+  'rotate-right': 1,
+  'left': 2,
+  'right': 3,
+  'down': 4,
+  'hard-drop': 5,
+  'hold': 6
+};
+const _codeToAction = Object.fromEntries(Object.entries(_actionToCode).map(([k,v]) => [v,k]));
+
+// 64進数の文字セット
+const BASE64_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_';
+const BASE64_MAP = Object.fromEntries(BASE64_CHARS.split('').map((c, i) => [c, i]));
+const BASE = BASE64_CHARS.length; // 64
+
+// 座標の正規化に使用する係数（画面最大サイズ 1024x1024 を想定し、約 255/1024 = 0.25）
+const NORM_FACTOR = 4;
+// 64進数2桁で表現できる最大値 (64*64 - 1 = 4095) / NORM_FACTOR = 約 1000px までの座標を表現可能
+const MAX_COORD_VAL = BASE * BASE - 1; 
+
+// 独自のデフォルト値
+const DEFAULT_W = 60;
+const DEFAULT_H = 40;
+// WとHも正規化する（例: 2桁の64進数で表現可能な最大サイズ）
+const MAX_SIZE_VAL = 64 * 64 - 1;
+
+/** 数値をカスタム64進数にエンコードし、指定された文字数にパディングする */
+function encodeBase64(num, length) {
+  let str = '';
+  num = Math.max(0, Math.min(MAX_SIZE_VAL, Math.round(num))); // 範囲制限
+  for (let i = 0; i < length; i++) {
+    str = BASE64_CHARS[num % BASE] + str;
+    num = Math.floor(num / BASE);
+  }
+  return str;
+}
+
+/** カスタム64進数文字列を数値にデコードする */
+function decodeBase64(str) {
+  let num = 0;
+  for (let i = 0; i < str.length; i++) {
+    num = num * BASE + BASE64_MAP[str[i]];
+  }
+  return num;
+}
+
+// ----------------------------------------------------------------------
+// セーブ処理
+// ----------------------------------------------------------------------
+
+function savecodeout() {
+  try {
+    const layout = currentButtonLayout || {};
+    const parts = [];
+
+    for (const id in layout) {
+      const it = layout[id];
+      const actionCode = _actionToCode[it.action];
+      
+      if (actionCode === undefined) continue; // 未知アクションは無視
+
+      // 1. アクションコード (0-6) は 64進数1桁で表現 (ACTION_CODE_BASE64: 1文字)
+      const encodedAction = encodeBase64(actionCode, 1);
+      
+      // 2. 座標を正規化して64進数2桁で表現 (X_COORD_BASE64: 2文字, Y_COORD_BASE64: 2文字)
+      const xNorm = Math.round(it.x / NORM_FACTOR);
+      const yNorm = Math.round(it.y / NORM_FACTOR);
+      const encodedX = encodeBase64(xNorm, 2);
+      const encodedY = encodeBase64(yNorm, 2);
+
+      // 基本パート: 5文字 (Action + X + Y)
+      let part = encodedAction + encodedX + encodedY;
+
+      // 3. 幅と高さのエンコード (オプション)
+      const w = Math.round(it.w);
+      const h = Math.round(it.h);
+
+      // デフォルト値でなければ、w, h をそれぞれ64進数2桁で表現 (W_BASE64: 2文字, H_BASE64: 2文字)
+      if (w !== DEFAULT_W || h !== DEFAULT_H) {
+        // w の正規化は不要（MAX_SIZE_VAL 以下の数値として扱う）
+        const encodedW = encodeBase64(w, 2);
+        part += encodedW;
+        
+        // h も同様にエンコード
+        if (h !== DEFAULT_H) {
+          const encodedH = encodeBase64(h, 2);
+          part += encodedH;
+        }
+      }
+      parts.push(part);
+    }
+
+    // すべてのエントリを区切り文字なしで連結
+    const compact = parts.join('');
+
+    // クリップボード処理（元のコードと同様）
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(compact).then(() => {
+        alert('短縮コードをクリップボードにコピーしました（必要なら保存してください）');
+        prompt('セーブ文字列（保存用）:', compact);
+      }).catch(() => {
+        prompt('セーブ文字列（コピーに失敗したため手動でコピーしてください）:', compact);
+      });
+    } else {
+      prompt('セーブ文字列（保存用）:', compact);
+    }
+  } catch (e) {
+    console.error('savecodeout error', e);
+    alert('セーブに失敗しました。コンソールを確認してください。');
+  }
+}
+
+// ----------------------------------------------------------------------
+// ロード処理
+// ----------------------------------------------------------------------
+
+function savecodein() {
+  try {
+    let compact = prompt('ロードするセーブ文字列を貼り付けてください:');
+    if (!compact) {
+      alert('文字列が入力されませんでした。');
+      return;
+    }
+    compact = compact.trim();
+
+    const newLayout = {};
+    const counter = {};
+    let index = 0;
+
+    while (index < compact.length) {
+      // 1. アクションコード (1文字) をデコード
+      if (index + 1 > compact.length) break;
+      const encodedAction = compact.substring(index, index + 1);
+      const actionCode = decodeBase64(encodedAction);
+      const action = _codeToAction[actionCode];
+      
+      if (!action) {
+        console.warn(`Unknown action code at index ${index}: ${encodedAction}. Stop parsing.`);
+        break; // 未知コードで停止
+      }
+      index += 1;
+
+      // 2. 座標 (X: 2文字, Y: 2文字) をデコード
+      if (index + 4 > compact.length) {
+        console.warn(`Incomplete coordinates at index ${index}. Stop parsing.`);
+        break;
+      }
+      const encodedX = compact.substring(index, index + 2);
+      const encodedY = compact.substring(index + 2, index + 4);
+      index += 4;
+
+      const xNorm = decodeBase64(encodedX);
+      const yNorm = decodeBase64(encodedY);
+      
+      // 座標を復元
+      const x = Math.round(xNorm * NORM_FACTOR);
+      const y = Math.round(yNorm * NORM_FACTOR);
+
+      // 3. 幅と高さ (オプション) をデコード
+      let w = DEFAULT_W;
+      let h = DEFAULT_H;
+
+      // 次の2文字が残っていれば w のデータと仮定
+      if (index + 2 <= compact.length) {
+        const encodedW = compact.substring(index, index + 2);
+        w = decodeBase64(encodedW);
+        index += 2;
+
+        // その次の2文字が残っていれば h のデータと仮定
+        if (index + 2 <= compact.length) {
+          const encodedH = compact.substring(index, index + 2);
+          h = decodeBase64(encodedH);
+          index += 2;
+        }
+      }
+
+      // ID生成
+      const base = action.replace(/\W+/g, '');
+      counter[base] = (counter[base] || 0) + 1;
+      const id = `${base}-${counter[base]}`;
+      
+      newLayout[id] = { action, x, y, w, h };
+    }
+
+    // ロード後の処理（元のコードと同様）
+    if (Object.keys(newLayout).length === 0) {
+      alert('有効なエントリが見つかりませんでした。文字列の形式を確認してください。');
+      return;
+    }
+    currentButtonLayout = newLayout;
+    try {
+      localStorage.setItem('buttonLayout', JSON.stringify(currentButtonLayout));
+    } catch (e) {
+    }
+    applyButtonSettings(currentButtonLayout);
+    if (document.getElementById('settings-ui-preview')) {
+      createSettingsPreview();
+      setupDragAndDrop();
+    }
+    alert('ロード完了しました。ボタン配置を反映しました。');
+  } catch (e) {
+    console.error('savecodein error', e);
+    alert('ロードに失敗しました。コンソールを確認してください。');
+  }
+}
 
 
 
-
-
-// =========================================================================
-// 新しいボタン管理の仕組み (ユニークIDと複数配置、リサイズ対応)
-// =========================================================================
 
 // コントロールアクションとボタンテキストの対応表
 const CONTROL_ACTIONS = {
