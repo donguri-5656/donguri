@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wa--i</title>
+<style>
+/* CSSリセットと基本設定 */
+body {
+    margin: 0;
+    font-family: "Arial", sans-serif;
+    background-color: #0d0d0d; 
+    color: #f0f0f0; 
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    position: relative;
+}
+
+/* ホラー背景のエフェクト（ノイズ/グリッチ） */
+.horror-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#n)" opacity="0.4"/></svg>'); /* ノイズ強度を少し上げる */
+    background-size: 100px 100px;
+    opacity: 0.4;
+    animation: scan-line 4s linear infinite alternate; /* アニメーションを速く */
+}
+
+@keyframes scan-line {
+    0%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    50% {
+        transform: translateY(100vh);
+        opacity: 0.2;
+    }
+}
+
+.hero {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-section {
+    z-index: 10;
+    padding: 10px 100px 100px 100px;
+    background-color: rgba(17, 17, 17, 0.98); /* 不透明度を上げる */
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+    width: 100%;
+    box-shadow: 0 -4px 50px rgba(255, 0, 0, 0.4); /* 影を強く */
+    border-top: 3px solid #ff0000; 
+}
+
+.menu-title {
+    text-align: center;
+    font-size: 3em; /* さらに大きく */
+    margin-bottom: 40px;
+    color: #ffffff; 
+    text-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
+    animation: title-glitch 0.1s linear infinite alternate; /* タイトルのチラつきを高速化 */
+}
+
+/* タイトル用：激しいグリッチアニメーション */
+@keyframes title-glitch {
+    0% {
+        opacity: 1;
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7), 2px 2px 0 #00ffff, -2px -2px 0 #ffff00;
+        transform: translate(0, 0) skew(0deg);
+    }
+    25% {
+        opacity: 0.95;
+        transform: translate(1px, -1px) skew(0.5deg);
+    }
+    50% {
+        opacity: 1;
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7), -1px 1px 0 #00ffff, 1px -1px 0 #ffff00;
+        transform: translate(-1px, 1px) skew(-0.5deg);
+    }
+    75% {
+        opacity: 0.9;
+        transform: translate(0, 2px) skew(1deg);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(0, 0) skew(0deg);
+    }
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 30px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.menu-button {
+    background: linear-gradient(to right, #95f5f2, #ffffff); 
+    color: #ffdddd;
+    border: 3px solid #ffffff; 
+    padding: 25px 30px;
+    border-radius: 2px; /* より角張ったデザイン */
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+/* ボタン通常時の微細な文字震え（強化） */
+.menu-button span {
+    position: relative;
+    display: block;
+    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 0 0 8px #ff0000;
+    animation: subtle-glitch 4s linear infinite alternate; /* 微細な震えを常に追加 */
+}
+
+/* 微細な震えアニメーション */
+@keyframes subtle-glitch {
+    0% {
+        transform: translate(0.5px, 0);
+    }
+    50% {
+        transform: translate(-0.5px, 0.5px);
+    }
+    100% {
+        transform: translate(0, -0.5px);
+    }
+}
+
+
+/* ホバー時の激しいグリッチエフェクト（強化） */
+.menu-button:hover {
+    background: linear-gradient(to right, #600000, #a00000);
+    transform: scale(1.03);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 1.0), 0 0 10px rgba(255, 255, 255, 0.3);
+    border-color: #ff0000;
+}
+
+/* ホバー時のグリッチ用疑似要素（テキスト全体が震えるように） */
+.menu-button::before, .menu-button::after {
+    content: attr(data-text); 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: #16a1ab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    pointer-events: none;
+}
+
+.menu-button:hover::before {
+    left: 3px; /* 震え幅を大きく */
+    color: #00ffff;
+    opacity: 0.7;
+    animation: glitch-anim-1 0.2s infinite alternate-reverse; /* 速度アップ */
+}
+
+.menu-button:hover::after {
+    left: -3px; /* 震え幅を大きく */
+    color: #4df3ff;
+    opacity: 0.7;
+    animation: glitch-anim-2 0.2s infinite alternate-reverse; /* 速度アップ */
+}
+
+/* ホバーグリッチアニメーション（さらに不規則に） */
+@keyframes glitch-anim-1 {
+    0% {
+        transform: translate(1px, -1px);
+        clip: rect(42px, 9999px, 44px, 0);
+    }
+    20% {
+        transform: translate(-1px, 2px);
+        clip: rect(10px, 9999px, 3px, 0);
+    }
+    40% {
+        transform: translate(2px, -2px);
+        clip: rect(79px, 9999px, 81px, 0);
+    }
+    60% {
+        transform: translate(-2px, 1px);
+        clip: rect(50px, 9999px, 53px, 0);
+    }
+    80% {
+        transform: translate(1px, 0);
+        clip: rect(20px, 9999px, 23px, 0);
+    }
+    100% {
+        transform: translate(0, 0);
+        clip: rect(90px, 9999px, 93px, 0);
+    }
+}
+
+@keyframes glitch-anim-2 {
+    0% {
+        transform: translate(-1px, 2px);
+        clip: rect(50px, 9999px, 52px, 0);
+    }
+    20% {
+        transform: translate(2px, -1px);
+        clip: rect(25px, 9999px, 28px, 0);
+    }
+    40% {
+        transform: translate(-2px, 2px);
+        clip: rect(65px, 9999px, 67px, 0);
+    }
+    60% {
+        transform: translate(1px, -2px);
+        clip: rect(15px, 9999px, 18px, 0);
+    }
+    80% {
+        transform: translate(0, 1px);
+        clip: rect(70px, 9999px, 73px, 0);
+    }
+    100% {
+        transform: translate(0, 0);
+        clip: rect(5px, 9999px, 8px, 0);
+    }
+}
+</style>
+</head>
+<body>
+    <div class="horror-overlay"></div>
+
+    <div class="hero">
+        <div class="menu-section">
+            <div class="menu-title">^_^</div>
+            <div class="menu-grid">
+                <button class="menu-button" onclick="location.href='menu1.html'" data-text="見てるだけ"><span>見てるだけ</span></button>
+                <button class="menu-button" onclick="location.href='menu2.html'" data-text="マルチオセロ"><span>マルチオセロ</span></button>
+                <button class="menu-button" onclick="location.href='menu3.html'" data-text="3D迷路"><span>3D迷路</span></button>
+                <button class="menu-button" onclick="location.href='menu4.html'" data-text="て"><span>て</span></button>
+                <button class="menu-button" onclick="location.href='menu5.html'" data-text="oて"><span>oて</span></button>
+                <button class="menu-button" onclick="location.href='menu6.html'" data-text="ぼおる"><span>ぼおる</span></button>
+                <button class="menu-button" onclick="location.href='menu7.html'" data-text="オセロ"><span>オセロ</span></button>
+                <button class="menu-button" onclick="location.href='menu8.html'" data-text="文字送り"><span>文字送り</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グリッチエフェクト用のdata-text設定
+        document.querySelectorAll('.menu-button').forEach(button => {
+            const text = button.querySelector('span').textContent;
+            button.setAttribute('data-text', text);
+        });
+    </script>
+</body>
+</html>
