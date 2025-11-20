@@ -1,644 +1,466 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>String Capture Game (Fine-Tuned Replay Speed & Random Initial Strings)</title>
-<style>
-/* ----------------------------------------------------
-   レイアウトスタイル (変更なし)
----------------------------------------------------- */
-body {
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #222;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    gap: 30px;
-}
-canvas {
-    border: 1px solid #fff;
-    background-color: #000;
-}
-#controls {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    align-items: flex-start;
-    padding: 20px;
-    border: 1px solid #444;
-    border-radius: 8px;
-    background-color: #333;
-    width: 250px;
-}
-#controls h3 {
-    margin-top: 0;
-    border-bottom: 1px solid #555;
-    padding-bottom: 5px;
-    width: 100%;
-}
-#controls input[type="range"] {
-    width: 120px;
-}
-#controls button {
-    padding: 10px 20px;
-    font-size: 18px;
-    cursor: pointer;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    width: 100%;
-    margin-top: 10px;
-    transition: background-color 0.2s;
-}
-#controls button:hover {
-    background-color: #5bbd5f;
-}
-.control-group {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-    width: 100%;
-}
-.control-value {
-    margin-left: 10px;
-    font-weight: bold;
-    min-width: 25px;
-}
-.range-container {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    justify-content: space-between;
-}
-/* リプレイコントロール用スタイル */
-#replay-controls {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #555;
-    width: 100%;
-}
-#replay-controls button {
-    width: auto;
-    padding: 8px 12px;
-    font-size: 14px;
-    margin: 0 5px 10px 0;
-}
-#replay-controls .range-container {
-    margin-top: 10px;
-}
-#replay-status {
-    text-align: center;
-    font-size: 18px;
-    font-weight: bold;
-    color: #FFC300;
-    margin-bottom: 10px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最終石取りゲーム（2カラムレイアウト）</title>
+    <style>
+        /* --- CSS: 全体レイアウト --- */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #d0f0ff;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: row; 
+            align-items: flex-start;
+            max-width: 1000px;
+            width: 95%;
+            height: 80%;
+            padding: 20px;
+            
+            background-color: transparent; 
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* --- 左側: ゲーム画面（石の表示エリア） --- */
+        #game-view {
+            flex: 2;
+            padding-right: 20px;
+            border-right: none; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 15px 0 0 15px;
+            padding-left: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #game-area {
+            margin-top: 20px;
+            padding: 15px;
+            border: none;
+            background-color: transparent; 
+            width: 95%; 
+            height: 250px; 
+            overflow-y: auto;
+        }
+
+        #stone-display {
+            font-size: 30px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        .stone-icon {
+            color: #ffc107;
+            margin-right: 5px;
+            display: inline-block;
+        }
+
+        /* --- 右側: コントロールパネル --- */
+        #control-panel {
+            flex: 1;
+            padding-left: 20px;
+            border-left: none;
+            display: flex;
+            flex-direction: column;
+            /* 修正点 1: コンテンツを上端に寄せる */
+            align-items: flex-start; 
+            /* 修正点 1: テキストも左寄せにする */
+            text-align: left; 
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 0 15px 15px 0;
+            padding-right: 20px;
+            min-width: 250px;
+        }
+        
+        #rule-button {
+            /* 左寄せにしたため、ボタンの配置を調整 */
+            align-self: flex-end;
+            margin-top: 5px; /* 上部を少し詰める */
+        }
+        
+        .control-separator {
+            width: 90%;
+            border: 0; 
+            border-top: 1px solid #ccc; 
+            margin: 10px 0;
+            /* 修正点 1: 左寄せに対応 */
+            align-self: flex-start;
+        }
+
+        /* --- プレイヤー情報とコントロール群の調整 --- */
+        #player-info {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px dashed #ccc;
+            /* 修正点: 幅とテキスト位置調整 */
+            width: 90%; 
+            text-align: left;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            /* 修正点: 幅とテキスト位置調整 */
+            width: 90%; 
+            text-align: left;
+        }
+        
+        #take-options {
+            /* 修正点 2: max-widthを解除し、左寄せで表示を安定させる */
+            max-width: none; 
+            margin: 10px 0; /* 中央寄せを解除 */
+            display: flex;
+            flex-wrap: wrap;
+            /* 修正点 2: ボタンの並びを左寄せに固定 */
+            justify-content: flex-start; 
+            min-height: 50px;
+        }
+
+        .controls button, .info-button, #reset-button {
+            padding: 12px 24px;
+            /* 修正点: 左寄せに合わせて左マージンを詰める */
+            margin: 8px 5px 8px 0; 
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            background-color: #4CAF50; 
+            color: white;
+            font-weight: normal;
+        }
+        
+        /* #take-button と #reset-button のマージン調整 */
+        #take-button, #reset-button {
+            margin-left: 0;
+        }
+        
+        .take-option {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 2px solid #ccc;
+            padding: 8px 15px;
+            margin: 5px 5px 5px 0; /* 左寄せに合わせて調整 */
+            font-size: 1.1em;
+            transition: all 0.2s;
+        }
+        .take-option.selected {
+            background-color: #4CAF50; 
+            color: white;
+            border-color: #4CAF50;
+            transform: scale(1.05);
+        }
+
+        .info-button {
+            background-color: #FF9800; 
+        }
+
+        #reset-button {
+            background-color: #ff5722 !important; 
+            margin-top: 20px;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #D32F2F;
+            min-height: 25px;
+        }
+        
+        #result {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.5em;
+            font-weight: bold;
+            display: none;
+            margin-top: 15px;
+        }
+        
+        /* --- モーダルウィンドウ（変更なし） --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 5% auto;
+            padding: 30px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 15px;
+            text-align: left;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .strong-rule, .win-rule {
+            color: #E91E63;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div id="game-view">
+            <h1>最終石取りゲーム</h1>
+            <hr style="width: 100%; border: 0; border-top: 1px solid #ccc;">
+            <div id="game-area">
+                <p>残り石の数: <span id="total-stones"></span>個</p>
+                <div id="stone-display"></div>
+            </div>
+            
+            <p id="message"></p>
+            <p id="result"></p>
+        </div>
 
-<canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="control-panel">
+            <button id="rule-button" class="info-button">ルールを見る</button> 
+            <hr class="control-separator"> <div id="player-info">
+                <p>現在のプレイヤー: <span id="current-player">A</span>さん</p>
+                <p id="last-taken-info">（前のプレイヤーが取った石の数: <span id="last-taken-count">N/A</span>個）</p>
+            </div>
 
-<div id="controls">
-    <h2>🕹️ 設定メニュー</h2>
-    
-    <h3>🕸️ 線設定</h3>
-    <div class="control-group">
-        <label for="numStringsRange">初期線数 (1玉あたり):</label>
-        <div class="range-container">
-            <input type="range" id="numStringsRange" min="1" max="4" step="1" value="1">
-            <span id="numStringsValue" class="control-value">1</span>
+            <div class="controls">
+                <p id="max-take-limit">取れる石の最大数: <span id="current-max-take">?</span>個</p>
+                <div id="take-options">
+                    </div>
+                <button id="take-button" disabled>石を取る (0個選択中)</button>
+            </div>
+
+            <button id="reset-button" style="display: none;">新しいゲームを始める</button>
         </div>
     </div>
-    
-    <h3>⚪ 球設定</h3>
-    <div class="control-group">
-        <label for="numBallsRange">ボール数:</label>
-        <div class="range-container">
-            <input type="range" id="numBallsRange" min="2" max="8" step="1" value="4">
-            <span id="numBallsValue" class="control-value">4</span>
-        </div>
-    </div>
-    <div class="control-group">
-        <label for="speedRange">🚀 全体のスピード:</label>
-        <div class="range-container">
-            <input type="range" id="speedRange" min="1.0" max="10" step="0.5" value="4"> 
-            <span id="speedValue" class="control-value">4.0</span>
-        </div>
-    </div>
-    
-    <button id="restartButton">🔄 スタート/リセット</button>
 
-    <div id="replay-controls">
-        <h3>📼 リプレイ</h3>
-        <p id="replay-status" style="color:#FFF;">---</p>
+    <div id="rule-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" style="color: #aaa; float: right; font-size: 28px; font-weight: bold;">&times;</span>
+            <h2>ルール</h2>
+            
+            <ol>
+                <li><strong>初期状態:</strong> 石はゲーム開始時に 20個から30個の間でランダム に置かれます。</li>
+                <li><strong>プレイヤー:</strong> プレイヤーAとプレイヤーBが交互に石を取ります。</li>
+                <li><strong>勝利条件:</strong> <span class="win-rule" style="color: #4CAF50;">最後に残った石を取った人が「勝ち」</span>です！</li>
+                <li><strong>ターンごとのルール:</strong>
+                    <ul>
+                        <li><span class="strong-rule">取れる石の最小数は常に1個</span>です。</li>
+                        <li><span class="strong-rule">取れる石の最大数</span>は、<span class="strong-rule">前のプレイヤーが取った石の数の「2倍」</span>までです。</li>
+                        <li>ただし、最初のターン（前のプレイヤーがいない時）のみ、最大3個まで取れます。</li>
+                    </ul>
+                </li>
+            </ol>
 
-        <div class="control-group">
-            <label for="replaySpeedRange">リプレイ速度:</label>
-            <div class="range-container">
-                <input type="range" id="replaySpeedRange" min="0.25" max="4" step="0.05" value="1">
-                <span id="replaySpeedValue" class="control-value">1.00x</span>
+            <h3>ルール適用</h3>
+            <div class="rule-example" style="border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; margin-top: 10px; border-radius: 5px;">
+                <p><strong>1. ゲーム開始時 (Aさんの最初のターン):</strong></p>
+                <p>Aさんは 1個 2個 3個 の中から選べます。</p>
+            </div>
+            <div class="rule-example" style="border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; margin-top: 10px; border-radius: 5px;">
+                <p><strong>2. Aさんが2個取った後、Bさんのターン:</strong></p>
+                <p>Bさんはその2倍、つまり 最大4個 まで取れます。</p>
             </div>
         </div>
-        
-        <div style="display:flex; justify-content:space-between;">
-            <button id="toggleReplayButton">▶️ 再生 / ⏸️ 一時停止</button>
-            <button id="exitReplayButton">❌ 終了</button>
-        </div>
-        
-        <div class="control-group">
-            <label>リプレイ時間 (巻き戻し/早送り):</label>
-            <div class="range-container">
-                <input type="range" id="replayTimeRange" min="0" max="1000" step="1" value="0" disabled>
-                <span id="currentTimeDisplay">0.00s / 0.00s</span>
-            </div>
-        </div>
     </div>
-</div>
 
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const WIDTH = canvas.width;
-const HEIGHT = canvas.height;
-const CENTER_X = WIDTH / 2;
-const CENTER_Y = HEIGHT / 2;
-const BOUNDARY_RADIUS = 280;
-const BALL_RADIUS = 7;
-const INITIAL_SPEED = 5.0;
-const INITIAL_COLORS = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#FFC300', '#DAF7A6', '#C70039', '#900C3F'];
-const SUB_STEPS = 5; 
-const TIME_STEP = 0.125; 
-const TARGET_FPS = 60; 
-const MS_PER_FRAME = 1000 / TARGET_FPS;
+    <script>
+        /* JavaScriptコードは変更なし */
+        document.addEventListener('DOMContentLoaded', () => {
+            const MIN_STONES = 20;
+            const MAX_STONES = 30;
+            
+            let totalStones = 0;
+            let currentPlayer = 'A';
+            let gameActive = true;
+            let lastTaken = 0;
+            let selectedTakeCount = 0;
 
-let GAME_SPEED_MULTIPLIER = 4.0;
-let NUM_BALLS = 4;
-let INITIAL_STRINGS_PER_BALL = 1;
-let balls = [];
-let animationFrameId = null;
+            const stoneDisplay = document.getElementById('stone-display');
+            const totalStonesSpan = document.getElementById('total-stones');
+            const currentPlayerSpan = document.getElementById('current-player');
+            const lastTakenCountSpan = document.getElementById('last-taken-count');
+            const takeOptionsDiv = document.getElementById('take-options');
+            const takeButton = document.getElementById('take-button');
+            const currentMaxTakeSpan = document.getElementById('current-max-take');
+            const messageElement = document.getElementById('message');
+            const resultElement = document.getElementById('result');
+            const resetButton = document.getElementById('reset-button');
+            const ruleButton = document.getElementById('rule-button');
+            const ruleModal = document.getElementById('rule-modal');
+            const closeModal = document.querySelector('.close-button');
 
-// リプレイ用変数
-let history = []; 
-let frameCount = 0; 
-let isGameFinished = false; 
-let isReplaying = false; 
-let replayFrame = 0; 
-let isPaused = false; 
-let replaySpeedMultiplier = 1.0; 
-let lastFrameTime = 0; 
-let frameRemainder = 0; 
+            /** 石の表示を更新する */
+            const renderStones = (num) => {
+                let stoneHTML = '';
+                for (let i = 0; i < num; i++) {
+                    stoneHTML += '<span class="stone-icon">⚫️</span>';
+                    if ((i + 1) % 10 === 0) {
+                        stoneHTML += '<br>';
+                    }
+                }
+                stoneDisplay.innerHTML = stoneHTML;
+                totalStonesSpan.textContent = num;
+            };
 
-// DOM要素 (変更なし)
-const speedRange = document.getElementById('speedRange');
-const speedValueSpan = document.getElementById('speedValue');
-const numBallsRange = document.getElementById('numBallsRange');
-const numBallsValueSpan = document.getElementById('numBallsValue');
-const numStringsRange = document.getElementById('numStringsRange');
-const numStringsValueSpan = document.getElementById('numStringsValue');
-const restartButton = document.getElementById('restartButton');
-const toggleReplayButton = document.getElementById('toggleReplayButton');
-const exitReplayButton = document.getElementById('exitReplayButton');
-const replayTimeRange = document.getElementById('replayTimeRange');
-const currentTimeDisplay = document.getElementById('currentTimeDisplay');
-const replayStatus = document.getElementById('replay-status');
-const replaySpeedRange = document.getElementById('replaySpeedRange');
-const replaySpeedValueSpan = document.getElementById('replaySpeedValue');
+            /** 取れる石の最大数を計算し、選択肢ボタンを更新する */
+            const updateTakeOptions = () => {
+                let maxLimit;
+                if (lastTaken === 0) {
+                    maxLimit = 3;
+                } else {
+                    maxLimit = lastTaken * 2;
+                }
 
-// 玉のクラス (変更なし)
-class Ball {
-    constructor(x, y, vx, vy, color, stringPoints) {
-        this.x = x;
-        this.y = y;
-        this.baseVX = vx;
-        this.baseVY = vy;
-        this.color = color;
-        this.radius = BALL_RADIUS;
-        this.exists = true;
-        this.stringPoints = stringPoints;
-    }
-    
-    draw() {
-        if (!this.exists) return;
-        this.stringPoints.forEach(sp => {
-            const stringX = CENTER_X + BOUNDARY_RADIUS * Math.cos(sp.angle);
-            const stringY = CENTER_Y + BOUNDARY_RADIUS * Math.sin(sp.angle);
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.lineTo(stringX, stringY);
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.closePath();
+                const actualMaxTake = Math.min(maxLimit, totalStones);
+                
+                currentMaxTakeSpan.textContent = actualMaxTake;
+                lastTakenCountSpan.textContent = lastTaken === 0 ? 'N/A' : `${lastTaken}`;
+
+                takeOptionsDiv.innerHTML = '';
+                selectedTakeCount = 0;
+                takeButton.disabled = true;
+                takeButton.textContent = '石を取る (0個選択中)';
+
+                if (totalStones === 0) return;
+
+                for (let i = 1; i <= actualMaxTake; i++) {
+                    const button = document.createElement('button');
+                    button.classList.add('take-option');
+                    button.textContent = `${i}個`;
+                    button.value = i;
+                    
+                    button.addEventListener('click', (e) => {
+                        document.querySelectorAll('.take-option').forEach(btn => {
+                            btn.classList.remove('selected');
+                        });
+                        
+                        e.target.classList.add('selected');
+                        selectedTakeCount = Number(e.target.value);
+                        
+                        takeButton.disabled = false;
+                        takeButton.textContent = `石を取る (${selectedTakeCount}個選択中)`;
+                        messageElement.textContent = '';
+                    });
+
+                    takeOptionsDiv.appendChild(button);
+                }
+            };
+
+            /** ゲームの状態を初期化する */
+            const initializeGame = () => {
+                totalStones = Math.floor(Math.random() * (MAX_STONES - MIN_STONES + 1)) + MIN_STONES;
+                currentPlayer = 'A';
+                gameActive = true;
+                lastTaken = 0;
+                selectedTakeCount = 0;
+
+                renderStones(totalStones);
+                currentPlayerSpan.textContent = currentPlayer;
+                currentPlayerSpan.style.color = '#2196F3'; 
+                messageElement.textContent = `初期石の数: ${totalStones}個`;
+                resultElement.style.display = 'none';
+                takeButton.style.display = 'inline-block';
+                resetButton.style.display = 'none';
+                
+                updateTakeOptions(); 
+            };
+
+            /** ターンを処理する */
+            const handleTurn = () => {
+                if (!gameActive || selectedTakeCount === 0) {
+                    messageElement.textContent = '取る石の数を選択してください。';
+                    return;
+                }
+
+                const takeCount = selectedTakeCount;
+
+                if (takeCount > totalStones) {
+                    messageElement.textContent = `残り石は${totalStones}個です。${takeCount}個は取れません。`;
+                    return;
+                }
+
+                totalStones -= takeCount;
+                renderStones(totalStones);
+                lastTaken = takeCount; 
+
+                if (totalStones === 0) {
+                    gameActive = false;
+                    
+                    const winner = currentPlayer;
+                    resultElement.textContent = `ゲーム終了！ ${winner}さんの勝利`; 
+                    resultElement.style.display = 'block';
+                    takeButton.style.display = 'none';
+                    takeOptionsDiv.innerHTML = '';
+                    resetButton.style.display = 'inline-block';
+                    currentMaxTakeSpan.textContent = 'N/A';
+                    return;
+                }
+
+                currentPlayer = (currentPlayer === 'A' ? 'B' : 'A');
+                currentPlayerSpan.textContent = currentPlayer;
+                currentPlayerSpan.style.color = (currentPlayer === 'A' ? '#2196F3' : '#F44336');
+                messageElement.textContent = '';
+
+                updateTakeOptions();
+            };
+
+            // --- イベントリスナーの設定 ---
+            
+            takeButton.addEventListener('click', handleTurn);
+            resetButton.addEventListener('click', initializeGame);
+
+            ruleButton.addEventListener('click', () => {
+                ruleModal.style.display = 'block';
+            });
+            closeModal.addEventListener('click', () => {
+                ruleModal.style.display = 'none';
+            });
+            window.addEventListener('click', (event) => {
+                if (event.target == ruleModal) {
+                    ruleModal.style.display = 'none';
+                }
+            });
+
+            // 初期化実行
+            initializeGame();
         });
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.stroke();
-        ctx.closePath();
-    }
-    
-    update() {
-        if (!this.exists) return;
-        
-        const totalMoveX = this.baseVX * GAME_SPEED_MULTIPLIER * TIME_STEP;
-        const totalMoveY = this.baseVY * GAME_SPEED_MULTIPLIER * TIME_STEP;
-        
-        const stepMoveX = totalMoveX / SUB_STEPS;
-        const stepMoveY = totalMoveY / SUB_STEPS;
-
-        for (let i = 0; i < SUB_STEPS; i++) {
-            this.x += stepMoveX;
-            this.y += stepMoveY;
-            this.checkBoundaryCollision();
-        }
-        if (this.stringPoints.length === 0) {
-            this.exists = false;
-        }
-    }
-    
-    checkBoundaryCollision() {
-        const dxCenter = this.x - CENTER_X;
-        const dyCenter = this.y - CENTER_Y;
-        const distCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter);
-        
-        if (distCenter + this.radius > BOUNDARY_RADIUS) {
-            const normalX = dxCenter / distCenter;
-            const normalY = dyCenter / distCenter;
-            const dotProduct = (this.baseVX * normalX + this.baseVY * normalY);
-            
-            this.baseVX = this.baseVX - 2 * dotProduct * normalX;
-            this.baseVY = this.baseVY - 2 * dotProduct * normalY;
-            
-            const overlap = (distCenter + this.radius) - BOUNDARY_RADIUS;
-            this.x -= normalX * overlap;
-            this.y -= normalY * overlap;
-        }
-    }
-
-    checkStringCollision(ownerBall) {
-        if (!ownerBall.exists || ownerBall === this) return 0;
-        
-        let capturedCount = 0;
-        
-        for (let index = ownerBall.stringPoints.length - 1; index >= 0; index--) {
-            const sp = ownerBall.stringPoints[index];
-            
-            const stringX = CENTER_X + BOUNDARY_RADIUS * Math.cos(sp.angle);
-            const stringY = CENTER_Y + BOUNDARY_RADIUS * Math.sin(sp.angle);
-            
-            const distToLineByThis = this.distancePointToSegment(
-                this.x, this.y, ownerBall.x, ownerBall.y, stringX, stringY
-            );
-            
-            if (distToLineByThis < this.radius && this.color !== ownerBall.color) {
-                
-                const thisDistToEndpoint = Math.sqrt(
-                    (this.x - stringX) ** 2 + (this.y - stringY) ** 2
-                );
-                
-                const ownerDistToEndpoint = Math.sqrt(
-                    (ownerBall.x - stringX) ** 2 + (ownerBall.y - stringY) ** 2
-                );
-                
-                if (thisDistToEndpoint < ownerDistToEndpoint) {
-                    this.stringPoints.push(sp);
-                    ownerBall.stringPoints.splice(index, 1);
-                    capturedCount++;
-                }
-            }
-        }
-        return capturedCount;
-    }
-    
-    distancePointToSegment(px, py, x1, y1, x2, y2) {
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const L2 = dx * dx + dy * dy;
-        
-        if(L2 === 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
-        
-        let t = ((px - x1) * dx + (py - y1) * dy) / L2;
-        t = Math.max(0, Math.min(1, t));
-        
-        const closestX = x1 + t * dx;
-        const closestY = y1 + t * dy;
-        
-        const distSq = (px - closestX) * (px - closestX) + (py - closestY) * (py - closestY);
-        return Math.sqrt(distSq);
-    }
-}
-
-/**
- * 毎フレーム、ゲーム状態をシリアライズして記録
- */
-function recordState() {
-    const state = balls.map(ball => ({
-        x: ball.x,
-        y: ball.y,
-        baseVX: ball.baseVX,
-        baseVY: ball.baseVY,
-        color: ball.color,
-        stringPoints: ball.stringPoints.map(sp => ({ angle: sp.angle })),
-        exists: ball.exists
-    }));
-    history.push(state);
-}
-
-/**
- * 記録されたフレームの状態からゲーム状態を復元
- */
-function restoreState(frame) {
-    const historyIndex = Math.min(Math.max(0, frame), history.length - 1);
-
-    const state = history[historyIndex];
-    balls = state.map(s => {
-        const ball = new Ball(s.x, s.y, s.baseVX, s.baseVY, s.color, s.stringPoints);
-        ball.exists = s.exists;
-        return ball;
-    }).filter(ball => ball.exists);
-}
-
-/**
- * ゲームシーン（境界線とボール）を描画する
- */
-function drawGameScene() {
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    ctx.beginPath();
-    ctx.arc(CENTER_X, CENTER_Y, BOUNDARY_RADIUS, 0, Math.PI * 2);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.closePath();
-    balls.forEach(ball => { ball.draw(); });
-}
-
-
-/**
- * ゲーム初期化
- */
-function init() {
-    balls = [];
-    history = [];
-    frameCount = 0;
-    isGameFinished = false;
-    isReplaying = false;
-    isPaused = false;
-    lastFrameTime = performance.now(); 
-    frameRemainder = 0; 
-    
-    // リプレイUIを初期化
-    document.getElementById('replay-controls').style.display = 'none';
-    replayTimeRange.disabled = true;
-    replayStatus.textContent = "---";
-    toggleReplayButton.textContent = "▶️ 再生 / ⏸️ 一時停止";
-    
-    // 設定値に基づいてボールを初期化
-    const ballCount = NUM_BALLS;
-    const stringsPerBall = INITIAL_STRINGS_PER_BALL;
-    const totalStrings = ballCount * stringsPerBall;
-    const angleIncrement = (2 * Math.PI) / totalStrings;
-    const initialRadius = BALL_RADIUS * 4;
-
-    // ⭐ 修正: 初期線の配置にランダムなオフセットを追加
-    // Math.PI / 16 (約 11.25度) までのランダムな角度オフセット
-    const globalAngleOffset = Math.random() * (Math.PI / 16); 
-
-    for (let i = 0; i < ballCount; i++) {
-        const color = INITIAL_COLORS[i % INITIAL_COLORS.length];
-        const ballAngle = (2 * Math.PI) * i / ballCount;
-        const initialX = CENTER_X + initialRadius * Math.cos(ballAngle);
-        const initialY = CENTER_Y + initialRadius * Math.sin(ballAngle);
-        let direction = Math.random() * 2 * Math.PI;
-        let initialVX = INITIAL_SPEED * Math.cos(direction);
-        let initialVY = INITIAL_SPEED * Math.sin(direction);
-        let currentBallStrings = [];
-        
-        for (let j = 0; j < stringsPerBall; j++) {
-            const stringIndex = i * stringsPerBall + j;
-            // ⭐ 修正: 均等配置にランダムオフセットを加える
-            const stringAngle = angleIncrement * stringIndex + globalAngleOffset;
-            currentBallStrings.push({ angle: stringAngle, ownerColor: color });
-        }
-        balls.push(new Ball(initialX, initialY, initialVX, initialVY, color, currentBallStrings));
-    }
-    recordState();
-}
-
-/**
- * リプレイUIの更新
- */
-function updateReplayUI() {
-    const totalFrames = history.length > 0 ? history.length - 1 : 0;
-    const maxTime = (totalFrames / TARGET_FPS).toFixed(2);
-    const currentTime = (replayFrame / TARGET_FPS).toFixed(2);
-
-    replayTimeRange.max = totalFrames;
-    replayTimeRange.value = replayFrame;
-    currentTimeDisplay.textContent = `${currentTime}s / ${maxTime}s`;
-    
-    if (isReplaying) {
-        if (isPaused) {
-            replayStatus.textContent = "⏸️ 一時停止中";
-        } else if (replayFrame >= totalFrames) {
-             replayStatus.textContent = "⏹️ 再生終了";
-             isPaused = true;
-        } else {
-             replayStatus.textContent = `▶️ ${replaySpeedMultiplier.toFixed(2)}x 再生中`;
-        }
-        toggleReplayButton.textContent = isPaused ? "▶️ 再生" : "⏸️ 一時停止";
-    }
-}
-
-/**
- * ゲーム終了メッセージの表示
- */
-function displayEndMessage() {
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 64px Arial';
-    ctx.textAlign = 'center';
-    
-    const message = balls.length === 1 ?
-        `${balls[0].color}の勝利！` :
-        '引き分け！';
-
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-    ctx.shadowBlur = 10;
-    ctx.lineWidth = 2; 
-    
-    ctx.fillText('ゲーム終了', WIDTH / 2, HEIGHT / 2 - 50);
-    ctx.fillText(message, WIDTH / 2, HEIGHT / 2 + 20);
-
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-}
-
-/**
- * 描画ループ
- */
-function loop(timestamp) {
-    if (!lastFrameTime) {
-        lastFrameTime = timestamp;
-    }
-    const elapsed = timestamp - lastFrameTime;
-
-    if (isReplaying) {
-        // リプレイモード
-        drawGameScene();
-        
-        if (!isPaused) {
-            const targetFramesFloat = (elapsed / MS_PER_FRAME) * replaySpeedMultiplier;
-            
-            frameRemainder += targetFramesFloat;
-            
-            const frameAdvance = Math.floor(frameRemainder);
-            
-            frameRemainder -= frameAdvance;
-            
-            if (frameAdvance > 0) {
-                replayFrame += frameAdvance;
-                
-                const totalFrames = history.length - 1;
-                
-                if (replayFrame >= totalFrames) {
-                    replayFrame = totalFrames;
-                    isPaused = true; 
-                }
-                
-                restoreState(replayFrame);
-            }
-        } else {
-            restoreState(replayFrame); 
-        }
-
-        updateReplayUI();
-        
-    } else {
-        // プレイモード
-        
-        if (isGameFinished) {
-            drawGameScene();
-            displayEndMessage();
-        } else {
-            
-            for (let s = 0; s < SUB_STEPS; s++) {
-                
-                // 1. 移動と境界衝突判定 
-                balls.forEach(ball => {
-                    if (ball.exists) {
-                        ball.update();
-                    }
-                });
-
-                // 2. 線の奪取判定
-                for (let i = 0; i < balls.length; i++) {
-                    for (let j = 0; j < balls.length; j++) {
-                        if (i !== j) {
-                            balls[i].checkStringCollision(balls[j]);
-                        }
-                    }
-                }
-                balls = balls.filter(ball => ball.exists);
-            }
-            
-            drawGameScene();
-
-            // 毎フレーム状態を記録
-            recordState();
-            frameCount++;
-
-            // 終了判定
-            if (balls.length <= 1) {
-                isGameFinished = true;
-                
-                document.getElementById('replay-controls').style.display = 'block';
-                replayTimeRange.disabled = false;
-                replayFrame = frameCount; 
-                isPaused = true;
-                updateReplayUI();
-            }
-        }
-    }
-
-    lastFrameTime = timestamp;
-    animationFrameId = requestAnimationFrame(loop);
-}
-
-// --- イベントリスナー ---
-
-// 設定スライダー
-speedRange.addEventListener('input', (e) => { 
-    GAME_SPEED_MULTIPLIER = parseFloat(e.target.value); 
-    speedValueSpan.textContent = GAME_SPEED_MULTIPLIER.toFixed(1); 
-});
-numBallsRange.addEventListener('input', (e) => { 
-    NUM_BALLS = parseInt(e.target.value); 
-    numBallsValueSpan.textContent = NUM_BALLS; 
-});
-numStringsRange.addEventListener('input', (e) => { 
-    INITIAL_STRINGS_PER_BALL = parseInt(e.target.value); 
-    numStringsValueSpan.textContent = INITIAL_STRINGS_PER_BALL; 
-});
-
-// スタート/リセット
-restartButton.addEventListener('click', () => { 
-    if (animationFrameId) { cancelAnimationFrame(animationFrameId); } 
-    init(); 
-    loop(performance.now()); 
-});
-
-// リプレイ速度
-replaySpeedRange.addEventListener('input', (e) => {
-    replaySpeedMultiplier = parseFloat(e.target.value);
-    // 小数点第2位まで表示
-    replaySpeedValueSpan.textContent = `${replaySpeedMultiplier.toFixed(2)}x`; 
-    frameRemainder = 0;
-    if(isReplaying) updateReplayUI();
-});
-
-// リプレイ操作
-toggleReplayButton.addEventListener('click', () => {
-    if (isGameFinished) {
-        isReplaying = true;
-        isPaused = !isPaused;
-        if (replayFrame >= history.length - 1) {
-            replayFrame = 0;
-            restoreState(0); 
-        }
-        frameRemainder = 0;
-        updateReplayUI();
-    }
-});
-
-exitReplayButton.addEventListener('click', () => {
-    isReplaying = false;
-    isGameFinished = false;
-    restoreState(history.length - 1);
-    document.getElementById('replay-controls').style.display = 'none';
-    isPaused = false;
-});
-
-// スライダーによる巻き戻し/早送り
-replayTimeRange.addEventListener('input', (e) => {
-    isReplaying = true;
-    isPaused = true; 
-    replayFrame = parseInt(e.target.value);
-    restoreState(replayFrame);
-    frameRemainder = 0;
-    updateReplayUI();
-});
-
-
-// ゲーム開始
-init();
-loop(performance.now());
-</script>
+    </script>
 </body>
 </html>
