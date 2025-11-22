@@ -1,269 +1,355 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>wa--i</title>
-<style>
-/* CSSリセットと基本設定 */
-body {
-    margin: 0;
-    font-family: "Arial", sans-serif;
-    background-color: #0d0d0d; 
-    color: #f0f0f0; 
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    position: relative;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>😋</title>
+    <style>
+        {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%; 
+            overflow: hidden; 
+            font-family: sans-serif;
+        }
+        #main-container {
+            display: flex;
+            flex-direction: column; 
+            height: 100vh; 
+        }
+        #physics-area {
+            height: 55%; 
+            width: 100%;
+            background-color: #d0f0ff;
+            overflow: hidden;
+            position: relative;
+        }
+        #physics-area canvas {
+            display: block;
+        }
+        #bomb-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            padding: 10px 15px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px #a02c39;
+            transition: all 0.1s;
+            display: none; 
+        }
+        #bomb-button:active {
+            box-shadow: 0 2px #a02c39;
+            transform: translateY(2px);
+        }
+        #menu-area {
+            height: 45%; 
+            width: 100%;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+            padding: 10px;
+            position: relative; 
+        }
 
-/* ホラー背景のエフェクト（ノイズ/グリッチ） */
-.horror-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#n)" opacity="0.4"/></svg>'); /* ノイズ強度を少し上げる */
-    background-size: 100px 100px;
-    opacity: 0.4;
-    animation: scan-line 4s linear infinite alternate; /* アニメーションを速く */
-}
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            max-width: 1000px;
+            margin-top: -50px;
+        }
 
-@keyframes scan-line {
-    0%, 100% {
-        transform: translateY(0);
-        opacity: 0.4;
-    }
-    50% {
-        transform: translateY(100vh);
-        opacity: 0.2;
-    }
-}
-
-.hero {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    position: relative;
-    overflow: hidden;
-}
-
-.menu-section {
-    z-index: 10;
-    padding: 10px 100px 100px 100px;
-    background-color: rgba(17, 17, 17, 0.98); /* 不透明度を上げる */
-    border-top-left-radius: 30px;
-    border-top-right-radius: 30px;
-    width: 100%;
-    box-shadow: 0 -4px 50px rgba(255, 0, 0, 0.4); /* 影を強く */
-    border-top: 3px solid #ff0000; 
-}
-
-.menu-title {
-    text-align: center;
-    font-size: 3em; /* さらに大きく */
-    margin-bottom: 40px;
-    color: #ffffff; 
-    text-shadow: 0 0 15px rgba(255, 0, 0, 0.9);
-    animation: title-glitch 0.1s linear infinite alternate; /* タイトルのチラつきを高速化 */
-}
-
-/* タイトル用：激しいグリッチアニメーション */
-@keyframes title-glitch {
-    0% {
-        opacity: 1;
-        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7), 2px 2px 0 #00ffff, -2px -2px 0 #ffff00;
-        transform: translate(0, 0) skew(0deg);
-    }
-    25% {
-        opacity: 0.95;
-        transform: translate(1px, -1px) skew(0.5deg);
-    }
-    50% {
-        opacity: 1;
-        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7), -1px 1px 0 #00ffff, 1px -1px 0 #ffff00;
-        transform: translate(-1px, 1px) skew(-0.5deg);
-    }
-    75% {
-        opacity: 0.9;
-        transform: translate(0, 2px) skew(1deg);
-    }
-    100% {
-        opacity: 1;
-        transform: translate(0, 0) skew(0deg);
-    }
-}
-
-.menu-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 30px;
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.menu-button {
-    background: linear-gradient(to right, #95f5f2, #ffffff); 
-    color: #ffdddd;
-    border: 3px solid #ffffff; 
-    padding: 25px 30px;
-    border-radius: 2px; /* より角張ったデザイン */
-    font-size: 1.1em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
-    position: relative;
-    overflow: hidden;
-}
-
-/* ボタン通常時の微細な文字震え（強化） */
-.menu-button span {
-    position: relative;
-    display: block;
-    text-shadow: 1px 1px 2px #000, -1px -1px 2px #000, 0 0 8px #ff0000;
-    animation: subtle-glitch 4s linear infinite alternate; /* 微細な震えを常に追加 */
-}
-
-/* 微細な震えアニメーション */
-@keyframes subtle-glitch {
-    0% {
-        transform: translate(0.5px, 0);
-    }
-    50% {
-        transform: translate(-0.5px, 0.5px);
-    }
-    100% {
-        transform: translate(0, -0.5px);
-    }
-}
-
-
-/* ホバー時の激しいグリッチエフェクト（強化） */
-.menu-button:hover {
-    background: linear-gradient(to right, #600000, #a00000);
-    transform: scale(1.03);
-    box-shadow: 0 0 30px rgba(255, 0, 0, 1.0), 0 0 10px rgba(255, 255, 255, 0.3);
-    border-color: #ff0000;
-}
-
-/* ホバー時のグリッチ用疑似要素（テキスト全体が震えるように） */
-.menu-button::before, .menu-button::after {
-    content: attr(data-text); 
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    color: #16a1ab;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1em;
-    pointer-events: none;
-}
-
-.menu-button:hover::before {
-    left: 3px; /* 震え幅を大きく */
-    color: #00ffff;
-    opacity: 0.7;
-    animation: glitch-anim-1 0.2s infinite alternate-reverse; /* 速度アップ */
-}
-
-.menu-button:hover::after {
-    left: -3px; /* 震え幅を大きく */
-    color: #4df3ff;
-    opacity: 0.7;
-    animation: glitch-anim-2 0.2s infinite alternate-reverse; /* 速度アップ */
-}
-
-/* ホバーグリッチアニメーション（さらに不規則に） */
-@keyframes glitch-anim-1 {
-    0% {
-        transform: translate(1px, -1px);
-        clip: rect(42px, 9999px, 44px, 0);
-    }
-    20% {
-        transform: translate(-1px, 2px);
-        clip: rect(10px, 9999px, 3px, 0);
-    }
-    40% {
-        transform: translate(2px, -2px);
-        clip: rect(79px, 9999px, 81px, 0);
-    }
-    60% {
-        transform: translate(-2px, 1px);
-        clip: rect(50px, 9999px, 53px, 0);
-    }
-    80% {
-        transform: translate(1px, 0);
-        clip: rect(20px, 9999px, 23px, 0);
-    }
-    100% {
-        transform: translate(0, 0);
-        clip: rect(90px, 9999px, 93px, 0);
-    }
-}
-
-@keyframes glitch-anim-2 {
-    0% {
-        transform: translate(-1px, 2px);
-        clip: rect(50px, 9999px, 52px, 0);
-    }
-    20% {
-        transform: translate(2px, -1px);
-        clip: rect(25px, 9999px, 28px, 0);
-    }
-    40% {
-        transform: translate(-2px, 2px);
-        clip: rect(65px, 9999px, 67px, 0);
-    }
-    60% {
-        transform: translate(1px, -2px);
-        clip: rect(15px, 9999px, 18px, 0);
-    }
-    80% {
-        transform: translate(0, 1px);
-        clip: rect(70px, 9999px, 73px, 0);
-    }
-    100% {
-        transform: translate(0, 0);
-        clip: rect(5px, 9999px, 8px, 0);
-    }
-}
-</style>
+        .menu-button {
+            background: linear-gradient(to right, #a0e0ff, #c0f5ff);
+            border: none;
+            padding: 30px 50px;
+            border-radius: 50px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+        .menu-button:hover {
+            background: linear-gradient(to right, #87d4f2, #b5ecff);
+            transform: translateY(-7px) scale(1.05);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15)
+        }
+    </style>
 </head>
 <body>
-    <div class="horror-overlay"></div>
 
-    <div class="hero">
-        <div class="menu-section">
-            <div class="menu-title">^_^</div>
-            <div class="menu-grid">
-                <button class="menu-button" onclick="location.href='menu1.html'" data-text="見てるだけ"><span>見てるだけ</span></button>
-                <button class="menu-button" onclick="location.href='menu2.html'" data-text="マルチオセロ"><span>マルチオセロ</span></button>
-                <button class="menu-button" onclick="location.href='menu3.html'" data-text="3D迷路"><span>3D迷路</span></button>
-                <button class="menu-button" onclick="location.href='menu4.html'" data-text="て"><span>て</span></button>
-                <button class="menu-button" onclick="location.href='menu5.html'" data-text="oて"><span>oて</span></button>
-                <button class="menu-button" onclick="location.href='menu6.html'" data-text="ぼおる"><span>ぼおる</span></button>
-                <button class="menu-button" onclick="location.href='menu7.html'" data-text="オセロ"><span>オセロ</span></button>
-                <button class="menu-button" onclick="location.href='menu8.html'" data-text="文字送り"><span>文字送り</span></button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+
+    <div id="main-container">
+        <div id="physics-area">
+            <button id="bomb-button" onclick="dropBomb()">💥 爆弾投下 (Cubes: 0)</button>
+        </div>
+
+        <div id="menu-area">
+            <div class="button-grid">
+                <button class="menu-button" onclick="location.href='menu1.html'">見てるだけ</button>
+                <button class="menu-button" onclick="location.href='menu2.html'">マルチオセロ</button>
+                <button class="menu-button" onclick="location.href='menu3.html'">3D迷路</button>
+                <button class="menu-button" onclick="location.href='menu4.html'">て</button>
+                <button class="menu-button" onclick="location.href='menu5.html'">oて</button>
+                <button class="menu-button" onclick="location.href='menu6.html'">ぼおる</button>
+                <button class="menu-button" onclick="location.href='menu7.html'">オセロ</button>
+                <button class="menu-button" onclick="location.href='menu8.html'">文字送り</button>
             </div>
         </div>
     </div>
 
     <script>
-        // グリッチエフェクト用のdata-text設定
-        document.querySelectorAll('.menu-button').forEach(button => {
-            const text = button.querySelector('span').textContent;
-            button.setAttribute('data-text', text);
+        const GROUND_SIZE = 10;
+        const GROUND_HALF = GROUND_SIZE / 2;
+        const GROUND_Y = 0; 
+        const REMOVAL_THRESHOLD_Y = -10; 
+        const MAX_CUBES = 100; 
+        const BOMB_EXPLOSION_TIME = 3000;
+        const container = document.getElementById('physics-area');
+        const bombButton = document.getElementById('bomb-button');
+        
+        let width = container.clientWidth;
+        let height = container.clientHeight;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.setClearColor(0xd0f0ff); 
+        renderer.shadowMap.enabled = true; 
+        container.appendChild(renderer.domElement);
+        
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+
+        const ambientLight = new THREE.AmbientLight(0x666666);
+        scene.add(ambientLight);
+
+        const spotLight = new THREE.SpotLight(0xffffff);
+        spotLight.position.set(10, 20, 10);
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0); 
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        const groundGeometry = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
+        const groundMaterial = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = GROUND_Y;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        const floorHeight = 0.1; 
+        const floorShape = new CANNON.Box(new CANNON.Vec3(GROUND_HALF, floorHeight / 2, GROUND_HALF));
+        const floorBody = new CANNON.Body({ mass: 0 }); 
+        floorBody.addShape(floorShape);
+        floorBody.position.set(0, GROUND_Y - floorHeight / 2, 0); 
+        world.addBody(floorBody);
+
+        const objects = [];
+
+        function createBlock(startX = null, startY = null, startZ = null) {
+            const size = Math.random() * 0.5 + 0.5; 
+            const mass = 5;
+
+            const randomRange = GROUND_HALF - 0.5; 
+            const initialX = startX !== null ? startX : Math.random() * randomRange * 2 - randomRange;
+            const initialY = startY !== null ? startY : 10 + Math.random() * 5;
+            const initialZ = startZ !== null ? startZ : Math.random() * randomRange * 2 - randomRange;
+
+            const boxGeometry = new THREE.BoxGeometry(size, size, size);
+            const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+            const boxMaterial = new THREE.MeshPhongMaterial({ color: color });
+            const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+            boxMesh.castShadow = true;
+            boxMesh.position.set(initialX, initialY, initialZ);
+            scene.add(boxMesh);
+
+            const boxShape = new CANNON.Box(new CANNON.Vec3(size / 2, size / 2, size / 2));
+            const boxBody = new CANNON.Body({ mass: mass });
+            boxBody.addShape(boxShape);
+            boxBody.position.copy(boxMesh.position);
+            world.addBody(boxBody);
+
+            objects.push({ mesh: boxMesh, body: boxBody });
+        }
+
+        setInterval(() => createBlock(), 300);
+
+        container.addEventListener('click', (event) => {
+            createBlock(0, 8, 0);
         });
+
+        let bombBody = null;
+        let bombMesh = null;
+        let explosionMesh = null; 
+        let bombTimer = null;
+
+        const BOMB_RADIUS = 1.5;
+        const BOMB_FORCE = 1500;
+        const EXPLOSION_DURATION = 10; 
+        
+        window.dropBomb = function() {
+            if (bombBody) return; 
+
+            const sphereGeometry = new THREE.SphereGeometry(BOMB_RADIUS, 32, 32);
+            const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0x550000 });
+            bombMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            bombMesh.castShadow = true;
+            bombMesh.position.set(0, 20, 0); 
+            scene.add(bombMesh);
+
+            const sphereShape = new CANNON.Sphere(BOMB_RADIUS);
+            const bodyMass = 100;
+            bombBody = new CANNON.Body({ mass: bodyMass }); 
+            bombBody.addShape(sphereShape);
+            bombBody.position.copy(bombMesh.position);
+            world.addBody(bombBody);
+
+            bombTimer = setTimeout(() => {
+                if (bombBody) {
+                    triggerExplosion();
+                }
+            }, BOMB_EXPLOSION_TIME);
+
+            bombButton.style.display = 'none';
+        }
+
+        function triggerExplosion() {
+
+            if (!bombBody) return;
+
+            const bombPosition = bombBody.position;
+            
+
+            clearTimeout(bombTimer);
+            bombTimer = null;
+
+
+            const explosionRadius = 5;
+            const explosionGeometry = new THREE.SphereGeometry(explosionRadius, 16, 16);
+            const explosionMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                transparent: true, 
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending 
+            });
+            explosionMesh = new THREE.Mesh(explosionGeometry, explosionMaterial);
+            explosionMesh.position.copy(bombPosition);
+            scene.add(explosionMesh);
+            for (const obj of objects) {
+                const cubePosition = obj.body.position;
+                
+                const direction = new CANNON.Vec3();
+                cubePosition.vsub(bombPosition, direction);
+                
+                const distance = direction.length();
+                
+                if (distance > 0) {
+                    const strength = BOMB_FORCE / (distance * distance); 
+
+                    direction.normalize();
+                    direction.scale(strength, direction);
+
+                    direction.y += BOMB_FORCE * 0.05; 
+                    
+                    obj.body.applyImpulse(direction, obj.body.position);
+                }
+            }
+
+            world.removeBody(bombBody);
+            scene.remove(bombMesh);
+            bombBody = null;
+            bombMesh = null;
+
+            explosionMesh.frame = 0;
+        }
+
+        function updateExplosionEffect() {
+            if (explosionMesh) {
+                explosionMesh.frame++;
+                const frame = explosionMesh.frame;
+                
+                if (frame > EXPLOSION_DURATION) {
+                    scene.remove(explosionMesh);
+                    explosionMesh = null;
+                } else {
+                    const progress = frame / EXPLOSION_DURATION;
+                    explosionMesh.material.opacity = 0.8 * (1 - progress); 
+                    explosionMesh.scale.setScalar(1 + progress * 2); 
+                }
+            }
+        }
+
+        const timeStep = 1 / 60;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            world.step(timeStep);
+
+            const currentCubeCount = objects.length;
+            bombButton.textContent = `💥 爆弾投下 (Cubes: ${currentCubeCount})`;
+
+            if (currentCubeCount >= MAX_CUBES && !bombBody) {
+                bombButton.style.display = 'block';
+            } else if (currentCubeCount < MAX_CUBES && !bombBody) {
+                 bombButton.style.display = 'none';
+            }
+
+            if (bombBody) {
+                bombMesh.position.copy(bombBody.position);
+                bombMesh.quaternion.copy(bombBody.quaternion);
+            }
+
+            updateExplosionEffect();
+
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+
+                if (obj.body.position.y < REMOVAL_THRESHOLD_Y) {
+                    scene.remove(obj.mesh);
+                    world.removeBody(obj.body);
+                    objects.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            width = container.clientWidth;
+            height = container.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        animate();
     </script>
+
 </body>
 </html>
