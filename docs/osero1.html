@@ -18,7 +18,7 @@
             justify-content: flex-start; 
             background-color: #f0f8ff;
             color: #333;
-            padding-top: 10px; 
+            padding-top: 0px; 
         }
 
         /* --- メニュー画面 --- */
@@ -45,8 +45,8 @@
             align-items: center;
             width: 100%;
             max-width: 900px; 
-            padding: 10px;
-            padding-top: 0; 
+            padding: 0px;
+            padding-top: 10; 
         }
         
         #pause-button {
@@ -100,26 +100,26 @@
             font-size: 1.1em;
             font-weight: bold;
             flex-grow: 1;
-            padding: 5px 0;
+            padding: 0px 0;
             width: 100%;
             max-width: 800px;
         }
 
-        /* ゲーム盤のスタイル */
+
         #game-board {
             display: grid;
-            grid-template-columns: repeat(8, 55px);
-            grid-template-rows: repeat(8, 55px);
+            grid-template-columns: repeat(8, 45px);
+            grid-template-rows: repeat(8, 45px);
             border: 3px solid #333;
             background-color: #008000;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            margin-top: 5px; 
-            margin-bottom: 10px;
+            margin-top: 0px; 
+            margin-bottom: 0px;
         }
 
         .cell {
-            width: 55px;
-            height: 55px;
+            width: 45px;
+            height: 45px;
             border: 1px solid #333;
             box-sizing: border-box;
             display: flex;
@@ -129,8 +129,8 @@
         }
 
         .disc {
-            width: 48px;
-            height: 48px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             position: absolute;
             transform-style: preserve-3d;
@@ -185,15 +185,15 @@
             max-width: 800px;
             display: flex;
             justify-content: center;
-            margin-bottom: 5px;
+            margin-bottom: 0px;
             background-color: #ddd;
             border-radius: 8px 8px 0 0;
-            padding: 5px;
+            padding: 0px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         .card-tab {
-            padding: 8px 15px;
+            padding: 0px 15px;
             cursor: pointer;
             font-weight: bold;
             border: 1px solid transparent;
@@ -482,7 +482,7 @@
         const cardTabs = document.querySelectorAll('.card-tab'); 
 
         const boardSize = 8;
-        const cellSize = 55;
+        const cellSize = 45;
         window.board = []; 
         
         let currentPlayer = 'black';
