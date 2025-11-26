@@ -136,6 +136,29 @@
             cursor: pointer;
         }
 
+        .flip-black { animation: flipToBlack 0.5s forwards; }
+        .flip-white { animation: flipToWhite 0.5s forwards; }
+        .remove-disc { animation: removeDisc 0.5s forwards; }
+
+        @keyframes flipToBlack {
+            0% { transform: scaleX(1) rotateY(0deg); background-color: white; }
+            50% { transform: scaleX(0.1) rotateY(90deg); background-color: white; }
+            51% { background-color: black; }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: black; }
+        }
+
+        @keyframes flipToWhite {
+            0% { transform: scaleX(1) rotateY(0deg); background-color: black; }
+            50% { transform: scaleX(0.1) rotateY(90deg); background-color: black; }
+            51% { background-color: white; }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: white; }
+        }
+        
+        @keyframes removeDisc {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
         /* --- 情報パネルとコントロール --- */
         #control-panel {
             width: 90%;
