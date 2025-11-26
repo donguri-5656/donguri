@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>オセロ</title>
+    <title>特殊オセロ</title>
     <style>
+        /* --- 基本レイアウト --- */
         html, body {
             height: 100%;
             margin: 0;
             overflow: hidden;
             touch-action: none;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -19,40 +20,48 @@
             color: #333;
         }
 
-        #menu-container, #difficulty-container, #two-player-settings, #game-container {
+        #menu-container, #game-container {
             display: none;
             flex-direction: column;
             align-items: center;
-            text-align: center;
             padding: 20px;
             background-color: rgba(255, 255, 255, 0.85);
             border-radius: 15px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
-        h1, h2 { margin-bottom: 20px; }
+        h2 { margin-bottom: 20px; }
 
-        button {
-            padding: 12px 24px;
-            margin: 10px;
-            font-size: 1em;
+        /* --- ボタン共通 --- */
+        button:not(#pause-button) {
+            padding: 8px 16px;
+            margin: 5px;
+            font-size: 0.9em;
             cursor: pointer;
             border: none;
             border-radius: 8px;
             transition: transform 0.2s, box-shadow 0.2s;
             background-color: #4CAF50;
             color: white;
+            opacity: 1;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
         
-        /* 超激ムズボタンを強調 */
-        #superHardButton, #ultimateHardButton {
-            background-color: #ff5722;
-            font-weight: bold;
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* --- ゲーム画面レイアウト --- */
+        #main-game-area {
+            display: flex;
+            align-items: flex-start; 
+            gap: 20px;
+            margin-bottom: 10px;
         }
 
         #game-board {
@@ -61,9 +70,10 @@
             grid-template-rows: repeat(8, 50px);
             border: 2px solid #333;
             background-color: #008000;
-            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
         }
 
+        /* --- 盤面要素 --- */
         .cell {
             width: 50px;
             height: 50px;
@@ -84,15 +94,41 @@
 
         .disc.black { background-color: black; }
         .disc.white { background-color: white; }
+        
+        /* 要塞石のスタイル */
+        .fortress {
+            width: 48px;
+            height: 48px;
+            background-color: transparent; /* 背景は透明 */
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #ffaa00; /* 境界線を黄色にする */
+            box-shadow: 0 0 15px rgba(255, 165, 0, 0.8);
+            box-sizing: border-box;
+        }
+        
+        .fortress .disc {
+            border: 2px solid #444; /* 中の石は通常通り */
+            z-index: 10;
+        }
+
 
         .cell.highlight {
             background-color: rgba(255, 255, 255, 0.2);
             cursor: pointer;
         }
+        
+        .cell.card-highlight { /* カード効果によるハイライト */
+            background-color: rgba(255, 165, 0, 0.4);
+            cursor: pointer;
+        }
 
-        /* 石がひっくり返るアニメーション */
-        .disc.flip-black { animation: flipToBlack 0.5s forwards; }
-        .disc.flip-white { animation: flipToWhite 0.5s forwards; }
+        /* --- アニメーション --- */
+        .flip-black { animation: flipToBlack 0.5s forwards; }
+        .flip-white { animation: flipToWhite 0.5s forwards; }
+        .remove-disc { animation: removeDisc 0.5s forwards; }
 
         @keyframes flipToBlack {
             0% { transform: scaleX(1) rotateY(0deg); background-color: white; }
@@ -107,20 +143,121 @@
             51% { background-color: white; }
             100% { transform: scaleX(1) rotateY(180deg); background-color: white; }
         }
+        
+        @keyframes removeDisc {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
 
-        #info-panel {
+        /* --- 情報パネルとコントロール --- */
+        #control-panel {
+            width: 90%;
+            max-width: 500px;
             text-align: center;
+            padding: 10px;
+            margin-top: 5px;
+            border-top: 1px solid #ccc;
+        }
+        
+        #info-panel {
             font-size: 1.2em;
             margin-bottom: 10px;
         }
 
-        #ai-info {
-            margin-top: 10px;
-            font-size: 0.9em;
-            color: #555;
-            min-height: 40px; /* 情報が表示されていない時の高さ確保 */
+        .player-info {
+            text-align: center;
+            font-size: 1em;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.5);
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .player-info.black { border: 2px solid black; }
+        .player-info.white { border: 2px solid #555; }
+        
+        .point-display {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #d32f2f;
+            margin-bottom: 5px;
         }
         
+        /* --- 手札エリア --- */
+        .hand-area {
+            width: 100%;
+            height: 200px;
+            overflow-y: auto; 
+            padding-top: 10px;
+            border-top: 1px solid #aaa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* --- カードスタイル --- */
+        .hand-card {
+            width: 120px;
+            height: 160px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 3px solid #333;
+            background-color: #fff;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: transform 0.1s;
+            white-space: normal;
+        }
+        
+        .hand-card:hover:not(.selected-card):not(.disabled-card) {
+            transform: translateY(-5px);
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .hand-card.selected-card {
+            border-color: gold;
+            box-shadow: 0 0 15px gold;
+            transform: translateY(-5px);
+        }
+        
+        .hand-card.disabled-card {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+            color: #3f51b5;
+        }
+
+        .card-cost {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background-color: #f44336;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .card-effect {
+            font-size: 0.85em;
+            color: #555;
+            margin-top: 5px;
+        }
+
+
+        /* --- ポーズ/通知 --- */
         #pause-button {
             position: fixed;
             top: 20px;
@@ -132,10 +269,7 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
-        #pause-button:hover { background-color: #d32f2f; }
-
-        /* 通知ポップアップ */
+        
         #notification {
             position: fixed;
             top: 50%;
@@ -149,281 +283,455 @@
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
             pointer-events: none;
+            z-index: 1000;
         }
         #notification.visible { opacity: 1; }
-
-        /* 制限時間表示 */
-        #timer-display {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #d32f2f;
-            margin-top: 5px;
-            min-height: 1.2em;
-        }
-
-        /* 設定画面のスタイル */
-        #two-player-settings label, #two-player-settings select {
-            margin: 10px 0;
-            font-size: 1em;
-        }
     </style>
 </head>
 <body>
 
     <div id="menu-container">
-        <h2>オセロ</h2>
-        <button onclick="showDifficultyScreen()">AIと対戦</button>
-        <button onclick="showTwoPlayerSettings()">2人で対戦</button>
-        <button onclick="location.href='osero1.html'">2人で特殊オセロ</button>
-    </div>
-
-    <div id="difficulty-container">
-        <h2>難易度を選んでください</h2>
-        <button onclick="startGame('ai', 'easy')">簡単</button>
-        <button onclick="startGame('ai', 'normal')">普通</button>
-        <button onclick="startGame('ai', 'hard')">難しい (先読み3)</button>
-        <button id="superHardButton" onclick="startGame('ai', 'superHard')">激ムズ (先読み6)</button>
-        <button id="ultimateHardButton" onclick="startGame('ai', 'ultimateHard')">超激ムズ (先読み8)</button>
-        <button onclick="showMenuScreen()">メニューに戻る</button>
-    </div>
-
-    <div id="two-player-settings">
-        <h2>2人対戦設定</h2>
-        <div>
-            <label for="timeLimit">制限時間 (秒):</label>
-            <select id="timeLimit">
-                <option value="unlimited">なし</option>
-                <option value="0.5">0.5</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="5" selected>5</option>
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="30">30</option>
-                <option value="60">60</option>
-                <option value="90">90</option>
-                <option value="120">120</option>
-            </select>
-        </div>
-        <div>
-            <label for="timeoutAction">時間切れの動作:</label>
-            <select id="timeoutAction">
-                <option value="random">ランダムに着手</option>
-                <option value="pass">パスする</option>
-            </select>
-        </div>
-        <button onclick="startTwoPlayerGame()">ゲーム開始</button>
-        <button onclick="showMenuScreen()">メニューに戻る</button>
+        <h2>特殊オセロ (2人対戦)</h2>
+        <button onclick="showGameScreen(); resetGame();">ゲーム開始</button>
     </div>
 
     <div id="game-container">
-        <button id="pause-button" onclick="pauseGame()">止める</button>
+        <button id="pause-button" onclick="pauseGame()">メニューに戻る</button>
+        
         <div id="info-panel">
             <p>黒: <span id="black-score">2</span> 白: <span id="white-score">2</span></p>
-            <p id="mode-display"></p>
-            <p id="message">あなたのターンです (黒)</p>
-            <div id="timer-display"></div> <div id="ai-info"></div>
+            <p id="message">黒のターンです</p>
         </div>
-        <div id="game-board"></div>
+
+        <div id="main-game-area">
+            
+            <div id="player1-info" class="player-info black">
+                黒プレイヤー<br>
+                ポイント: <span id="black-points" class="point-display">0</span>
+                <div id="black-hand-area" class="hand-area">
+                    </div>
+            </div>
+            
+            <div id="game-board"></div>
+
+            <div id="player2-info" class="player-info white">
+                白プレイヤー<br>
+                ポイント: <span id="white-points" class="point-display">0</span>
+                <div id="white-hand-area" class="hand-area">
+                    </div>
+            </div>
+        </div>
+        
+        <div id="control-panel">
+            <button id="pass-button" onclick="handlePass()">パス (1P獲得)</button>
+            <button id="draw-button" onclick="handleDrawCard()">カードを引く (1P消費)</button>
+        </div>
+
     </div>
 
     <div id="notification"></div>
 
     <script>
-        // DOM要素の取得
+        // --- 定数とDOM要素 ---
         const menuContainer = document.getElementById('menu-container');
-        const difficultyContainer = document.getElementById('difficulty-container');
-        const twoPlayerSettings = document.getElementById('two-player-settings'); // 新規
         const gameContainer = document.getElementById('game-container');
         const boardElement = document.getElementById('game-board');
         const blackScoreElement = document.getElementById('black-score');
         const whiteScoreElement = document.getElementById('white-score');
-        const modeDisplayElement = document.getElementById('mode-display');
         const messageElement = document.getElementById('message');
-        const aiInfoElement = document.getElementById('ai-info');
         const notificationElement = document.getElementById('notification');
-        const timerDisplayElement = document.getElementById('timer-display'); // 新規
-        const timeLimitSelect = document.getElementById('timeLimit'); // 新規
-        const timeoutActionSelect = document.getElementById('timeoutAction'); // 新規
+        const blackPointsElement = document.getElementById('black-points');
+        const whitePointsElement = document.getElementById('white-points');
+        const blackHandArea = document.getElementById('black-hand-area');
+        const whiteHandArea = document.getElementById('white-hand-area');
+        const drawButton = document.getElementById('draw-button');
+        const passButton = document.getElementById('pass-button');
 
         const boardSize = 8;
-        window.board = [];
+        const POINT_MAX = 10; // ポイント上限
+        const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+        const DISC_STATES = ['black', 'white', null];
+
+        // --- ゲーム状態変数 ---
+        let board = []; // オセロの石
+        let fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null)); // 要塞石の配置
         let currentPlayer = 'black';
         let isGameOver = false;
-        let isAiThinking = false;
-        let gameMode = 'twoPlayer';
-        let difficulty = 'normal';
-        let nodesSearched = 0;
-        let aiTime = 0;
-        let bestEvaluation = 0;
-        
-        // 2人対戦用の設定
-        let timeLimitSeconds = 'unlimited'; // 'unlimited' or number
-        let timeoutAction = 'random'; // 'random' or 'pass'
-        let timerInterval = null;
-        let timeLeft = 0;
+        let isProcessingMove = false; 
+        let points = { 'black': 0, 'white': 0 };
+        let hand = { 'black': [], 'white': [] };
+        let selectedCard = null; 
+        let specialMoveType = null; 
+        let skipNextTurn = { 'black': false, 'white': false }; 
 
-        // 難易度と先読み深さのマッピング
-        const DIFFICULTY_MAP = {
-            'easy': { name: '簡単', depth: 0 },
-            'normal': { name: '普通', depth: 0 },
-            'hard': { name: '難しい', depth: 3 },
-            'superHard': { name: '激ムズ', depth: 6 },
-            'ultimateHard': { name: '超激ムズ', depth: 8 }
-        };
+        // --- カード定義 ---
+        const DECK = [
+            { id: 1, name: 'どこでも置ける', cost: 2, type: 'special_move', effect: '空マスに石を置き、周囲の石をひっくり返す', action: 'anywhere' },
+            { id: 2, name: '色反転', cost: 3, type: 'special_move', effect: '相手の石一つを自分の色に反転', action: 'flipcolor' },
+            { id: 3, name: 'パス禁止', cost: 2, type: 'status_effect', effect: '相手の次のターンを強制パスさせる', action: 'skip_next' },
+            { id: 4, name: '石除去', cost: 4, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' },
+            { id: 6, name: '要塞化', cost: 8, type: 'special_move', effect: '空マスに、ゲーム終了まで破壊されない要塞石（自色）を置く', action: 'fortify' }, // 鉄壁から要塞化へ変更
+            { id: 7, name: 'カオス', cost: 6, type: 'special_move', effect: '選択マス中心の3x3範囲の石の色をランダムに変更', action: 'chaos_3x3' }
+        ];
 
-        // 画面切り替え関数
+        function drawRandomCard() {
+            return DECK[Math.floor(Math.random() * DECK.length)];
+        }
+
+        // --- UI/ゲーム管理 ---
+
         function showMenuScreen() {
             menuContainer.style.display = 'flex';
-            difficultyContainer.style.display = 'none';
-            twoPlayerSettings.style.display = 'none';
             gameContainer.style.display = 'none';
-            clearInterval(timerInterval);
-        }
-
-        function showDifficultyScreen() {
-            menuContainer.style.display = 'none';
-            difficultyContainer.style.display = 'flex';
-            twoPlayerSettings.style.display = 'none';
-        }
-
-        function showTwoPlayerSettings() { // 新規
-            menuContainer.style.display = 'none';
-            difficultyContainer.style.display = 'none';
-            twoPlayerSettings.style.display = 'flex';
         }
 
         function showGameScreen() {
             menuContainer.style.display = 'none';
-            difficultyContainer.style.display = 'none';
-            twoPlayerSettings.style.display = 'none';
             gameContainer.style.display = 'flex';
         }
-        
-        function startTwoPlayerGame() { // 新規
-            gameMode = 'twoPlayer';
-            timeLimitSeconds = timeLimitSelect.value;
-            timeoutAction = timeoutActionSelect.value;
-            startGame('twoPlayer');
-        }
 
-        // ゲーム開始
-        function startGame(mode, diff = 'normal') {
-            gameMode = mode;
-            difficulty = diff;
-            showGameScreen();
-            resetGame();
-        }
-
-        // ゲームの一時停止
         function pauseGame() {
-            clearInterval(timerInterval); // タイマーを停止
             if (confirm('メニュー画面に戻りますか？現在のゲームは破棄されます。')) {
                 showMenuScreen();
-            } else {
-                startTimer(); // タイマーを再開
             }
         }
 
-        // ゲームのリセット
         function resetGame() {
             isGameOver = false;
-            isAiThinking = false;
+            isProcessingMove = false;
             currentPlayer = 'black';
-            nodesSearched = 0;
-            aiTime = 0;
-            bestEvaluation = 0;
-            aiInfoElement.innerHTML = '';
-            timerDisplayElement.innerHTML = '';
-            clearInterval(timerInterval);
-
+            points = { 'black': 0, 'white': 0 };
+            hand = { 'black': [], 'white': [] };
+            selectedCard = null;
+            specialMoveType = null;
+            skipNextTurn = { 'black': false, 'white': false };
+            fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null)); // 要塞石をリセット
             initializeBoard();
             renderBoard();
             highlightValidMoves();
-            updateModeDisplay();
-            updateMessage();
-            
-            if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
-                startTimer();
-            }
+            updateAllUI(); 
         }
 
-        // ターンタイマーの開始/リセット
-        function startTimer() { // 新規/更新
-            clearInterval(timerInterval);
-            if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
-                timeLeft = parseFloat(timeLimitSeconds);
-                timerDisplayElement.textContent = `残り時間: ${timeLeft.toFixed(1)}秒`;
-
-                timerInterval = setInterval(() => {
-                    if (isGameOver) {
-                        clearInterval(timerInterval);
-                        return;
-                    }
-                    timeLeft -= 0.1;
-                    if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        handleTimeout();
-                    } else {
-                        timerDisplayElement.textContent = `残り時間: ${timeLeft.toFixed(1)}秒`;
-                        // 最後の5秒で色を変える
-                        if (timeLeft <= 5 && timerDisplayElement.style.color !== '#ff0000') {
-                            timerDisplayElement.style.color = '#ff0000';
-                        } else if (timeLeft > 5 && timerDisplayElement.style.color !== '#d32f2f') {
-                            timerDisplayElement.style.color = '#d32f2f';
-                        }
-                    }
-                }, 100); // 100msごとに更新
-            } else {
-                timerDisplayElement.innerHTML = '';
-            }
+        function initializeBoard() {
+            board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+            board[3][3] = 'white';
+            board[3][4] = 'black';
+            board[4][3] = 'black';
+            board[4][4] = 'white';
         }
         
-        // 時間切れの処理
-        function handleTimeout() { // 新規
-            showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は時間切れです！`);
-            const validMoves = getValidMoves(currentPlayer, window.board);
-            
-            if (timeoutAction === 'pass' || validMoves.length === 0) {
-                // パス
-                setTimeout(() => {
-                    switchTurn();
-                }, 1000);
-            } else if (timeoutAction === 'random' && validMoves.length > 0) {
-                // ランダムに着手
-                const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-                
-                // 石を置く処理（アニメーションを含む）を模倣
-                const result = flipDiscs(move.x, move.y, currentPlayer);
-                if (result.success) {
-                    renderBoard();
-                    result.flipped.forEach(pos => {
-                        const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
-                        if (flippedDisc) {
-                            flippedDisc.classList.add(`flip-${currentPlayer}`);
-                            setTimeout(() => {
-                                flippedDisc.classList.remove(`flip-${currentPlayer}`);
-                            }, 500);
-                        }
-                    });
+        function updateAllUI() {
+            updateScores();
+            updatePoints();
+            updateMessage();
+            renderHand();
+            updateControlButtons();
+        }
 
-                    setTimeout(() => {
-                        switchTurn();
-                    }, 600);
+        function updateScores() {
+            // 要塞石も得点に含める
+            let blackCount = board.flat().filter(cell => cell === 'black').length;
+            blackCount += fortressMap.flat().filter(cell => cell === 'black').length;
+            
+            let whiteCount = board.flat().filter(cell => cell === 'white').length;
+            whiteCount += fortressMap.flat().filter(cell => cell === 'white').length;
+            
+            blackScoreElement.textContent = blackCount;
+            whiteScoreElement.textContent = whiteCount;
+        }
+
+        function updatePoints() {
+            blackPointsElement.textContent = points['black'];
+            whitePointsElement.textContent = points['white'];
+        }
+
+        function updateMessage() {
+            let turnText = currentPlayer === 'black' ? '黒' : '白';
+            let actionText = '';
+            
+            if (skipNextTurn[currentPlayer]) {
+                turnText = `${turnText}はパス！ (カード効果)`;
+            } else if (specialMoveType) {
+                const cardName = selectedCard ? selectedCard.card.name : 'カード';
+                if (specialMoveType === 'skip_next') {
+                    actionText = ` (${cardName}使用中)`;
+                } else {
+                    actionText = ` (${cardName}使用中: 盤面を選択)`;
                 }
+            }
+
+            messageElement.textContent = `${turnText}のターンです${actionText}`;
+        }
+        
+        function updateControlButtons() {
+             const disabled = isProcessingMove || specialMoveType !== null;
+             // ポイント上限チェックを追加
+             drawButton.disabled = disabled || points[currentPlayer] < 1; 
+             passButton.disabled = disabled || points[currentPlayer] >= POINT_MAX; // ポイントMAXならパスしてもポイントは増えない
+        }
+
+        function showNotification(message) {
+            notificationElement.textContent = message;
+            notificationElement.classList.add('visible');
+            setTimeout(() => notificationElement.classList.remove('visible'), 1500);
+        }
+
+        // --- カード描画と操作 ---
+        function renderHand() {
+            blackHandArea.innerHTML = '';
+            whiteHandArea.innerHTML = '';
+            
+            ['black', 'white'].forEach(player => {
+                const targetArea = player === 'black' ? blackHandArea : whiteHandArea;
+                const currentHand = hand[player];
+                
+                if (currentHand.length === 0) {
+                     targetArea.innerHTML = '<p style="color: #555; margin: 0; font-size: 0.9em;">手札なし</p>';
+                     return;
+                }
+
+                currentHand.forEach((card, index) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'hand-card';
+                    cardDiv.dataset.index = index;
+                    
+                    const isUsable = points[player] >= card.cost;
+                    
+                    const isDisabled = !isUsable || isProcessingMove || specialMoveType !== null || player !== currentPlayer;
+                    
+                    if (isDisabled) {
+                        cardDiv.classList.add('disabled-card');
+                    } else {
+                        cardDiv.addEventListener('click', () => selectCard(index, card));
+                    }
+
+                    if (player === currentPlayer && selectedCard && selectedCard.index === index) {
+                        cardDiv.classList.add('selected-card');
+                    }
+
+                    cardDiv.innerHTML = `
+                        <div class="card-cost">${card.cost}P</div>
+                        <div class="card-title">${card.name}</div>
+                        <p class="card-effect">${card.effect}</p>
+                    `;
+                    targetArea.appendChild(cardDiv);
+                });
+            });
+        }
+        
+        function selectCard(index, card) {
+            if (points[currentPlayer] < card.cost) {
+                 showNotification('ポイントが足りません！');
+                 return;
+            }
+
+            if (selectedCard && selectedCard.index === index) {
+                selectedCard = null;
+                specialMoveType = null;
+                showNotification('カードの使用をキャンセルしました');
+                highlightValidMoves();
+            } else {
+                selectedCard = { index, card };
+                specialMoveType = card.action;
+                
+                if (specialMoveType === 'skip_next') {
+                    isProcessingMove = true; 
+                    setTimeout(() => {
+                        activateCardEffect(null, null);
+                    }, 100);
+                } else {
+                    showNotification(`${card.name}カードを使用準備中 (コスト: ${card.cost}P)。盤面を選択してください。`);
+                    highlightValidMoves(); 
+                }
+            }
+            updateMessage();
+            renderHand();
+            updateControlButtons();
+        }
+
+        // --- 特殊アクション ---
+
+        function handleDrawCard() {
+            if (points[currentPlayer] < 1 || isProcessingMove || specialMoveType !== null) return;
+            
+            points[currentPlayer] -= 1;
+            const newCard = drawRandomCard();
+            hand[currentPlayer].push(newCard);
+            
+            showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は1Pを消費し「${newCard.name}」を引きました！`);
+            
+            updateAllUI();
+        }
+
+        function handlePass() {
+            if (isProcessingMove || specialMoveType !== null) return;
+            
+            let message = '';
+            
+            if (points[currentPlayer] < POINT_MAX) {
+                 points[currentPlayer] += 1;
+                 message = `パスを選択し、1P獲得しました！`;
+            } else {
+                 message = `ポイントが上限(${POINT_MAX}P)のため、ポイント獲得なしでパスしました。`;
+            }
+            
+            showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は${message}`);
+            
+            isProcessingMove = true;
+            setTimeout(() => {
+                isProcessingMove = false;
+                afterTurnAction(); 
+            }, 300);
+        }
+        
+        function activateCardEffect(x, y) {
+            const player = currentPlayer;
+            const opponent = player === 'black' ? 'white' : 'black';
+            let success = false;
+            let msg = '';
+            
+            const cardCost = selectedCard.card.cost;
+            const targetContent = (x !== null && y !== null) ? board[y][x] : null;
+            const targetFortress = (x !== null && y !== null) ? fortressMap[y][x] : null;
+
+            if (specialMoveType === 'skip_next') {
+                const nextPlayer = opponent;
+                skipNextTurn[nextPlayer] = true;
+                points[player] -= cardCost;
+                msg = `カード効果で相手(${nextPlayer === 'black' ? '黒' : '白'})の次のターンを強制パスさせます！`;
+                success = true;
+            } 
+            else if (specialMoveType === 'fortify') { // 要塞化
+                if (targetContent !== null || targetFortress !== null) {
+                    showNotification('空いているマスを選択してください。');
+                    isProcessingMove = false;
+                    return;
+                }
+                
+                points[player] -= cardCost;
+                fortressMap[y][x] = player; // 要塞石を配置
+                msg = '空マスに要塞石を配置しました！ゲーム終了まで破壊されません。';
+                success = true;
+                renderBoard(); 
+            }
+            else if (specialMoveType === 'chaos_3x3') {
+                if (targetContent === null && targetFortress === null) {
+                    showNotification('石または要塞石が置かれているマスを選択してください。');
+                    isProcessingMove = false;
+                    return;
+                }
+                points[player] -= cardCost;
+                
+                const changed = [];
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const newX = x + dx;
+                        const newY = y + dy;
+                        if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                            if (fortressMap[newY][newX]) {
+                                continue; // 要塞石は不変
+                            }
+                            
+                            // 通常の石の色をランダムに変更 (黒/白/空)
+                            const newColor = DISC_STATES[Math.floor(Math.random() * DISC_STATES.length)];
+                            board[newY][newX] = newColor;
+                            changed.push({x: newX, y: newY});
+                        }
+                    }
+                }
+                msg = `3x3範囲の${changed.length}マスをカオス化しました！`;
+                success = true;
+                renderBoard();
+            }
+            else if (specialMoveType === 'anywhere') {
+                if (targetContent !== null || targetFortress !== null) {
+                    showNotification('既に石が置かれています。');
+                    isProcessingMove = false;
+                    return; 
+                }
+                
+                points[player] -= cardCost;
+                const result = flipDiscs(x, y, player, true); 
+                
+                if (result.success && result.flipped.length > 0) {
+                    msg = 'カード効果で石を配置し、ひっくり返しました！';
+                    handleFlipAnimation(result.flipped, player);
+                } else {
+                    board[y][x] = player;
+                    msg = '石を置きましたが、ひっくり返せる石はありませんでした。';
+                    renderBoard(); 
+                }
+                success = true;
+                
+            } else if (specialMoveType === 'flipcolor') {
+                if (targetContent !== opponent) {
+                    showNotification('相手の石を選択してください。');
+                    isProcessingMove = false;
+                    return;
+                }
+                // 要塞石チェック (targetFortressがnullでないなら要塞なので不可)
+                if (targetFortress) {
+                    showNotification('その石は要塞石です！');
+                    isProcessingMove = false;
+                    return;
+                }
+
+                points[player] -= cardCost;
+                board[y][x] = player; 
+                msg = 'カード効果で相手の石を反転させました！';
+                
+                renderBoard(); 
+                const flippedDisc = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .disc`);
+                if (flippedDisc) {
+                    flippedDisc.classList.add(`flip-${player}`);
+                    setTimeout(() => flippedDisc.classList.remove(`flip-${player}`), 500); 
+                }
+                success = true;
+                
+            } else if (specialMoveType === 'remove_disc') {
+                 if (targetContent === null) {
+                    showNotification('空マスには使用できません。');
+                    isProcessingMove = false;
+                    return; 
+                 }
+                 // 要塞石チェック
+                 if (targetFortress) {
+                    showNotification('その石は要塞石です！');
+                    isProcessingMove = false;
+                    return;
+                }
+                 
+                 points[player] -= cardCost;
+                 
+                 const removedDisc = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .disc`);
+                 if (removedDisc) {
+                    removedDisc.classList.add('remove-disc');
+                    setTimeout(() => {
+                        board[y][x] = null;
+                        renderBoard();
+                    }, 500);
+                 } else {
+                    board[y][x] = null;
+                 }
+                 msg = '盤面から石を一つ取り除きました！';
+                 success = true;
+            }
+
+            if (success) {
+                hand[player].splice(selectedCard.index, 1);
+                selectedCard = null;
+                specialMoveType = null;
+                showNotification(msg);
+                
+                setTimeout(() => {
+                    isProcessingMove = false;
+                    afterTurnAction(); 
+                }, 600);
             }
         }
 
-        // ゲームの状態を初期化
-        function initializeBoard() {
-            window.board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
-            window.board[3][3] = 'white';
-            window.board[3][4] = 'black';
-            window.board[4][3] = 'black';
-            window.board[4][4] = 'white';
-        }
+        // --- 盤面ロジック ---
 
-        // 盤面をHTMLで描画 (省略: 変更なし)
         function renderBoard() {
             boardElement.innerHTML = '';
             for (let y = 0; y < boardSize; y++) {
@@ -433,9 +741,18 @@
                     cell.dataset.x = x;
                     cell.dataset.y = y;
                     
-                    if (window.board[y][x]) {
+                    if (fortressMap[y][x]) {
+                        const fortress = document.createElement('div');
+                        fortress.classList.add('fortress');
+                        
                         const disc = document.createElement('div');
-                        disc.classList.add('disc', window.board[y][x]);
+                        disc.classList.add('disc', fortressMap[y][x]);
+                        fortress.appendChild(disc);
+
+                        cell.appendChild(fortress);
+                    } else if (board[y][x]) {
+                        const disc = document.createElement('div');
+                        disc.classList.add('disc', board[y][x]);
                         cell.appendChild(disc);
                     }
                     
@@ -446,77 +763,12 @@
             updateScores();
         }
 
-        // スコアを更新 (省略: 変更なし)
-        function updateScores() {
-            const blackCount = window.board.flat().filter(cell => cell === 'black').length;
-            const whiteCount = window.board.flat().filter(cell => cell === 'white').length;
-            blackScoreElement.textContent = blackCount;
-            whiteScoreElement.textContent = whiteCount;
-        }
+        // 石をひっくり返す
+        function flipDiscs(x, y, player, forced = false) {
+            if (!forced && (board[y][x] !== null || fortressMap[y][x] !== null)) return { success: false };
 
-        // モード表示を更新
-        function updateModeDisplay() {
-            let timeInfo = '';
-            if (gameMode === 'twoPlayer') {
-                if (timeLimitSeconds === 'unlimited') {
-                    timeInfo = '(制限時間なし)';
-                } else {
-                    timeInfo = `(制限時間: ${timeLimitSeconds}秒, 時間切れ: ${timeoutAction === 'random' ? 'ランダム' : 'パス'})`;
-                }
-                modeDisplayElement.textContent = `モード: 2人対戦 ${timeInfo}`;
-            } else {
-                modeDisplayElement.textContent = `モード: AI対戦 (${DIFFICULTY_MAP[difficulty].name})`;
-            }
-        }
-
-        // メッセージを更新 (省略: 変更なし)
-        function updateMessage() {
-            let turnText = currentPlayer === 'black' ? '黒' : '白';
-            if (gameMode === 'ai' && currentPlayer === 'white') {
-                 messageElement.textContent = `AIのターンです (${turnText})`;
-            } else {
-                 messageElement.textContent = `${turnText}のターンです`;
-            }
-        }
-
-        // AI情報を表示 (省略: 変更なし)
-        function updateAiInfoDisplay() {
-            if (aiTime > 0) {
-                aiInfoElement.innerHTML = `
-                    **AI思考結果:**<br>
-                    時間: ${aiTime}ms | 評価値: ${bestEvaluation.toFixed(2)} | 探索手: ${nodesSearched}
-                `;
-            } else {
-                 aiInfoElement.innerHTML = '';
-            }
-        }
-
-        // 通知ポップアップを表示 (省略: 変更なし)
-        function showNotification(message) {
-            notificationElement.textContent = message;
-            notificationElement.classList.add('visible');
-            setTimeout(() => {
-                notificationElement.classList.remove('visible');
-            }, 1500);
-        }
-
-        // 石を置ける場所をハイライト (省略: 変更なし)
-        function highlightValidMoves() {
-            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('highlight'));
-            if (isGameOver || (gameMode === 'ai' && currentPlayer === 'white') || isAiThinking) return;
-
-            const validMoves = getValidMoves(currentPlayer, window.board);
-            validMoves.forEach(move => {
-                const cell = document.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`);
-                if (cell) cell.classList.add('highlight');
-            });
-        }
-
-        // 石をひっくり返す (成功した場合に盤面データを更新する) (省略: 変更なし)
-        function flipDiscs(x, y, player) {
             const opponent = player === 'black' ? 'white' : 'black';
             const flipped = [];
-            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
 
             directions.forEach(([dx, dy]) => {
                 const lineToFlip = [];
@@ -524,9 +776,17 @@
                 let newY = y + dy;
 
                 while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                    if (window.board[newY][newX] === opponent) {
+                    // 要塞石がある場合
+                    if (fortressMap[newY][newX]) {
+                        // 要塞石はひっくり返せないが、ラインも途切れない（壁ではない）
+                        // ただし、要塞石を越えてラインを形成することはできない
+                        lineToFlip.length = 0; // 要塞石の先にある石はひっくり返せない
+                        break; 
+                    }
+                    
+                    if (board[newY][newX] === opponent) {
                         lineToFlip.push({ x: newX, y: newY });
-                    } else if (window.board[newY][newX] === player) {
+                    } else if (board[newY][newX] === player) {
                         flipped.push(...lineToFlip);
                         break;
                     } else {
@@ -537,22 +797,22 @@
                 }
             });
 
-            if (flipped.length > 0) {
-                window.board[y][x] = player;
+            if (flipped.length > 0 || forced) {
+                board[y][x] = player;
                 flipped.forEach(pos => {
-                    window.board[pos.y][pos.x] = player;
+                    board[pos.y][pos.x] = player;
                 });
                 return { success: true, flipped: flipped };
             }
             return { success: false };
         }
 
-        // 有効な手を取得 (省略: 変更なし)
         function getValidMoves(player, currentBoard) {
             const validMoves = [];
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
-                    if (currentBoard[y][x] === null && canPlaceDisc(x, y, player, currentBoard)) {
+                    // 通常の石も要塞石も置かれていないマスのみチェック
+                    if (currentBoard[y][x] === null && fortressMap[y][x] === null && canPlaceDisc(x, y, player, currentBoard)) {
                         validMoves.push({ x, y });
                     }
                 }
@@ -560,12 +820,11 @@
             return validMoves;
         }
 
-        // 石を置けるか判定 (省略: 変更なし)
         function canPlaceDisc(x, y, player, currentBoard) {
-            if (currentBoard[y][x] !== null) return false;
+            // 石または要塞石がある場合は置けない
+            if (currentBoard[y][x] !== null || fortressMap[y][x] !== null) return false;
 
             const opponent = player === 'black' ? 'white' : 'black';
-            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
             
             for (const [dx, dy] of directions) {
                 let newX = x + dx;
@@ -573,6 +832,12 @@
                 let foundOpponent = false;
 
                 while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                    // 要塞石がある場合、ラインは途切れる
+                    if (fortressMap[newY][newX]) {
+                        foundOpponent = false;
+                        break;
+                    }
+
                     if (currentBoard[newY][newX] === opponent) {
                         foundOpponent = true;
                     } else if (currentBoard[newY][newX] === player) {
@@ -588,45 +853,131 @@
             return false;
         }
 
-        // ターンを交代
-        function switchTurn() {
-            clearInterval(timerInterval); // タイマーを停止
-            currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
-            
-            const blackMoves = getValidMoves('black', window.board);
-            const whiteMoves = getValidMoves('white', window.board);
+        function highlightValidMoves() {
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('highlight');
+                cell.classList.remove('card-highlight');
+            });
+            if (isGameOver || isProcessingMove) return;
 
-            updateAiInfoDisplay();
-            
-            if (blackMoves.length === 0 && whiteMoves.length === 0) {
-                endGame();
-            } else if (getValidMoves(currentPlayer, window.board).length === 0) {
-                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はパスです`);
-                setTimeout(() => {
-                    switchTurn();
-                }, 1500);
-            } else {
-                updateMessage();
-                if (gameMode === 'ai' && currentPlayer === 'white') {
-                    aiTurn(); 
-                } else {
-                    highlightValidMoves();
-                    // 2人対戦モードで制限時間がある場合、タイマーを再開
-                    if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
-                        startTimer();
+            const opponent = currentPlayer === 'black' ? 'white' : 'black';
+
+            // 盤面選択を伴うカードのハイライト
+            if (specialMoveType === 'anywhere' || specialMoveType === 'fortify') {
+                 // どこでも置ける & 要塞化: 空いているマスをすべてハイライト (石も要塞もないマス)
+                 for (let y = 0; y < boardSize; y++) {
+                    for (let x = 0; x < boardSize; x++) {
+                        if (board[y][x] === null && fortressMap[y][x] === null) {
+                            document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
+                        }
+                    }
+                }
+            } else if (specialMoveType === 'flipcolor') {
+                 // 色反転カード使用中: 相手の石があるマスをすべてハイライト (要塞でないもの)
+                 for (let y = 0; y < boardSize; y++) {
+                    for (let x = 0; x < boardSize; x++) {
+                        if (board[y][x] === opponent && fortressMap[y][x] === null) {
+                            document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
+                        }
+                    }
+                }
+            } else if (specialMoveType === 'remove_disc') {
+                 // 石除去カード使用中: 埋まっているマスをすべてハイライト (要塞でないもの)
+                 for (let y = 0; y < boardSize; y++) {
+                    for (let x = 0; x < boardSize; x++) {
+                        if (board[y][x] !== null && fortressMap[y][x] === null) {
+                            document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
+                        }
+                    }
+                }
+            } else if (specialMoveType === 'chaos_3x3') {
+                 // カオスカード使用中: 石が置かれているマスをハイライト (要塞も含む)
+                 for (let y = 0; y < boardSize; y++) {
+                    for (let x = 0; x < boardSize; x++) {
+                        if (board[y][x] !== null || fortressMap[y][x] !== null) {
+                            document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
+                        }
                     }
                 }
             }
+            else {
+                // 通常の手
+                getValidMoves(currentPlayer, board).forEach(move => {
+                    document.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`).classList.add('highlight');
+                });
+            }
+        }
+        
+        function handleFlipAnimation(flipped, player) {
+             if (!flipped || flipped.length === 0) {
+                 renderBoard(); 
+                 return;
+             }
+             isProcessingMove = true;
+             
+             renderBoard();
+             
+             flipped.forEach(pos => {
+                const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                if (flippedDisc) {
+                    flippedDisc.classList.add(`flip-${player}`);
+                    setTimeout(() => flippedDisc.classList.remove(`flip-${player}`), 500); 
+                }
+            });
         }
 
-        // ゲーム終了処理 (省略: 変更なし)
+
+        // --- ターンとゲーム終了 ---
+
+        function afterTurnAction() {
+            // 通常の手番終了時、ポイント獲得なし
+            
+            // ターン交代
+            const nextPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            currentPlayer = nextPlayer;
+            
+            // パス禁止チェック
+            if (skipNextTurn[currentPlayer]) {
+                skipNextTurn[currentPlayer] = false; 
+                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はパス禁止カードにより強制パス！ (1P獲得)`);
+                // 強制パスでもポイント獲得（上限チェックはhandlePassで行う）
+                if (points[currentPlayer] < POINT_MAX) {
+                    points[currentPlayer] += 1;
+                }
+                setTimeout(afterTurnAction, 1500);
+                return;
+            }
+
+            // 通常のパスチェック
+            const blackMoves = getValidMoves('black', board);
+            const whiteMoves = getValidMoves('white', board);
+
+            if (blackMoves.length === 0 && whiteMoves.length === 0) {
+                endGame();
+            } else if (getValidMoves(currentPlayer, board).length === 0) {
+                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は置ける場所がないためパスです (1P獲得)`);
+                // 置く場所がないパスでもポイント獲得
+                if (points[currentPlayer] < POINT_MAX) {
+                    points[currentPlayer] += 1;
+                }
+                setTimeout(afterTurnAction, 1500);
+            } else {
+                // 通常ターン
+                updateAllUI(); 
+                highlightValidMoves();
+            }
+        }
+
         function endGame() {
             isGameOver = true;
-            clearInterval(timerInterval); // タイマーを停止
-            timerDisplayElement.innerHTML = '';
             
-            const blackCount = window.board.flat().filter(cell => cell === 'black').length;
-            const whiteCount = window.board.flat().filter(cell => cell === 'white').length;
+            // 要塞石も含めた最終集計
+            let blackCount = board.flat().filter(cell => cell === 'black').length;
+            blackCount += fortressMap.flat().filter(cell => cell === 'black').length;
+            
+            let whiteCount = board.flat().filter(cell => cell === 'white').length;
+            whiteCount += fortressMap.flat().filter(cell => cell === 'white').length;
+            
             let winnerMessage = '';
 
             if (blackCount > whiteCount) {
@@ -638,370 +989,48 @@
             }
 
             showNotification(winnerMessage);
-            setTimeout(() => {
-                showMenuScreen();
-            }, 3000);
+            setTimeout(showMenuScreen, 3000);
         }
 
-        // プレイヤーのクリック処理
-        function handleCellClick(event) {
-            if (isGameOver || isAiThinking || (gameMode === 'ai' && currentPlayer !== 'black')) return;
-            
-            // 2人対戦モードの時はタイマーを停止
-            if (gameMode === 'twoPlayer') {
-                clearInterval(timerInterval);
-            }
+        // --- クリックハンドラ ---
 
-            // プレイヤーが手を打ったら、AI情報をリセット
-            aiTime = 0;
-            nodesSearched = 0;
-            bestEvaluation = 0;
-            aiInfoElement.innerHTML = '';
+        function handleCellClick(event) {
+            if (isGameOver || isProcessingMove) return;
 
             let targetCell = event.target.closest('.cell');
             if (!targetCell) return;
 
             const x = parseInt(targetCell.dataset.x);
             const y = parseInt(targetCell.dataset.y);
-
-            if (!canPlaceDisc(x, y, currentPlayer, window.board)) {
-                showNotification('そこには置けません。');
-                // 無効な手なのでタイマーを再開
-                if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
-                    startTimer(); 
-                }
+            
+            // 1. カード使用準備中で、かつポイントがある場合
+            if (specialMoveType !== null && points[currentPlayer] >= selectedCard.card.cost) {
+                isProcessingMove = true; 
+                activateCardEffect(x, y);
                 return;
             }
 
+            // 2. 通常の手の処理
+            if (!canPlaceDisc(x, y, currentPlayer, board)) {
+                showNotification('そこには置けません。');
+                return;
+            }
+            
+            isProcessingMove = true; 
             const result = flipDiscs(x, y, currentPlayer);
             
             if (result.success) {
-                isAiThinking = true; // アニメーション中は操作を受け付けない
-                
-                renderBoard();
-                
-                result.flipped.forEach(pos => {
-                    const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
-                    if (flippedDisc) {
-                        flippedDisc.classList.add(`flip-${currentPlayer}`);
-                        setTimeout(() => {
-                            flippedDisc.classList.remove(`flip-${currentPlayer}`);
-                        }, 500);
-                    }
-                });
+                handleFlipAnimation(result.flipped, currentPlayer);
 
                 setTimeout(() => {
-                    isAiThinking = false;
-                    switchTurn();
+                    isProcessingMove = false;
+                    afterTurnAction(); 
                 }, 600);
+            } else {
+                 isProcessingMove = false;
             }
         }
 
-        // AIのターン (省略: 変更なし)
-        function aiTurn() {
-            isAiThinking = true;
-            messageElement.textContent = `AIのターンです (白) 思考中...`;
-            aiInfoElement.innerHTML = `AIが先読み${DIFFICULTY_MAP[difficulty].depth}で探索中...`;
-            
-            let bestMove = null;
-            let moves = getValidMoves('white', window.board);
-
-            nodesSearched = 0;
-            bestEvaluation = 0;
-
-            if (moves.length === 0) {
-                isAiThinking = false;
-                switchTurn();
-                return;
-            }
-
-            // 思考処理を遅延させて、UI更新（思考中表示）を優先させる
-            setTimeout(() => {
-                const startTime = performance.now();
-                
-                switch (difficulty) {
-                    case 'easy':
-                        bestMove = easyAI(moves);
-                        break;
-                    case 'normal':
-                        bestMove = normalAI(moves);
-                        break;
-                    case 'hard':
-                    case 'superHard':
-                    case 'ultimateHard': 
-                        const searchDepth = DIFFICULTY_MAP[difficulty].depth;
-                        const result = hardAI(window.board, moves, searchDepth);
-                        bestMove = result.move;
-                        bestEvaluation = result.score;
-                        break;
-                }
-
-                aiTime = (performance.now() - startTime).toFixed(2);
-                
-                if (bestMove) {
-                    const result = flipDiscs(bestMove.x, bestMove.y, 'white');
-                    
-                    renderBoard();
-                    
-                    result.flipped.forEach(pos => {
-                        const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
-                        if (disc) {
-                            disc.classList.add('flip-white');
-                            setTimeout(() => {
-                                disc.classList.remove('flip-white');
-                            }, 500);
-                        }
-                    });
-
-                    setTimeout(() => {
-                        isAiThinking = false;
-                        switchTurn();
-                    }, 600);
-                }
-            }, 10);
-        }
-
-        // --- AIアルゴリズム定義 (省略: 変更なし) ---
-
-        // AIアルゴリズム: 簡単 (ランダムに選択)
-        function easyAI(moves) {
-            return moves[Math.floor(Math.random() * moves.length)];
-        }
-
-        // AIアルゴリズム: 普通 (最も多くひっくり返せる手を選択)
-        function normalAI(moves) {
-             let bestMove = null;
-             let maxFlips = -1;
-
-             moves.forEach(move => {
-                 let flips = 0;
-                 const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
-                 const opponent = 'black';
-
-                 directions.forEach(([dx, dy]) => {
-                     const lineToFlip = [];
-                     let newX = move.x + dx;
-                     let newY = move.y + dy;
-
-                     while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                         if (window.board[newY][newX] === opponent) {
-                             lineToFlip.push({ x: newX, y: newY });
-                         } else if (window.board[newY][newX] === 'white') {
-                             flips += lineToFlip.length;
-                             break;
-                         } else {
-                             break;
-                         }
-                         newX += dx;
-                         newY += dy;
-                     }
-                 });
-
-                 if (flips > maxFlips) {
-                     maxFlips = flips;
-                     bestMove = move;
-                 }
-             });
-             return bestMove;
-        }
-
-        // AIアルゴリズム: 難しい/激ムズ/超激ムズ (ミニマックス法 with αβ枝刈り)
-        function hardAI(currentBoard, moves, maxDepth) {
-            let bestScore = -Infinity;
-            let bestMove = null;
-            nodesSearched = 0;
-
-            // 序盤の角優先戦略
-            const cornerMoves = moves.filter(m => (m.x === 0 || m.x === 7) && (m.y === 0 || m.y === 7));
-            if (cornerMoves.length > 0) {
-                 const randomCornerMove = cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
-                 const nextBoard = makeMove(currentBoard, randomCornerMove.x, randomCornerMove.y, 'white');
-                 const score = minimax(nextBoard, 1, maxDepth, false, -Infinity, Infinity);
-                 return { move: randomCornerMove, score: score };
-            }
-            
-            for (const move of moves) {
-                const nextBoard = makeMove(currentBoard, move.x, move.y, 'white');
-                const score = minimax(nextBoard, 1, maxDepth, false, -Infinity, Infinity); 
-                
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = move;
-                }
-            }
-
-            return { move: bestMove, score: bestScore };
-        }
-
-        // ミニマックス法 (αβ枝刈りあり)
-        function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer, alpha, beta) {
-            nodesSearched++;
-
-            const blackMoves = getValidMoves('black', currentBoard);
-            const whiteMoves = getValidMoves('white', currentBoard);
-            
-            if (depth >= maxDepth || (blackMoves.length === 0 && whiteMoves.length === 0)) {
-                return evaluateBoard(currentBoard);
-            }
-            
-            const player = isMaximizingPlayer ? 'white' : 'black';
-            const moves = isMaximizingPlayer ? whiteMoves : blackMoves;
-
-            if (moves.length === 0) {
-                // パス
-                return minimax(currentBoard, depth, maxDepth, !isMaximizingPlayer, alpha, beta); 
-            }
-
-            if (isMaximizingPlayer) { // White (AI: 最大化プレイヤー)
-                let bestScore = -Infinity;
-                for (const move of moves) {
-                    const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, false, alpha, beta); 
-                    bestScore = Math.max(bestScore, score);
-                    alpha = Math.max(alpha, bestScore);
-                    if (beta <= alpha) { 
-                        break; 
-                    }
-                }
-                return bestScore;
-            } else { // Black (Player: 最小化プレイヤー)
-                let bestScore = Infinity;
-                for (const move of moves) {
-                    const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, true, alpha, beta); 
-                    bestScore = Math.min(bestScore, score);
-                    beta = Math.min(beta, bestScore);
-                    if (beta <= alpha) { 
-                        break;
-                    }
-                }
-                return bestScore;
-            }
-        }
-
-        // 盤面評価関数
-        function evaluateBoard(currentBoard) {
-            let score = 0;
-            const myPlayer = 'white';
-            const opponent = 'black';
-            
-            // --- 盤面評価の重み ---
-            const cornerWeight = 500; 
-            const stableWeight = 50;
-            const mobilityWeight = 15; 
-            const dangerWeight = -30;
-            const finalCountWeight = 100; 
-
-            const myCount = currentBoard.flat().filter(cell => cell === myPlayer).length;
-            const opponentCount = currentBoard.flat().filter(cell => cell === opponent).length;
-            const discCount = myCount + opponentCount;
-
-            // 1. 石数差 (終盤で重要度を上げる)
-            const countWeight = discCount > 50 ? finalCountWeight : 1; 
-            score += (myCount - opponentCount) * countWeight;
-
-            // 2. 角の確保
-            const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
-            corners.forEach(pos => {
-                if (currentBoard[pos.y][pos.x] === myPlayer) score += cornerWeight;
-                if (currentBoard[pos.y][pos.x] === opponent) score -= cornerWeight;
-            });
-            
-            // 3. 確定石の数
-            const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
-            const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
-            score += (myStableDiscs - opponentStableDiscs) * stableWeight;
-
-            // 4. モビリティ (有効な手の数) - 序盤〜中盤で重要
-            if (discCount < 50) {
-                const myMoves = getValidMoves(myPlayer, currentBoard).length;
-                const opponentMoves = getValidMoves(opponent, currentBoard).length;
-                score += (myMoves - opponentMoves) * mobilityWeight;
-            }
-
-            // 5. 危険な位置 (角の隣) の回避
-            const dangerMoves = [
-                {x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, 
-                {x: 6, y: 0}, {x: 7, y: 1}, {x: 6, y: 1}, 
-                {x: 0, y: 6}, {x: 1, y: 7}, {x: 1, y: 6}, 
-                {x: 7, y: 6}, {x: 6, y: 7}, {x: 6, y: 6}  
-            ];
-            dangerMoves.forEach(pos => {
-                if (currentBoard[pos.y][pos.x] === myPlayer) score += dangerWeight;
-                if (currentBoard[pos.y][pos.x] === opponent) score -= dangerWeight;
-            });
-
-            return score;
-        }
-
-        // 確定石を数える
-        function getStableDiscs(player, currentBoard) {
-            const stableDiscs = [];
-            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]]; 
-
-            for (let y = 0; y < boardSize; y++) {
-                for (let x = 0; x < boardSize; x++) {
-                    if (currentBoard[y][x] !== player) continue;
-                    
-                    let isStable = true;
-                    for (const [dx, dy] of directions) {
-                        
-                        let isFull1 = true;
-                        let newX1 = x + dx, newY1 = y + dy;
-                        while(newX1 >= 0 && newX1 < 8 && newY1 >= 0 && newY1 < 8) {
-                            if (currentBoard[newY1][newX1] !== player) { isFull1 = false; break; }
-                            newX1 += dx; newY1 += dy;
-                        }
-
-                        let isFull2 = true;
-                        let newX2 = x - dx, newY2 = y - dy;
-                        while(newX2 >= 0 && newX2 < 8 && newY2 >= 0 && newY2 < 8) {
-                            if (currentBoard[newY2][newX2] !== player) { isFull2 = false; break; }
-                            newX2 -= dx; newY2 -= dy;
-                        }
-                        
-                        if (!(isFull1 || isFull2)) { 
-                            isStable = false;
-                            break;
-                        }
-                    }
-                    if (isStable) stableDiscs.push({x, y});
-                }
-            }
-            return stableDiscs;
-        }
-
-        // 仮想的な石の配置
-        function makeMove(currentBoard, x, y, player) {
-            const newBoard = JSON.parse(JSON.stringify(currentBoard));
-            newBoard[y][x] = player;
-            const opponent = player === 'black' ? 'white' : 'black';
-            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
-
-            directions.forEach(([dx, dy]) => {
-                const lineToFlip = [];
-                let newX = x + dx;
-                let newY = y + dy;
-
-                while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                    if (newBoard[newY][newX] === opponent) {
-                        lineToFlip.push({ x: newX, y: newY });
-                    } else if (newBoard[newY][newX] === player) {
-                        lineToFlip.forEach(pos => {
-                            newBoard[pos.y][pos.x] = player;
-                        });
-                        break;
-                    } else {
-                        break;
-                    }
-                    newX += dx;
-                    newY += dy;
-                }
-            });
-            return newBoard;
-        }
-
-        // 初期画面の表示
         window.onload = showMenuScreen;
     </script>
 </body>
