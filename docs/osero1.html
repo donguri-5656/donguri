@@ -87,7 +87,7 @@
         
         /* ポイントマス（お楽しみマス）のスタイル */
         .point-spot::after {
-            content: '💲'; /* ドルマークをポイントマスのシンボルに */
+            content: '🐵';
             position: absolute;
             font-size: 30px;
             color: #ffcc00; 
@@ -443,7 +443,7 @@
         const HAND_MAX = 4;   // 手札上限
         const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
         const DISC_STATES = ['black', 'white', null];
-        const POINT_SPOT_COUNT = 6; // 配置するポイントマスの数
+        const POINT_SPOT_COUNT = 16; // 配置するポイントマスの数
 
         // --- ゲーム状態変数 ---
         let board = []; 
@@ -463,7 +463,7 @@
         const DECK = [
             { id: 1, name: 'どこでも置ける', cost: 2, type: 'special_move', effect: '空マスに石を置き、周囲の石をひっくり返す', action: 'anywhere' },
             { id: 2, name: '色反転', cost: 3, type: 'special_move', effect: '相手の石一つを自分の色に反転', action: 'flipcolor' },
-            { id: 3, name: 'パス禁止', cost: 2, type: 'status_effect', effect: '相手の次のターンを強制パスさせる', action: 'skip_next' },
+            { id: 3, name: 'パス禁止', cost: 2, type: 'status_effect', effect: 'tukattaraosimai', action: 'skip_next' },
             { id: 4, name: '石除去', cost: 4, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' },
             { id: 6, name: '要塞化', cost: 8, type: 'special_move', effect: '空マスに、ゲーム終了まで破壊されない要塞石（自色）を置く', action: 'fortify' }, 
             { id: 7, name: 'カオス', cost: 6, type: 'special_move', effect: '選択マス中心の3x3範囲の石の色をランダムに変更', action: 'chaos_3x3' }
