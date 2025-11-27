@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>😋</title>
     <style>
-        {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -51,6 +51,30 @@
             box-shadow: 0 2px #a02c39;
             transform: translateY(2px);
         }
+        #hidden-menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: none;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .auto-gen-button {
+            padding: 5px 10px;
+            margin: 5px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            background-color: #e9f7ff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .auto-gen-button:hover {
+            background-color: #cce5ff;
+        }
+
         #menu-area {
             height: 45%; 
             width: 100%;
@@ -97,6 +121,13 @@
     <div id="main-container">
         <div id="physics-area">
             <button id="bomb-button" onclick="dropBomb()">💥 爆弾投下 (Cubes: 0)</button>
+            
+            <div id="hidden-menu">
+                <p>自動生成間隔 (ms):</p>
+                <button class="auto-gen-button" onclick="setAutoGenInterval(1)">1ms</button>
+                <button class="auto-gen-button" onclick="setAutoGenInterval(10)">10ms</button>
+                <button class="auto-gen-button" onclick="setAutoGenInterval(100)">100ms</button>
+            </div>
         </div>
 
         <div id="menu-area">
@@ -122,7 +153,8 @@
         const BOMB_EXPLOSION_TIME = 3000;
         const container = document.getElementById('physics-area');
         const bombButton = document.getElementById('bomb-button');
-        
+        const hiddenMenu = document.getElementById('hidden-menu');
+
         let width = container.clientWidth;
         let height = container.clientHeight;
 
@@ -193,10 +225,21 @@
             objects.push({ mesh: boxMesh, body: boxBody });
         }
 
-        setInterval(() => createBlock(), 300);
+        let autoGenInterval = 300; 
+        let autoGenTimer = setInterval(() => createBlock(), autoGenInterval);
+        
+        function setAutoGenInterval(ms) {
+            if (autoGenTimer) {
+                clearInterval(autoGenTimer);
+            }
+            autoGenInterval = ms;
+            autoGenTimer = setInterval(() => createBlock(), autoGenInterval);
+        }
 
         container.addEventListener('click', (event) => {
-            createBlock(0, 8, 0);
+            if (event.target.id === 'bomb-button') {
+                return;
+            }
         });
 
         let bombBody = null;
@@ -240,7 +283,6 @@
 
             const bombPosition = bombBody.position;
             
-
             clearTimeout(bombTimer);
             bombTimer = null;
 
@@ -313,7 +355,7 @@
             if (currentCubeCount >= MAX_CUBES && !bombBody) {
                 bombButton.style.display = 'block';
             } else if (currentCubeCount < MAX_CUBES && !bombBody) {
-                 bombButton.style.display = 'none';
+                bombButton.style.display = 'none';
             }
 
             if (bombBody) {
@@ -347,6 +389,55 @@
             camera.updateProjectionMatrix();
             renderer.setSize(width, height);
         });
+
+        function getCornerArea(x, y, width, height) {
+            const threshold = 0.2;
+            const left = x < width * threshold;
+            const right = x > width * (1 - threshold);
+            const top = y < height * threshold;
+            const bottom = y > height * (1 - threshold);
+
+            if (right && top) return 'RT';
+            if (left && bottom) return 'LB';
+            if (right && bottom) return 'RB';
+
+            return null;
+        }
+
+        const targetSequence = ['RT', 'LB', 'RT', 'RB'];
+        let currentSequence = [];
+
+        container.addEventListener('click', (event) => {
+            const rect = container.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            if (event.target.id === 'bomb-button') {
+                return;
+            }
+
+            const corner = getCornerArea(x, y, rect.width, rect.height);
+
+            if (corner) {
+                if (corner === targetSequence[currentSequence.length]) {
+                    currentSequence.push(corner);
+                } else {
+                    currentSequence = [];
+                    if (corner === 'RT') {
+                        currentSequence.push(corner);
+                    }
+                }
+                
+                if (currentSequence.length === targetSequence.length) {
+                    hiddenMenu.style.display = 'block';
+                    currentSequence = [];
+                }
+            } else {
+                currentSequence = [];
+            }
+        });
+
+        window.setAutoGenInterval = setAutoGenInterval;
 
         animate();
     </script>
