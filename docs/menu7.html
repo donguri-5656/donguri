@@ -19,7 +19,7 @@
             color: #333;
         }
 
-        #menu-container, #difficulty-container, #game-container {
+        #menu-container, #difficulty-container, #two-player-settings, #game-container {
             display: none;
             flex-direction: column;
             align-items: center;
@@ -47,6 +47,12 @@
         button:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 超激ムズボタンを強調 */
+        #superHardButton, #ultimateHardButton {
+            background-color: #ff5722;
+            font-weight: bold;
         }
 
         #game-board {
@@ -108,6 +114,13 @@
             margin-bottom: 10px;
         }
 
+        #ai-info {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+            min-height: 40px; /* 情報が表示されていない時の高さ確保 */
+        }
+        
         #pause-button {
             position: fixed;
             top: 20px;
@@ -139,10 +152,19 @@
         }
         #notification.visible { opacity: 1; }
 
-        /* ブックマークレット用ハイライト */
-        .cell.best-move-highlight {
-            border: 3px solid #ff0000 !important; /* 赤いボーダー */
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8) !important;
+        /* 制限時間表示 */
+        #timer-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #d32f2f;
+            margin-top: 5px;
+            min-height: 1.2em;
+        }
+
+        /* 設定画面のスタイル */
+        #two-player-settings label, #two-player-settings select {
+            margin: 10px 0;
+            font-size: 1em;
         }
     </style>
 </head>
@@ -151,14 +173,46 @@
     <div id="menu-container">
         <h2>オセロ</h2>
         <button onclick="showDifficultyScreen()">AIと対戦</button>
-        <button onclick="startGame('twoPlayer')">2人で対戦</button>
+        <button onclick="showTwoPlayerSettings()">2人で対戦</button>
+        <button onclick="location.href='osero1.html'">2人で特殊オセロ</button>
     </div>
 
     <div id="difficulty-container">
         <h2>難易度を選んでください</h2>
         <button onclick="startGame('ai', 'easy')">簡単</button>
         <button onclick="startGame('ai', 'normal')">普通</button>
-        <button onclick="startGame('ai', 'hard')">難しい</button>
+        <button onclick="startGame('ai', 'hard')">難しい (先読み3)</button>
+        <button id="superHardButton" onclick="startGame('ai', 'superHard')">激ムズ (先読み6)</button>
+        <button id="ultimateHardButton" onclick="startGame('ai', 'ultimateHard')">超激ムズ (先読み8)</button>
+        <button onclick="showMenuScreen()">メニューに戻る</button>
+    </div>
+
+    <div id="two-player-settings">
+        <h2>2人対戦設定</h2>
+        <div>
+            <label for="timeLimit">制限時間 (秒):</label>
+            <select id="timeLimit">
+                <option value="unlimited">なし</option>
+                <option value="0.5">0.5</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="60">60</option>
+                <option value="90">90</option>
+                <option value="120">120</option>
+            </select>
+        </div>
+        <div>
+            <label for="timeoutAction">時間切れの動作:</label>
+            <select id="timeoutAction">
+                <option value="random">ランダムに着手</option>
+                <option value="pass">パスする</option>
+            </select>
+        </div>
+        <button onclick="startTwoPlayerGame()">ゲーム開始</button>
         <button onclick="showMenuScreen()">メニューに戻る</button>
     </div>
 
@@ -166,7 +220,9 @@
         <button id="pause-button" onclick="pauseGame()">止める</button>
         <div id="info-panel">
             <p>黒: <span id="black-score">2</span> 白: <span id="white-score">2</span></p>
+            <p id="mode-display"></p>
             <p id="message">あなたのターンです (黒)</p>
+            <div id="timer-display"></div> <div id="ai-info"></div>
         </div>
         <div id="game-board"></div>
     </div>
@@ -177,42 +233,78 @@
         // DOM要素の取得
         const menuContainer = document.getElementById('menu-container');
         const difficultyContainer = document.getElementById('difficulty-container');
+        const twoPlayerSettings = document.getElementById('two-player-settings'); // 新規
         const gameContainer = document.getElementById('game-container');
         const boardElement = document.getElementById('game-board');
         const blackScoreElement = document.getElementById('black-score');
         const whiteScoreElement = document.getElementById('white-score');
+        const modeDisplayElement = document.getElementById('mode-display');
         const messageElement = document.getElementById('message');
+        const aiInfoElement = document.getElementById('ai-info');
         const notificationElement = document.getElementById('notification');
+        const timerDisplayElement = document.getElementById('timer-display'); // 新規
+        const timeLimitSelect = document.getElementById('timeLimit'); // 新規
+        const timeoutActionSelect = document.getElementById('timeoutAction'); // 新規
 
         const boardSize = 8;
-        // ------------------------------------------------------------------
-        // ★ 修正箇所 A: 盤面データをグローバル(window)に公開
-        // ブックマークレットからアクセスできるようにします。
-        window.board = []; 
-        // ------------------------------------------------------------------
+        window.board = [];
         let currentPlayer = 'black';
         let isGameOver = false;
         let isAiThinking = false;
         let gameMode = 'twoPlayer';
         let difficulty = 'normal';
-        let aiStartTime = 0;
+        let nodesSearched = 0;
+        let aiTime = 0;
+        let bestEvaluation = 0;
+        
+        // 2人対戦用の設定
+        let timeLimitSeconds = 'unlimited'; // 'unlimited' or number
+        let timeoutAction = 'random'; // 'random' or 'pass'
+        let timerInterval = null;
+        let timeLeft = 0;
+
+        // 難易度と先読み深さのマッピング
+        const DIFFICULTY_MAP = {
+            'easy': { name: '簡単', depth: 0 },
+            'normal': { name: '普通', depth: 0 },
+            'hard': { name: '難しい', depth: 3 },
+            'superHard': { name: '激ムズ', depth: 6 },
+            'ultimateHard': { name: '超激ムズ', depth: 8 }
+        };
 
         // 画面切り替え関数
         function showMenuScreen() {
             menuContainer.style.display = 'flex';
             difficultyContainer.style.display = 'none';
+            twoPlayerSettings.style.display = 'none';
             gameContainer.style.display = 'none';
+            clearInterval(timerInterval);
         }
 
         function showDifficultyScreen() {
             menuContainer.style.display = 'none';
             difficultyContainer.style.display = 'flex';
+            twoPlayerSettings.style.display = 'none';
+        }
+
+        function showTwoPlayerSettings() { // 新規
+            menuContainer.style.display = 'none';
+            difficultyContainer.style.display = 'none';
+            twoPlayerSettings.style.display = 'flex';
         }
 
         function showGameScreen() {
             menuContainer.style.display = 'none';
             difficultyContainer.style.display = 'none';
+            twoPlayerSettings.style.display = 'none';
             gameContainer.style.display = 'flex';
+        }
+        
+        function startTwoPlayerGame() { // 新規
+            gameMode = 'twoPlayer';
+            timeLimitSeconds = timeLimitSelect.value;
+            timeoutAction = timeoutActionSelect.value;
+            startGame('twoPlayer');
         }
 
         // ゲーム開始
@@ -225,8 +317,11 @@
 
         // ゲームの一時停止
         function pauseGame() {
+            clearInterval(timerInterval); // タイマーを停止
             if (confirm('メニュー画面に戻りますか？現在のゲームは破棄されます。')) {
                 showMenuScreen();
+            } else {
+                startTimer(); // タイマーを再開
             }
         }
 
@@ -235,17 +330,92 @@
             isGameOver = false;
             isAiThinking = false;
             currentPlayer = 'black';
+            nodesSearched = 0;
+            aiTime = 0;
+            bestEvaluation = 0;
+            aiInfoElement.innerHTML = '';
+            timerDisplayElement.innerHTML = '';
+            clearInterval(timerInterval);
+
             initializeBoard();
             renderBoard();
             highlightValidMoves();
-            messageElement.textContent = 'あなたのターンです (黒)';
+            updateModeDisplay();
+            updateMessage();
+            
+            if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
+                startTimer();
+            }
+        }
+
+        // ターンタイマーの開始/リセット
+        function startTimer() { // 新規/更新
+            clearInterval(timerInterval);
+            if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
+                timeLeft = parseFloat(timeLimitSeconds);
+                timerDisplayElement.textContent = `残り時間: ${timeLeft.toFixed(1)}秒`;
+
+                timerInterval = setInterval(() => {
+                    if (isGameOver) {
+                        clearInterval(timerInterval);
+                        return;
+                    }
+                    timeLeft -= 0.1;
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        handleTimeout();
+                    } else {
+                        timerDisplayElement.textContent = `残り時間: ${timeLeft.toFixed(1)}秒`;
+                        // 最後の5秒で色を変える
+                        if (timeLeft <= 5 && timerDisplayElement.style.color !== '#ff0000') {
+                            timerDisplayElement.style.color = '#ff0000';
+                        } else if (timeLeft > 5 && timerDisplayElement.style.color !== '#d32f2f') {
+                            timerDisplayElement.style.color = '#d32f2f';
+                        }
+                    }
+                }, 100); // 100msごとに更新
+            } else {
+                timerDisplayElement.innerHTML = '';
+            }
+        }
+        
+        // 時間切れの処理
+        function handleTimeout() { // 新規
+            showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は時間切れです！`);
+            const validMoves = getValidMoves(currentPlayer, window.board);
+            
+            if (timeoutAction === 'pass' || validMoves.length === 0) {
+                // パス
+                setTimeout(() => {
+                    switchTurn();
+                }, 1000);
+            } else if (timeoutAction === 'random' && validMoves.length > 0) {
+                // ランダムに着手
+                const move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                
+                // 石を置く処理（アニメーションを含む）を模倣
+                const result = flipDiscs(move.x, move.y, currentPlayer);
+                if (result.success) {
+                    renderBoard();
+                    result.flipped.forEach(pos => {
+                        const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                        if (flippedDisc) {
+                            flippedDisc.classList.add(`flip-${currentPlayer}`);
+                            setTimeout(() => {
+                                flippedDisc.classList.remove(`flip-${currentPlayer}`);
+                            }, 500);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        switchTurn();
+                    }, 600);
+                }
+            }
         }
 
         // ゲームの状態を初期化
         function initializeBoard() {
-            // ------------------------------------------------------------------
-            // ★ 修正箇所 B: 初期化時もwindow.boardを使用
-            // ------------------------------------------------------------------
             window.board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
             window.board[3][3] = 'white';
             window.board[3][4] = 'black';
@@ -253,7 +423,7 @@
             window.board[4][4] = 'white';
         }
 
-        // 盤面をHTMLで描画
+        // 盤面をHTMLで描画 (省略: 変更なし)
         function renderBoard() {
             boardElement.innerHTML = '';
             for (let y = 0; y < boardSize; y++) {
@@ -263,7 +433,7 @@
                     cell.dataset.x = x;
                     cell.dataset.y = y;
                     
-                    if (window.board[y][x]) { // window.boardを使用
+                    if (window.board[y][x]) {
                         const disc = document.createElement('div');
                         disc.classList.add('disc', window.board[y][x]);
                         cell.appendChild(disc);
@@ -276,7 +446,7 @@
             updateScores();
         }
 
-        // スコアを更新
+        // スコアを更新 (省略: 変更なし)
         function updateScores() {
             const blackCount = window.board.flat().filter(cell => cell === 'black').length;
             const whiteCount = window.board.flat().filter(cell => cell === 'white').length;
@@ -284,7 +454,44 @@
             whiteScoreElement.textContent = whiteCount;
         }
 
-        // 通知ポップアップを表示
+        // モード表示を更新
+        function updateModeDisplay() {
+            let timeInfo = '';
+            if (gameMode === 'twoPlayer') {
+                if (timeLimitSeconds === 'unlimited') {
+                    timeInfo = '(制限時間なし)';
+                } else {
+                    timeInfo = `(制限時間: ${timeLimitSeconds}秒, 時間切れ: ${timeoutAction === 'random' ? 'ランダム' : 'パス'})`;
+                }
+                modeDisplayElement.textContent = `モード: 2人対戦 ${timeInfo}`;
+            } else {
+                modeDisplayElement.textContent = `モード: AI対戦 (${DIFFICULTY_MAP[difficulty].name})`;
+            }
+        }
+
+        // メッセージを更新 (省略: 変更なし)
+        function updateMessage() {
+            let turnText = currentPlayer === 'black' ? '黒' : '白';
+            if (gameMode === 'ai' && currentPlayer === 'white') {
+                 messageElement.textContent = `AIのターンです (${turnText})`;
+            } else {
+                 messageElement.textContent = `${turnText}のターンです`;
+            }
+        }
+
+        // AI情報を表示 (省略: 変更なし)
+        function updateAiInfoDisplay() {
+            if (aiTime > 0) {
+                aiInfoElement.innerHTML = `
+                    **AI思考結果:**<br>
+                    時間: ${aiTime}ms | 評価値: ${bestEvaluation.toFixed(2)} | 探索手: ${nodesSearched}
+                `;
+            } else {
+                 aiInfoElement.innerHTML = '';
+            }
+        }
+
+        // 通知ポップアップを表示 (省略: 変更なし)
         function showNotification(message) {
             notificationElement.textContent = message;
             notificationElement.classList.add('visible');
@@ -293,10 +500,10 @@
             }, 1500);
         }
 
-        // 石を置ける場所をハイライト
+        // 石を置ける場所をハイライト (省略: 変更なし)
         function highlightValidMoves() {
             document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('highlight'));
-            if (isGameOver || (gameMode === 'ai' && currentPlayer === 'white')) return;
+            if (isGameOver || (gameMode === 'ai' && currentPlayer === 'white') || isAiThinking) return;
 
             const validMoves = getValidMoves(currentPlayer, window.board);
             validMoves.forEach(move => {
@@ -305,7 +512,7 @@
             });
         }
 
-        // 石をひっくり返す (成功した場合に盤面データを更新する)
+        // 石をひっくり返す (成功した場合に盤面データを更新する) (省略: 変更なし)
         function flipDiscs(x, y, player) {
             const opponent = player === 'black' ? 'white' : 'black';
             const flipped = [];
@@ -317,9 +524,9 @@
                 let newY = y + dy;
 
                 while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                    if (window.board[newY][newX] === opponent) { // window.boardを使用
+                    if (window.board[newY][newX] === opponent) {
                         lineToFlip.push({ x: newX, y: newY });
-                    } else if (window.board[newY][newX] === player) { // window.boardを使用
+                    } else if (window.board[newY][newX] === player) {
                         flipped.push(...lineToFlip);
                         break;
                     } else {
@@ -331,7 +538,6 @@
             });
 
             if (flipped.length > 0) {
-                // 盤面データの更新
                 window.board[y][x] = player;
                 flipped.forEach(pos => {
                     window.board[pos.y][pos.x] = player;
@@ -341,7 +547,7 @@
             return { success: false };
         }
 
-        // 有効な手を取得
+        // 有効な手を取得 (省略: 変更なし)
         function getValidMoves(player, currentBoard) {
             const validMoves = [];
             for (let y = 0; y < boardSize; y++) {
@@ -354,7 +560,7 @@
             return validMoves;
         }
 
-        // 石を置けるか判定
+        // 石を置けるか判定 (省略: 変更なし)
         function canPlaceDisc(x, y, player, currentBoard) {
             if (currentBoard[y][x] !== null) return false;
 
@@ -384,11 +590,14 @@
 
         // ターンを交代
         function switchTurn() {
+            clearInterval(timerInterval); // タイマーを停止
             currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
             
             const blackMoves = getValidMoves('black', window.board);
             const whiteMoves = getValidMoves('white', window.board);
 
+            updateAiInfoDisplay();
+            
             if (blackMoves.length === 0 && whiteMoves.length === 0) {
                 endGame();
             } else if (getValidMoves(currentPlayer, window.board).length === 0) {
@@ -397,19 +606,25 @@
                     switchTurn();
                 }, 1500);
             } else {
-                messageElement.textContent = `${currentPlayer === 'black' ? 'あなたの' : 'AIの'}ターンです (${currentPlayer === 'black' ? '黒' : '白'})`;
+                updateMessage();
                 if (gameMode === 'ai' && currentPlayer === 'white') {
-                    aiStartTime = performance.now();
-                    aiTurn();  
+                    aiTurn(); 
                 } else {
                     highlightValidMoves();
+                    // 2人対戦モードで制限時間がある場合、タイマーを再開
+                    if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
+                        startTimer();
+                    }
                 }
             }
         }
 
-        // ゲーム終了処理
+        // ゲーム終了処理 (省略: 変更なし)
         function endGame() {
             isGameOver = true;
+            clearInterval(timerInterval); // タイマーを停止
+            timerDisplayElement.innerHTML = '';
+            
             const blackCount = window.board.flat().filter(cell => cell === 'black').length;
             const whiteCount = window.board.flat().filter(cell => cell === 'white').length;
             let winnerMessage = '';
@@ -430,8 +645,18 @@
 
         // プレイヤーのクリック処理
         function handleCellClick(event) {
-            if (isGameOver || isAiThinking) return;
-            if (gameMode === 'ai' && currentPlayer !== 'black') return;
+            if (isGameOver || isAiThinking || (gameMode === 'ai' && currentPlayer !== 'black')) return;
+            
+            // 2人対戦モードの時はタイマーを停止
+            if (gameMode === 'twoPlayer') {
+                clearInterval(timerInterval);
+            }
+
+            // プレイヤーが手を打ったら、AI情報をリセット
+            aiTime = 0;
+            nodesSearched = 0;
+            bestEvaluation = 0;
+            aiInfoElement.innerHTML = '';
 
             let targetCell = event.target.closest('.cell');
             if (!targetCell) return;
@@ -439,45 +664,50 @@
             const x = parseInt(targetCell.dataset.x);
             const y = parseInt(targetCell.dataset.y);
 
-            if (!canPlaceDisc(x, y, currentPlayer, window.board)) { // window.boardを使用
+            if (!canPlaceDisc(x, y, currentPlayer, window.board)) {
                 showNotification('そこには置けません。');
+                // 無効な手なのでタイマーを再開
+                if (gameMode === 'twoPlayer' && timeLimitSeconds !== 'unlimited') {
+                    startTimer(); 
+                }
                 return;
             }
 
-            // flipDiscs内で盤面データが更新される (window.board)
             const result = flipDiscs(x, y, currentPlayer);
             
             if (result.success) {
-                isAiThinking = true; 
+                isAiThinking = true; // アニメーション中は操作を受け付けない
                 
-                // 盤面全体を再描画（アニメーションを適用するため）
-                renderBoard(); 
+                renderBoard();
                 
-                // アニメーションを適用
                 result.flipped.forEach(pos => {
                     const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
                     if (flippedDisc) {
                         flippedDisc.classList.add(`flip-${currentPlayer}`);
                         setTimeout(() => {
                             flippedDisc.classList.remove(`flip-${currentPlayer}`);
-                        }, 500); 
+                        }, 500);
                     }
                 });
 
-                // アニメーション完了後にターン交代
                 setTimeout(() => {
                     isAiThinking = false;
                     switchTurn();
                 }, 600);
-            } 
+            }
         }
 
-        // AIのターン
+        // AIのターン (省略: 変更なし)
         function aiTurn() {
             isAiThinking = true;
             messageElement.textContent = `AIのターンです (白) 思考中...`;
+            aiInfoElement.innerHTML = `AIが先読み${DIFFICULTY_MAP[difficulty].depth}で探索中...`;
+            
             let bestMove = null;
-            let moves = getValidMoves('white', window.board); // window.boardを使用
+            let moves = getValidMoves('white', window.board);
+
+            nodesSearched = 0;
+            bestEvaluation = 0;
 
             if (moves.length === 0) {
                 isAiThinking = false;
@@ -485,49 +715,53 @@
                 return;
             }
 
-            switch (difficulty) {
-                case 'easy':
-                    bestMove = easyAI(moves);
-                    break;
-                case 'normal':
-                    bestMove = normalAI(moves);
-                    break;
-                case 'hard':
-                    aiStartTime = performance.now(); 
-                    const searchDepth = 4; 
-                    bestMove = hardAI(window.board, moves, searchDepth); // window.boardを使用
-                    break;
-            }
-            
-            if (bestMove) {
-                const result = flipDiscs(bestMove.x, bestMove.y, 'white');
-                const aiEndTime = performance.now();
-                const aiTime = (aiEndTime - aiStartTime).toFixed(2);
+            // 思考処理を遅延させて、UI更新（思考中表示）を優先させる
+            setTimeout(() => {
+                const startTime = performance.now();
                 
-                renderBoard(); 
-                
-                messageElement.textContent = `AIのターンです (白) 思考時間: ${aiTime}ms`;
-                
-                // アニメーションを適用
-                result.flipped.forEach(pos => {
-                    const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
-                    if (disc) {
-                        disc.classList.add('flip-white');
-                        setTimeout(() => {
-                            disc.classList.remove('flip-white');
-                        }, 500);
-                    }
-                });
+                switch (difficulty) {
+                    case 'easy':
+                        bestMove = easyAI(moves);
+                        break;
+                    case 'normal':
+                        bestMove = normalAI(moves);
+                        break;
+                    case 'hard':
+                    case 'superHard':
+                    case 'ultimateHard': 
+                        const searchDepth = DIFFICULTY_MAP[difficulty].depth;
+                        const result = hardAI(window.board, moves, searchDepth);
+                        bestMove = result.move;
+                        bestEvaluation = result.score;
+                        break;
+                }
 
-                // アニメーション完了後にターン交代
-                setTimeout(() => {
-                    isAiThinking = false;
-                    switchTurn();
-                }, 600);
-            }
+                aiTime = (performance.now() - startTime).toFixed(2);
+                
+                if (bestMove) {
+                    const result = flipDiscs(bestMove.x, bestMove.y, 'white');
+                    
+                    renderBoard();
+                    
+                    result.flipped.forEach(pos => {
+                        const disc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
+                        if (disc) {
+                            disc.classList.add('flip-white');
+                            setTimeout(() => {
+                                disc.classList.remove('flip-white');
+                            }, 500);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        isAiThinking = false;
+                        switchTurn();
+                    }, 600);
+                }
+            }, 10);
         }
 
-        // --- AIアルゴリズム定義 ---
+        // --- AIアルゴリズム定義 (省略: 変更なし) ---
 
         // AIアルゴリズム: 簡単 (ランダムに選択)
         function easyAI(moves) {
@@ -536,68 +770,77 @@
 
         // AIアルゴリズム: 普通 (最も多くひっくり返せる手を選択)
         function normalAI(moves) {
-            let bestMove = null;
-            let maxFlips = -1;
+             let bestMove = null;
+             let maxFlips = -1;
 
-            moves.forEach(move => {
-                let flips = 0;
-                const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
-                const opponent = 'black';
+             moves.forEach(move => {
+                 let flips = 0;
+                 const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+                 const opponent = 'black';
 
-                directions.forEach(([dx, dy]) => {
-                    const lineToFlip = [];
-                    let newX = move.x + dx;
-                    let newY = move.y + dy;
+                 directions.forEach(([dx, dy]) => {
+                     const lineToFlip = [];
+                     let newX = move.x + dx;
+                     let newY = move.y + dy;
 
-                    while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-                        if (window.board[newY][newX] === opponent) { // window.boardを使用
-                            lineToFlip.push({ x: newX, y: newY });
-                        } else if (window.board[newY][newX] === 'white') { // window.boardを使用
-                            flips += lineToFlip.length;
-                            break;
-                        } else {
-                            break;
-                        }
-                        newX += dx;
-                        newY += dy;
-                    }
-                });
+                     while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+                         if (window.board[newY][newX] === opponent) {
+                             lineToFlip.push({ x: newX, y: newY });
+                         } else if (window.board[newY][newX] === 'white') {
+                             flips += lineToFlip.length;
+                             break;
+                         } else {
+                             break;
+                         }
+                         newX += dx;
+                         newY += dy;
+                     }
+                 });
 
-                if (flips > maxFlips) {
-                    maxFlips = flips;
-                    bestMove = move;
-                }
-            });
-            return bestMove;
+                 if (flips > maxFlips) {
+                     maxFlips = flips;
+                     bestMove = move;
+                 }
+             });
+             return bestMove;
         }
 
-        // AIアルゴリズム: 難しい (ミニマックス法 with αβ枝刈り)
+        // AIアルゴリズム: 難しい/激ムズ/超激ムズ (ミニマックス法 with αβ枝刈り)
         function hardAI(currentBoard, moves, maxDepth) {
             let bestScore = -Infinity;
             let bestMove = null;
-            
+            nodesSearched = 0;
+
+            // 序盤の角優先戦略
             const cornerMoves = moves.filter(m => (m.x === 0 || m.x === 7) && (m.y === 0 || m.y === 7));
             if (cornerMoves.length > 0) {
-                return cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
+                 const randomCornerMove = cornerMoves[Math.floor(Math.random() * cornerMoves.length)];
+                 const nextBoard = makeMove(currentBoard, randomCornerMove.x, randomCornerMove.y, 'white');
+                 const score = minimax(nextBoard, 1, maxDepth, false, -Infinity, Infinity);
+                 return { move: randomCornerMove, score: score };
             }
-
-            moves.forEach(move => {
+            
+            for (const move of moves) {
                 const nextBoard = makeMove(currentBoard, move.x, move.y, 'white');
-                const score = minimax(nextBoard, 0, maxDepth, false, -Infinity, Infinity); 
+                const score = minimax(nextBoard, 1, maxDepth, false, -Infinity, Infinity); 
                 
                 if (score > bestScore) {
                     bestScore = score;
                     bestMove = move;
                 }
-            });
-            return bestMove;
+            }
+
+            return { move: bestMove, score: bestScore };
         }
 
         // ミニマックス法 (αβ枝刈りあり)
         function minimax(currentBoard, depth, maxDepth, isMaximizingPlayer, alpha, beta) {
+            nodesSearched++;
+
             const blackMoves = getValidMoves('black', currentBoard);
             const whiteMoves = getValidMoves('white', currentBoard);
-            if (depth === maxDepth || (blackMoves.length === 0 && whiteMoves.length === 0)) {
+            
+            if (depth >= maxDepth || (blackMoves.length === 0 && whiteMoves.length === 0)) {
                 return evaluateBoard(currentBoard);
             }
             
@@ -605,14 +848,15 @@
             const moves = isMaximizingPlayer ? whiteMoves : blackMoves;
 
             if (moves.length === 0) {
+                // パス
                 return minimax(currentBoard, depth, maxDepth, !isMaximizingPlayer, alpha, beta); 
             }
 
-            if (isMaximizingPlayer) { // White (AI)
+            if (isMaximizingPlayer) { // White (AI: 最大化プレイヤー)
                 let bestScore = -Infinity;
                 for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, false, alpha, beta);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, false, alpha, beta); 
                     bestScore = Math.max(bestScore, score);
                     alpha = Math.max(alpha, bestScore);
                     if (beta <= alpha) { 
@@ -620,11 +864,11 @@
                     }
                 }
                 return bestScore;
-            } else { // Black (Player)
+            } else { // Black (Player: 最小化プレイヤー)
                 let bestScore = Infinity;
                 for (const move of moves) {
                     const nextBoard = makeMove(currentBoard, move.x, move.y, player);
-                    const score = minimax(nextBoard, depth + 1, maxDepth, true, alpha, beta);
+                    const score = minimax(nextBoard, depth + 1, maxDepth, true, alpha, beta); 
                     bestScore = Math.min(bestScore, score);
                     beta = Math.min(beta, bestScore);
                     if (beta <= alpha) { 
@@ -635,36 +879,47 @@
             }
         }
 
-        // 盤面評価関数 (重み付けを強化)
+        // 盤面評価関数
         function evaluateBoard(currentBoard) {
             let score = 0;
             const myPlayer = 'white';
             const opponent = 'black';
+            
+            // --- 盤面評価の重み ---
+            const cornerWeight = 500; 
+            const stableWeight = 50;
+            const mobilityWeight = 15; 
+            const dangerWeight = -30;
+            const finalCountWeight = 100; 
 
             const myCount = currentBoard.flat().filter(cell => cell === myPlayer).length;
             const opponentCount = currentBoard.flat().filter(cell => cell === opponent).length;
             const discCount = myCount + opponentCount;
-            const countWeight = discCount > 50 ? 100 : 1; 
+
+            // 1. 石数差 (終盤で重要度を上げる)
+            const countWeight = discCount > 50 ? finalCountWeight : 1; 
             score += (myCount - opponentCount) * countWeight;
 
-            const cornerWeight = 500;
+            // 2. 角の確保
             const corners = [{x: 0, y: 0}, {x: 7, y: 0}, {x: 0, y: 7}, {x: 7, y: 7}];
             corners.forEach(pos => {
                 if (currentBoard[pos.y][pos.x] === myPlayer) score += cornerWeight;
                 if (currentBoard[pos.y][pos.x] === opponent) score -= cornerWeight;
             });
             
-            const stableWeight = 50;
+            // 3. 確定石の数
             const myStableDiscs = getStableDiscs(myPlayer, currentBoard).length;
             const opponentStableDiscs = getStableDiscs(opponent, currentBoard).length;
             score += (myStableDiscs - opponentStableDiscs) * stableWeight;
 
-            const mobilityWeight = 10;
-            const myMoves = getValidMoves(myPlayer, currentBoard).length;
-            const opponentMoves = getValidMoves(opponent, currentBoard).length;
-            score += (myMoves - opponentMoves) * mobilityWeight;
+            // 4. モビリティ (有効な手の数) - 序盤〜中盤で重要
+            if (discCount < 50) {
+                const myMoves = getValidMoves(myPlayer, currentBoard).length;
+                const opponentMoves = getValidMoves(opponent, currentBoard).length;
+                score += (myMoves - opponentMoves) * mobilityWeight;
+            }
 
-            const dangerWeight = -30;
+            // 5. 危険な位置 (角の隣) の回避
             const dangerMoves = [
                 {x: 1, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, 
                 {x: 6, y: 0}, {x: 7, y: 1}, {x: 6, y: 1}, 
@@ -705,7 +960,7 @@
                             newX2 -= dx; newY2 -= dy;
                         }
                         
-                        if (!(isFull1 || isFull2)) {
+                        if (!(isFull1 || isFull2)) { 
                             isStable = false;
                             break;
                         }
