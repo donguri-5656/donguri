@@ -51,6 +51,8 @@
             box-shadow: 0 2px #a02c39;
             transform: translateY(2px);
         }
+        /* #pause-buttonの個別スタイルを削除し、hidden-menu内のボタンに統一 */
+        
         #hidden-menu {
             position: absolute;
             top: 10px;
@@ -61,6 +63,7 @@
             padding: 10px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            white-space: nowrap; /* ボタンが改行されないように */
         }
         .auto-gen-button {
             padding: 5px 10px;
@@ -74,6 +77,20 @@
         .auto-gen-button:hover {
             background-color: #cce5ff;
         }
+        /* ポーズボタンにもauto-gen-buttonのスタイルを適用 */
+        #pause-button-in-menu {
+            padding: 5px 10px;
+            margin: 5px;
+            border: 1px solid #28a745; /* 緑色系 */
+            border-radius: 5px;
+            background-color: #e2f5e7;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #pause-button-in-menu:hover {
+            background-color: #c8e6c9;
+        }
+
 
         #menu-area {
             height: 45%; 
@@ -126,8 +143,12 @@
                 <p>自動生成間隔 (ms):</p>
                 <button class="auto-gen-button" onclick="setAutoGenInterval(1)">1ms</button>
                 <button class="auto-gen-button" onclick="setAutoGenInterval(10)">10ms</button>
+                <button class="auto-gen-button" onclick="setAutoGenInterval(100)">100ms</button>
                 <button class="auto-gen-button" onclick="setAutoGenInterval(1000)">1000ms</button>
-                <button class="auto-gen-button" onclick="setAutoGenInterval(1000)">1000ms</button>
+                <button class="auto-gen-button" onclick="setAutoGenInterval(10000000)">落とさない</button>
+                <hr style="margin: 5px 0; border: 0.5px solid #ccc;">
+                <p>時間制御:</p>
+                <button id="pause-button-in-menu" onclick="togglePause()">⏸️ 時間を止める/再開</button>
             </div>
         </div>
 
@@ -155,6 +176,7 @@
         const container = document.getElementById('physics-area');
         const bombButton = document.getElementById('bomb-button');
         const hiddenMenu = document.getElementById('hidden-menu');
+        const pauseButton = document.getElementById('pause-button-in-menu');
 
         let width = container.clientWidth;
         let height = container.clientHeight;
@@ -279,14 +301,12 @@
         }
 
         function triggerExplosion() {
-
             if (!bombBody) return;
 
             const bombPosition = bombBody.position;
             
             clearTimeout(bombTimer);
             bombTimer = null;
-
 
             const explosionRadius = 5;
             const explosionGeometry = new THREE.SphereGeometry(explosionRadius, 16, 16);
@@ -299,6 +319,7 @@
             explosionMesh = new THREE.Mesh(explosionGeometry, explosionMaterial);
             explosionMesh.position.copy(bombPosition);
             scene.add(explosionMesh);
+            
             for (const obj of objects) {
                 const cubePosition = obj.body.position;
                 
@@ -343,15 +364,36 @@
             }
         }
 
+        let isPaused = false;
+        let animationFrameId = null;
+
+        window.togglePause = function() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                pauseButton.textContent = '▶️ 時間を再開 (Paused)';
+            } else {
+                pauseButton.textContent = '⏸️ 時間を止める/再開';
+                animate();
+            }
+        }
+
         const timeStep = 1 / 60;
 
         function animate() {
-            requestAnimationFrame(animate);
+            if (!isPaused) {
+                animationFrameId = requestAnimationFrame(animate); 
+            } else {
+                return;
+            }
 
             world.step(timeStep);
 
             const currentCubeCount = objects.length;
-            bombButton.textContent = `💥 爆弾投下 (Cubes: ${currentCubeCount})`;
+            bombButton.textContent = ` 爆弾投下 (Cubes: ${currentCubeCount})`;
 
             if (currentCubeCount >= MAX_CUBES && !bombBody) {
                 bombButton.style.display = 'block';
@@ -416,7 +458,7 @@
             if (event.target.id === 'bomb-button') {
                 return;
             }
-
+            
             const corner = getCornerArea(x, y, rect.width, rect.height);
 
             if (corner) {
