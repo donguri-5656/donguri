@@ -9,7 +9,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
     <style>
-        /* --- CSS スタイル --- */
         body {
             font-family: sans-serif;
             margin: 0;
@@ -33,7 +32,6 @@
             margin-bottom: 20px;
         }
 
-        /* フォームのスタイル */
         input[type="text"], button {
             padding: 10px;
             margin-bottom: 10px;
@@ -41,6 +39,11 @@
             border-radius: 4px;
             width: 100%;
             box-sizing: border-box;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         button {
@@ -51,11 +54,51 @@
             transition: background-color 0.3s;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: #45a049;
         }
+        
+        .form-group {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+        }
+        
+        .radio-group label {
+            margin-right: 20px;
+        }
 
-        /* チャット表示エリア */
+        #public-room-list {
+            margin-top: 20px;
+            border: 1px solid #4CAF50;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #e8f5e9;
+        }
+
+        #public-rooms {
+            list-style: none;
+            padding: 0;
+        }
+
+        #public-rooms li {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-bottom: 1px dotted #a5d6a7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #public-rooms li button {
+            width: auto;
+            padding: 5px 10px;
+            margin-bottom: 0;
+            background-color: #66bb6a;
+            font-size: 0.9em;
+        }
+
         #chat-window {
             height: 300px;
             border: 1px solid #ddd;
@@ -93,20 +136,47 @@
         <h1>チャット</h1>
 
         <div id="setup-view">
-            <p class="system-message">最初にユーザー名を入力してください。</p>
+            <p class="system-message">✅ 最初にユーザー名を入力・決定してください。</p>
             <input type="text" id="username-input" placeholder="ユーザー名" maxlength="15">
-            <button onclick="setName()">ユーザー名を決定</button>
+            <button id="set-name-button" onclick="setName()">ユーザー名を決定</button>
             <hr>
-            <p class="system-message">チャットルーム名を入力して、作成または参加してください。</p>
-            <input type="text" id="room-name-input" placeholder="チャットルーム名 (例: general)" maxlength="20">
-            <button onclick="joinRoom()">部屋に参加/作成</button>
+            
+            <div id="room-controls" style="opacity: 0.5; pointer-events: none;">
+                <p class="system-message">部屋名を入力して、作成または参加してください。</p>
+                <input type="text" id="room-name-input" placeholder="チャットルーム名 (例: general)" maxlength="20">
+                
+                <div class="form-group">
+                    <p>アクセス設定:</p>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="access-type" value="public" checked> 💡 公開 (自由参加)
+                        </label>
+                        <label>
+                            <input type="radio" name="access-type" value="private"> 🔒 非公開 (招待専用)
+                        </label>
+                    </div>
+                    <button onclick="createRoom()">部屋を作成</button>
+                </div>
+                
+                <p class="system-message">または、**入力した名前の公開ルーム**に参加</p>
+                <button onclick="joinRoomByInput()">入力名で参加</button>
+                
+                <hr>
+                
+                <div id="public-room-list">
+                    <h3>💡 公開ルーム一覧</h3>
+                    <ul id="public-rooms">
+                        <li class="system-message">公開ルームを読み込み中...</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <div id="chat-view" style="display: none;">
             <h2 id="current-room-name"></h2>
             <div id="chat-window">
                 <ul id="messages">
-                    </ul>
+                </ul>
             </div>
             <form id="message-form">
                 <input type="text" id="message-input" placeholder="メッセージを入力..." autocomplete="off">
@@ -117,7 +187,7 @@
     </div>
 
     <script>
-const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyDj6brEQowFaATPL7sPIKFFsB1-ZeZNrsk",
             authDomain: "donguri-st2.firebaseapp.com",
             databaseURL: "https://donguri-st2-default-rtdb.firebaseio.com",
@@ -128,13 +198,13 @@ const firebaseConfig = {
             measurementId: "G-C7ZB3FWKS5"
         };
 
-        // Firebaseの初期化
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+        const roomsRef = database.ref('chat-rooms'); 
         
         let userName = '';
         let currentRoom = null;
-        let messagesRef = null; // 現在のチャットルームのデータベース参照
+        let messagesRef = null; 
 
         const setupView = document.getElementById('setup-view');
         const chatView = document.getElementById('chat-view');
@@ -143,92 +213,169 @@ const firebaseConfig = {
         const messageInput = document.getElementById('message-input');
         const currentRoomName = document.getElementById('current-room-name');
         const usernameInput = document.getElementById('username-input');
+        const roomControls = document.getElementById('room-controls');
+        const setNameButton = document.getElementById('set-name-button');
+        const roomNameInput = document.getElementById('room-name-input');
+        const publicRoomsList = document.getElementById('public-rooms'); 
 
-        /**
-         * ユーザー名を決定し、入力欄を無効化する
-         */
+        function startRoomListListener() {
+            roomsRef.on('value', (snapshot) => {
+                const roomsData = snapshot.val();
+                updatePublicRoomList(roomsData);
+            });
+        }
+        
+        function updatePublicRoomList(roomsData) {
+            publicRoomsList.innerHTML = ''; 
+            let publicRoomFound = false;
+
+            if (roomsData) {
+                Object.keys(roomsData).forEach(roomName => {
+                    const roomInfo = roomsData[roomName];
+                    
+                    if (roomInfo.access === 'public') {
+                        publicRoomFound = true;
+                        
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${roomName} (作成者: ${roomInfo.creator})</span>
+                            <button onclick="joinRoomByName('${roomName}')">参加</button>
+                        `;
+                        publicRoomsList.appendChild(li);
+                    }
+                });
+            }
+
+            if (!publicRoomFound) {
+                const li = document.createElement('li');
+                li.className = 'system-message';
+                li.textContent = '現在、公開されているルームはありません。';
+                publicRoomsList.appendChild(li);
+            }
+        }
+
         function setName() {
             const name = usernameInput.value.trim();
             if (name) {
                 userName = name;
                 usernameInput.disabled = true;
+                setNameButton.disabled = true;
+                setNameButton.textContent = 'ユーザー名設定済み';
+                
+                roomControls.style.opacity = '1.0';
+                roomControls.style.pointerEvents = 'auto';
+                startRoomListListener();
                 alert(`ユーザー名: ${userName} で設定されました。`);
-                // 決定ボタンのテキストを変更したり、スタイルを変更しても良い
             } else {
                 alert('ユーザー名を入力してください。');
             }
         }
 
-        /**
-         * 部屋に参加または作成する
-         */
-        function joinRoom() {
-            if (!userName) {
-                alert('先にユーザー名を決定してください。');
-                return;
-            }
+        function createRoom() {
+            if (!userName) return alert('先にユーザー名を決定してください。');
 
-            const roomName = document.getElementById('room-name-input').value.trim();
-            if (!roomName) {
-                alert('チャットルーム名を入力してください。');
-                return;
-            }
+            const roomName = roomNameInput.value.trim();
+            if (!roomName) return alert('チャットルーム名を入力してください。');
+            
+            const accessType = document.querySelector('input[name="access-type"]:checked').value;
+            
+            roomsRef.child(roomName).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    alert('その名前のルームはすでに存在します。手動入力欄を使う場合は「入力名で参加」を押すか、一覧から参加してください。');
+                    return;
+                }
+                
+                const newRoomInfo = {
+                    access: accessType,
+                    createdAt: Date.now(),
+                    creator: userName
+                };
+                
+                roomsRef.child(roomName).set(newRoomInfo)
+                    .then(() => {
+                        console.log(`ルーム ${roomName} (${accessType}) を作成しました。`);
+                        startChat(roomName, true);
+                    })
+                    .catch(error => {
+                        console.error("ルーム作成エラー:", error);
+                        alert("ルームの作成に失敗しました。");
+                    });
+            });
+        }
 
-            // 以前のリスナーを解除 (もしあれば)
+        function joinRoomByInput() {
+            const roomName = roomNameInput.value.trim();
+            if (!roomName) return alert('参加したいチャットルーム名を入力してください。');
+            joinRoomByName(roomName);
+        }
+
+        function joinRoomByName(roomName) {
+            if (!userName) return alert('先にユーザー名を決定してください。');
+            if (!roomName) return;
+            
+            roomsRef.child(roomName).once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    alert('そのルームは存在しません。');
+                    return;
+                }
+                
+                const roomInfo = snapshot.val();
+                
+                if (roomInfo.access === 'public') {
+                    startChat(roomName, false);
+                } else {
+                    alert(`ルーム「${roomName}」は非公開のため参加できません。`);
+                }
+            });
+        }
+        
+        function startChat(roomName, isNewRoom) {
             if (messagesRef) {
                 messagesRef.off();
                 messagesList.innerHTML = '';
             }
+            
+            roomsRef.off('value'); 
 
             currentRoom = roomName;
             currentRoomName.textContent = `ルーム: ${currentRoom}`;
             
-            // Firebaseの特定のパスを参照 ('chat-rooms' -> ルーム名 -> 'messages')
             messagesRef = database.ref('chat-rooms/' + currentRoom + '/messages');
 
-            // UIの切り替え
             setupView.style.display = 'none';
             chatView.style.display = 'block';
 
-            // 既存/新規メッセージのリスナーを設定
-            // 'child_added' は、既存の全ての子と、その後に追加される新しい子に対して呼び出されます
             messagesRef.on('child_added', (snapshot) => {
                 const message = snapshot.val();
                 displayMessage(message.user, message.text, message.timestamp);
             });
             
-            // 参加メッセージを送信 (オプション)
-            sendMessage(null, `${userName} が入室しました。`); 
+            const joinText = isNewRoom ? 
+                `${userName} がルームを作成し、入室しました。` :
+                `${userName} が入室しました。`;
+                
+            sendMessage(null, joinText); 
         }
 
-        /**
-         * メッセージ送信フォームの処理
-         */
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const messageText = messageInput.value.trim();
             
             if (messageText && currentRoom) {
                 sendMessage(userName, messageText);
-                messageInput.value = ''; // 入力欄をクリア
+                messageInput.value = ''; 
             }
         });
 
-        /**
-         * Firebase Realtime Databaseにメッセージを保存する
-         * @param {string | null} user - ユーザー名 (システムメッセージの場合は null)
-         * @param {string} text - メッセージ内容
-         */
         function sendMessage(user, text) {
             if (!messagesRef) return;
 
             const newMessage = {
-                user: user || 'System', // ユーザー名、または 'System'
+                user: user || 'System',
                 text: text,
                 timestamp: Date.now()
             };
 
-            // データベースに新しいメッセージをプッシュ
             messagesRef.push(newMessage)
                 .catch(error => {
                     console.error("メッセージ送信エラー:", error);
@@ -236,13 +383,6 @@ const firebaseConfig = {
                 });
         }
 
-
-        /**
-         * メッセージをUIに表示する
-         * @param {string} user - ユーザー名
-         * @param {string} text - メッセージ内容
-         * @param {number} timestamp - タイムスタンプ
-         */
         function displayMessage(user, text, timestamp) {
             const li = document.createElement('li');
             const date = new Date(timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -252,7 +392,6 @@ const firebaseConfig = {
                 li.textContent = text;
             } else {
                 li.innerHTML = `<strong>${user}</strong> (${date}): ${text}`;
-                // 自分のメッセージならスタイルを変えるなどしても良い
                 if (user === userName) {
                     li.style.backgroundColor = '#ccff90'; 
                 }
@@ -260,36 +399,35 @@ const firebaseConfig = {
 
             messagesList.appendChild(li);
             
-            // 最新のメッセージが見えるようにスクロール
             const chatWindow = document.getElementById('chat-window');
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        /**
-         * 部屋から退出する
-         */
         function leaveRoom() {
             if (messagesRef) {
-                // 退出メッセージを送信 (オプション)
                 sendMessage(null, `${userName} が退出しました。`);
-                
-                // リスナーを解除
                 messagesRef.off();
             }
 
-            // 状態をリセット
             currentRoom = null;
             messagesRef = null;
             messagesList.innerHTML = '';
             
-            // UIを切り替え
             chatView.style.display = 'none';
             setupView.style.display = 'block';
             
             alert('部屋から退出しました。');
             
-            // ユーザー名を再度入力できるようにする (任意)
-            usernameInput.disabled = false;
+            if (userName) {
+                 startRoomListListener();
+            } else {
+                usernameInput.disabled = false;
+                usernameInput.value = '';
+                setNameButton.disabled = false;
+                setNameButton.textContent = 'ユーザー名を決定';
+                roomControls.style.opacity = '0.5';
+                roomControls.style.pointerEvents = 'none';
+            }
         }
 
     </script>
