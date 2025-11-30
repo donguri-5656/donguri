@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パスワードと5x3ボタンのレイアウト</title>
+    <style>
+        /* スタイルは任意で調整してください */
+        .container {
+            width: 300px;
+            margin: 20px auto;
+            text-align: center;
+        }
+        .password-section {
+            margin-bottom: 20px;
+        }
+        .button-grid {
+            display: grid;
+            /* 3列のグリッドを定義 */
+            grid-template-columns: repeat(3, 1fr); 
+            /* 5行のグリッドを定義 */
+            grid-template-rows: repeat(5, 1fr); 
+            gap: 10px; /* ボタン間のスペース */
+        }
+        .button-grid button {
+            padding: 15px 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="password-section">
+            <form action="#" method="post"> 
+                <label for="password">入力:</label><br>
+                <input type="password" id="password" name="password" placeholder="パスワード"><br><br>
+                <button type="submit">送信</button>
+            </form>
+        </div>
+
+        ---
+
+        <h2>ぼつ</h2>
+        <div class="button-grid">
+            <button onclick="location.href='page_1_1.html'">1-1へ</button>
+            <button onclick="location.href='page_1_2.html'">1-2へ</button>
+            <button onclick="location.href='page_1_3.html'">1-3へ</button>
+
+            <button onclick="location.href='sneak.html'">へび</button>
+            <button onclick="location.href='page_2_2.html'">なし</button>
+            <button onclick="location.href='page_2_3.html'">なし</button>
+
+            <button onclick="location.href='page_3_1.html'">なし</button>
+            <button onclick="location.href='page_3_2.html'">なし</button>
+            <button onclick="location.href='page_3_3.html'">なし</button>
+
+            <button onclick="location.href='page_4_1.html'">なし</button>
+            <button onclick="location.href='page_4_2.html'">なし</button>
+            <button onclick="location.href='page_4_3.html'">なし</button>
+            
+            <button onclick="location.href='page_5_1.html'">なし</button>
+            <button onclick="location.href='page_5_2.html'">なし</button>
+            <button onclick="location.href='page_5_3.html'">なし</button>
+        </div>
+    </div>
+    
+</body>
+</html>
