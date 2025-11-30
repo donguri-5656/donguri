@@ -1,26 +1,34 @@
+『16.34.72.76.65』
+ が「夏休み」を表すとすると、
+ 『55.24.66.41.23.15.53.63』
+ は何を表すか？
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>パスワードと5x3ボタンのレイアウト</title>
+    <link href="https://fonts.googleapis.com/css?family=Kosugi" rel="stylesheet">
+    <title>あっ</title>
     <style>
-        /* スタイルは任意で調整してください */
+    body {
+            background-color: #d0f0ff; 
+            font-family: 'Kosugi', sans-serif;
+        }
         .container {
             width: 300px;
-            margin: 20px auto;
+            margin: 0px auto;
             text-align: center;
+            background-color: #d0f0ff;
         }
         .password-section {
             margin-bottom: 20px;
         }
         .button-grid {
             display: grid;
-            /* 3列のグリッドを定義 */
             grid-template-columns: repeat(3, 1fr); 
-            /* 5行のグリッドを定義 */
             grid-template-rows: repeat(5, 1fr); 
-            gap: 10px; /* ボタン間のスペース */
+            gap: 20px;
         }
         .button-grid button {
             padding: 15px 10px;
@@ -45,11 +53,11 @@
 
         <h2>ぼつ</h2>
         <div class="button-grid">
-            <button onclick="location.href='page_1_1.html'">1-1へ</button>
-            <button onclick="location.href='page_1_2.html'">1-2へ</button>
-            <button onclick="location.href='page_1_3.html'">1-3へ</button>
-
             <button onclick="location.href='sneak.html'">へび</button>
+            <button onclick="location.href='page_1_2.html'">なし</button>
+            <button onclick="location.href='page_1_3.html'">なし</button>
+
+            <button onclick="location.href='page_2_1.html'">なし</button>
             <button onclick="location.href='page_2_2.html'">なし</button>
             <button onclick="location.href='page_2_3.html'">なし</button>
 
