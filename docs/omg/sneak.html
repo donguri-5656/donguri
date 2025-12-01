@@ -1,933 +1,781 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Slither.io-like Game</title>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: Arial, sans-serif;
-            background-color: #333;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            color: white;
-            touch-action: manipulation;
-        }
-
-        #game-area {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background-color: #222;
-            cursor: crosshair;
-        }
-
-        #game-canvas {
-            display: block;
-            background-color: #1a1a1a;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        #info-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 10;
-        }
-
-        #minimap-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 30;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 5px;
-            border-radius: 5px;
-        }
-
-        #minimap-canvas {
-            border: 1px solid #777;
-        }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 40;
-            font-size: 24px;
-            text-align: center;
-        }
-
-        #start-button {
-            padding: 15px 30px;
-            font-size: 24px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-
-        #player-name {
-            padding: 8px;
-            font-size: 16px;
-            border: none;
-            border-radius: 4px;
-            color: black;
-        }
-        
-        /* 🚀 【修正 1】ブーストボタンのスタイル */
-        #boost-button {
-            position: absolute;
-            /* 修正: bottom: 30px -> 120px (上に移動) */
-            bottom: 120px; 
-            left: 30px;
-            /* 修正: サイズを 80px から 100px に拡大 */
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background-color: #f44336; /* 赤色 */
-            color: white;
-            font-size: 20px; /* 文字サイズも少し大きく */
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-            z-index: 50; /* 最前面に */
-            border: 3px solid #ff7961;
-            box-shadow: 0 0 10px rgba(244, 67, 54, 0.8);
-            /* 修正: 透明度を 0.8 から 0.5 に変更 (薄く) */
-            opacity: 0.5;
-            transition: opacity 0.1s, background-color 0.1s;
-            touch-action: manipulation; /* タッチイベントをブロックしない */
-        }
-        
-        #boost-button:active {
-            opacity: 1.0;
-            background-color: #d32f2f; /* クリック時の色 */
-        }
-        
-        .hidden {
-            display: none !important;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Slither.io-like Game</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      background-color: #333;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      color: white;
+      touch-action: manipulation;
+    }
+    #game-area {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background-color: #222;
+      cursor: crosshair;
+    }
+    #game-canvas {
+      display: block;
+      background-color: #1a1a1a;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    #info-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+    #minimap-container {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 30;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 5px;
+      border-radius: 5px;
+    }
+    #minimap-canvas {
+      border: 1px solid #777;
+    }
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 40;
+      font-size: 24px;
+      text-align: center;
+    }
+    #start-button {
+      padding: 15px 30px;
+      font-size: 24px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    #player-name {
+      padding: 8px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      color: black;
+    }
+    #boost-button {
+      position: absolute;
+      bottom: 120px;
+      left: 30px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: #f44336;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      z-index: 50;
+      border: 3px solid #ff7961;
+      box-shadow: 0 0 10px rgba(244, 67, 54, 0.8);
+      opacity: 0.5;
+      transition: opacity 0.1s, background-color 0.1s;
+      touch-action: manipulation;
+    }
+    #boost-button:active {
+      opacity: 1.0;
+      background-color: #d32f2f;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
-    <div id="info-bar">
-        <span>スコア (長さ): <span id="current-score">0</span></span>
-        <span>最長記録: <span id="high-score">0</span></span>
-        <span>オンライン人数: <span id="player-count">1</span></span>
+  <div id="info-bar">
+    <span>スコア (長さ): <span id="current-score">0</span></span>
+    <span>最長記録: <span id="high-score">0</span></span>
+    <span>オンライン人数: <span id="player-count">1</span></span>
+  </div>
+  <div id="game-area">
+    <canvas id="game-canvas"></canvas>
+    <div id="minimap-container">
+      <p style="margin: 0 0 5px 0; font-size: 12px; text-align: center;">ミニマップ</p>
+      <canvas id="minimap-canvas"></canvas>
     </div>
-
-    <div id="game-area">
-        <canvas id="game-canvas"></canvas>
-        <div id="minimap-container">
-            <p style="margin: 0 0 5px 0; font-size: 12px; text-align: center;">ミニマップ</p>
-            <canvas id="minimap-canvas"></canvas>
-        </div>
-        
-        <div id="boost-button" class="hidden">ブースト</div>
-
-        <div id="overlay">
-            <h2>へび</h2>
-            <p>開始時必ず死にます</p>
-            <p>バグ多</p>
-            <input type="text" id="player-name" placeholder="名前を入力" value="プレイヤー" maxlength="10">
-            <button id="start-button">ゲームスタート</button>
-            <div style="margin-top: 20px; font-size: 14px;">
-                <h4>ランキング</h4>
-                <div id="leaderboard" style="max-height: 150px; overflow-y: auto;">読み込み中...</div>
-            </div>
-        </div>
+    <div id="boost-button" class="hidden">ブースト</div>
+    <div id="overlay">
+      <h2>へび</h2>
+      <p>開始時必ず死にます</p>
+      <p>バグ多</p>
+      <input type="text" id="player-name" placeholder="名前を入力" value="プレイヤー" maxlength="10">
+      <button id="start-button">ゲームスタート</button>
+      <div style="margin-top: 20px; font-size: 14px;">
+        <h4>ランキング</h4>
+        <div id="leaderboard" style="max-height: 150px; overflow-y: auto;">読み込み中...</div>
+      </div>
     </div>
-    
-    <script>
+  </div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6aLjtLMsEt3ximM2nVRBqPWe7B2j0tDs",
+      authDomain: "donguri-st1.firebaseapp.com",
+      databaseURL: "https://donguri-st1-default-rtdb.firebaseio.com",
+      projectId: "donguri-st1",
+      storageBucket: "donguri-st1.firebasestorage.app",
+      messagingSenderId: "999142601494",
+      appId: "1:999142601494:web:db8bceed54e23e0cf21637",
+      measurementId: "G-VZ1YJLMV1C"
+    };
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA6aLjtLMsEt3ximM2nVRBqPWe7B2j0tDs",
-            authDomain: "donguri-st1.firebaseapp.com",
-            databaseURL: "https://donguri-st1-default-rtdb.firebaseio.com",
-            projectId: "donguri-st1",
-            storageBucket: "donguri-st1.firebasestorage.app",
-            messagingSenderId: "999142601494",
-            appId: "1:999142601494:web:db8bceed54e23e0cf21637",
-            measurementId: "G-VZ1YJLMV1C"
-        };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const playersRef = database.ref('snake_optimized/players');
+    const scoresRef = database.ref('snake_optimized/scores');
 
-        // Firebaseの初期化
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const playersRef = database.ref('snake_optimized/players');
-        const scoresRef = database.ref('snake_optimized/scores');
-        
-        // --- ゲーム定数 ---
-        const GAME_WIDTH = 2000;
-        const GAME_HEIGHT = 2000;
-        const CELL_SIZE = 15;
-        const BASE_SPEED = 4; // 基本速度
-        const INITIAL_LENGTH = 5; 
-        const FOOD_COUNT = 300;
-        const SEGMENT_GAP = CELL_SIZE * 0.7; // 間隔
-        const COLLISION_RADIUS_SQ = (CELL_SIZE * 0.8) ** 2;
-        const START_X = GAME_WIDTH / 2; // 中央に変更
-        const START_Y = GAME_HEIGHT / 2; // 中央に変更
+    const GAME_WIDTH = 2000;
+    const GAME_HEIGHT = 2000;
+    const CELL_SIZE = 15;
+    const BASE_SPEED = 4;
+    const INITIAL_LENGTH = 5;
+    const FOOD_COUNT = 300;
+    const SEGMENT_GAP = CELL_SIZE * 0.7;
+    const COLLISION_RADIUS_SQ = (CELL_SIZE * 0.8) ** 2;
+    const START_X = GAME_WIDTH / 2;
+    const START_Y = GAME_HEIGHT / 2;
 
-        // 🍎 成長量とダッシュ定数
-        const FOOD_GROWTH_NORMAL = 0.5;
-        const FOOD_GROWTH_DEBRIS = 1.0; 
-        const BODY_DEBRIS_COUNT = 20;
-        
-        const DASH_SPEED_MULTIPLIER = 2.0; 
-        const DASH_COST_PER_FRAME = 0.08; 
+    const FOOD_GROWTH_NORMAL = 0.5;
+    const FOOD_GROWTH_DEBRIS = 1.0;
+    const BODY_DEBRIS_COUNT = 20;
+    const DASH_SPEED_MULTIPLIER = 2.0;
+    const DASH_COST_PER_FRAME = 0.08;
 
-        // ⏱️ タブ死亡判定定数
-        const PLAYER_TIMEOUT_MS = 3000; // 3秒間更新がなかったら死亡と見なす
-        
-        // 🛡️ 無敵時間定数
-        const INVINCIBLE_DURATION = 180; // 3秒間 (60FPS x 3秒)
-        
-        // 📐 【修正 3】回転速度定数: 急な曲がりを可能にするため値を上げる
-        // 0.1 -> 0.15 に変更し、さらに細かく曲がれるように調整しました。
-        const NORMAL_TURN_RATE_FACTOR = 0.15; 
-        // 0.05 -> 0.08 に変更 (ダッシュ時も以前より早く)
-        const DASH_TURN_RATE_FACTOR = 0.08; 
+    const PLAYER_TIMEOUT_MS = 3000;
 
-        // --- DOM要素とキャンバス ---
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
-        const minimapCanvas = document.getElementById('minimap-canvas');
-        const minimapCtx = minimapCanvas.getContext('2d');
-        const overlay = document.getElementById('overlay');
-        const startButton = document.getElementById('start-button');
-        const playerNameInput = document.getElementById('player-name');
-        const currentScoreElement = document.getElementById('current-score');
-        const highScoreElement = document.getElementById('high-score');
-        const playerCountElement = document.getElementById('player-count');
-        const leaderboardElement = document.getElementById('leaderboard');
-        const boostButton = document.getElementById('boost-button'); // 🚀 追加
+    const INVINCIBLE_DURATION = 180;
 
-        const MINIMAP_SIZE = 150;
-        minimapCanvas.width = MINIMAP_SIZE;
-        minimapCanvas.height = MINIMAP_SIZE;
+    const NORMAL_TURN_RATE_FACTOR = 0.15;
+    const DASH_TURN_RATE_FACTOR = 0.08;
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const minimapCanvas = document.getElementById('minimap-canvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startButton = document.getElementById('start-button');
+    const playerNameInput = document.getElementById('player-name');
+    const currentScoreElement = document.getElementById('current-score');
+    const highScoreElement = document.getElementById('high-score');
+    const playerCountElement = document.getElementById('player-count');
+    const leaderboardElement = document.getElementById('leaderboard');
+    const boostButton = document.getElementById('boost-button');
 
-        // --- ゲーム変数 ---
-        let playerId = null;
-        let playerName = '';
-        let mySnake = []; // 座標の履歴
-        let foodItems = [];
-        let otherPlayers = {};
-        let directionAngle = 0;
-        let targetAngle = 0;
-        let localHighScore = localStorage.getItem('snakeioHighScore') || INITIAL_LENGTH;
-        let isGameOver = true;
-        let currentScore = INITIAL_LENGTH; // 現在の体長
-        let lastUpdateTime = 0;
-        let gameLoop = null;
-        let lastFrameTime = performance.now();
-        let isDashing = false; 
-        // 🛡️ 無敵フラグとタイマー
-        let isInvincible = false;
-        let invincibleTimer = 0;
-        
-        // --- Firebase 関連 (修正あり) ---
-        /**
-         * プレイヤーを初期登録する。onDisconnect設定は initGame で行う。
-         * @returns {string} 割り当てられたカラーコード
-         */
-        function registerPlayer() {
-            playerId = firebase.database().ref().push().key;
-            playerName = playerNameInput.value || 'プレイヤー';
-            const color = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`; // 6桁保証
+    const MINIMAP_SIZE = 150;
+    minimapCanvas.width = MINIMAP_SIZE;
+    minimapCanvas.height = MINIMAP_SIZE;
 
-            // ブラウザ/タブを閉じた際の明示的な削除
-            const cleanup = () => { if (playerId) playersRef.child(playerId).remove(); };
-            window.addEventListener('beforeunload', cleanup);
-            window.cleanup = cleanup; 
-            
-            // プレイヤーデータの監視
-            playersRef.on('value', (snapshot) => {
-                const allPlayers = snapshot.val() || {};
-                const now = Date.now();
-                let activePlayerCount = 0;
-                
-                // 🌟【修正 1-1】死亡・タイムアウトしたプレイヤーの特定と処理
-                Object.keys(otherPlayers).forEach(pId => {
-                    const data = allPlayers[pId];
-                    // データベースに存在しない (削除された) か、タイムアウトしている場合
-                    if (!data || now - data.lastUpdate > PLAYER_TIMEOUT_MS) {
-                        // ただし、自分自身はスキップ
-                        if (pId === playerId) return; 
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-                        // 死亡時の死骸生成にはローカルの履歴 localHistory を使用する
-                        const deadPlayer = otherPlayers[pId];
-                        if (deadPlayer.localHistory) {
-                            createDebris(deadPlayer.localHistory, deadPlayer.color); 
-                        }
-                        delete otherPlayers[pId];
-                        
-                        // データベースからも削除 (onDisconnectが失敗した場合の保険)
-                        if (!data) {
-                             playersRef.child(pId).remove();
-                        }
-                        return;
-                    }
-                });
+    let playerId = null;
+    let playerName = '';
+    let mySnake = [];
+    let foodItems = [];
+    let otherPlayers = {};
+    let directionAngle = 0;
+    let targetAngle = 0;
+    let localHighScore = localStorage.getItem('snakeioHighScore') || INITIAL_LENGTH;
+    let isGameOver = true;
+    let currentScore = INITIAL_LENGTH;
+    let lastUpdateTime = 0;
+    let gameLoop = null;
+    let lastFrameTime = performance.now();
+    let isDashing = false;
 
-                // アクティブなプレイヤーの処理
-                Object.keys(allPlayers).forEach(pId => {
-                    const data = allPlayers[pId];
-                    
-                    // 既に上のブロックで処理されたプレイヤーはスキップ (自分も含む)
-                    if (pId === playerId || !data || now - data.lastUpdate > PLAYER_TIMEOUT_MS) {
-                        if (pId === playerId) activePlayerCount++; // 自分のカウント
-                        return; 
-                    } 
-                    
-                    activePlayerCount++;
+    let isInvincible = false;
+    let invincibleTimer = 0;
 
-                    if (!otherPlayers[pId]) {
-                        otherPlayers[pId] = { 
-                            ...data, 
-                            segments: data.segments, 
-                            currentPosition: { x: data.x, y: data.y }, 
-                            targetPosition: { x: data.x, y: data.y },
-                            interpolatedAngle: data.angle,
-                            localHistory: [{ x: data.x, y: data.y }], 
-                            lastKnownTime: now 
-                        };
-                    } else {
-                        const existing = otherPlayers[pId];
-                        existing.targetPosition = { x: data.x, y: data.y };
-                        existing.segments = data.segments;
-                        existing.angle = data.angle;
-                        existing.lastKnownTime = now;
-                    }
-                });
-                
-                playerCountElement.textContent = activePlayerCount;
-            });
-            
-            return color; 
-        }
+    function registerPlayer() {
+      playerId = firebase.database().ref().push().key;
+      playerName = playerNameInput.value || 'プレイヤー';
+      const color = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+      const cleanup = () => {
+        if (playerId) playersRef.child(playerId).remove();
+      };
+      window.addEventListener('beforeunload', cleanup);
+      window.cleanup = cleanup;
 
-        function updatePlayerPosition(force = false) {
-            const now = Date.now();
-            
-            if (playerId) {
-                const head = mySnake[0];
-                
-                const updates = {
-                    angle: directionAngle,
-                    segments: currentScore,
-                    lastUpdate: firebase.database.ServerValue.TIMESTAMP 
-                };
-                
-                if (head) {
-                     updates.x = head.x;
-                     updates.y = head.y;
-                }
+      playersRef.on('value', (snapshot) => {
+        const allPlayers = snapshot.val() || {};
+        const now = Date.now();
+        let activePlayerCount = 0;
 
-                playersRef.child(playerId).update(updates);
-                lastUpdateTime = now; 
+        Object.keys(otherPlayers).forEach(pId => {
+          const data = allPlayers[pId];
+          if (!data || now - data.lastUpdate > PLAYER_TIMEOUT_MS) {
+            if (pId === playerId) return;
+            const deadPlayer = otherPlayers[pId];
+            if (deadPlayer.localHistory) {
+              createDebris(deadPlayer.localHistory, deadPlayer.color);
             }
-        }
-
-        function fetchLeaderboard() {
-            scoresRef.orderByChild('score').limitToLast(5).on('value', (snapshot) => {
-                const scores = [];
-                snapshot.forEach((childSnapshot) => { scores.push(childSnapshot.val()); });
-                scores.sort((a, b) => b.score - a.score);
-
-                let html = '<ol style="list-style-type: decimal; margin: 0; text-align: left;">';
-                if (scores.length === 0) { html = '<p>まだスコアがありません。</p>'; } 
-                else { scores.forEach((item) => { html += `<li>${item.name} (${item.score})</li>`; }); html += '</ol>'; }
-                leaderboardElement.innerHTML = html;
-            });
-        }
-
-        function saveHighScore(score) {
-            scoresRef.push().set({
-                name: playerName,
-                score: score,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-        }
-        
-        // ------------------------------------
-        // --- ゲームロジック 関連 ---
-        // ------------------------------------
-
-        function initializeFood() {
-            foodItems = [];
-            for (let i = 0; i < FOOD_COUNT; i++) {
-                foodItems.push({
-                    x: Math.random() * GAME_WIDTH,
-                    y: Math.random() * GAME_HEIGHT,
-                    color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-                    growth: FOOD_GROWTH_NORMAL 
-                });
+            delete otherPlayers[pId];
+            if (!data) {
+              playersRef.child(pId).remove();
             }
-        }
+            return;
+          }
+        });
 
-        /**
-         * 死亡したヘビの座標履歴から死骸（高成長エサ）を生成する
-         */
-        function createDebris(segments, color) {
-            const step = Math.floor(segments.length / BODY_DEBRIS_COUNT) || 1;
-            
-            for (let i = 0; i < segments.length; i += step) {
-                const offset = (Math.random() - 0.5) * CELL_SIZE * 2;
-                const angle = Math.random() * 2 * Math.PI;
-
-                foodItems.push({
-                    x: segments[i].x + Math.cos(angle) * offset,
-                    y: segments[i].y + Math.sin(angle) * offset,
-                    color: color,
-                    growth: FOOD_GROWTH_DEBRIS 
-                });
-            }
-        }
-
-        function initGame() {
-            mySnake = [];
-            currentScore = INITIAL_LENGTH; 
-            
-            // 修正: 初期位置の履歴作成も中央から開始
-            const framesPerSegment = SEGMENT_GAP / BASE_SPEED;
-            const requiredHistoryCount = Math.ceil(INITIAL_LENGTH * framesPerSegment) + 1; 
-
-            for (let i = 0; i < requiredHistoryCount; i++) {
-                mySnake.push({ x: START_X - i * BASE_SPEED, y: START_Y });
-            }
-            
-            directionAngle = 0; 
-            targetAngle = 0;
-            currentScoreElement.textContent = currentScore.toFixed(0);
-
-            initializeFood();
-            
-            isGameOver = true; // 描画ロジックの実行を待つため
-            overlay.style.display = 'none';
-            isDashing = false;
-            
-            // 🚀 【修正 4】ブーストボタンを表示
-            boostButton.classList.remove('hidden');
-            
-            // 🛡️ 無敵フラグを設定
-            isInvincible = true;
-            invincibleTimer = INVINCIBLE_DURATION;
-
-            const color = registerPlayer(); // プレイヤーを登録し、IDとカラーを確定させる
-
-            // 🌟【修正 1-2】データベースの初期書き込みと onDisconnect の設定を遅延実行
-            playersRef.child(playerId).set({
-                name: playerName,
-                segments: currentScore,
-                angle: directionAngle,
-                color: color,
-                x: mySnake[0].x, 
-                y: mySnake[0].y, 
-                lastUpdate: firebase.database.ServerValue.TIMESTAMP 
-            }).then(() => {
-                // データの初期書き込みが成功した後に onDisconnect を設定
-                playersRef.child(playerId).onDisconnect().remove(); 
-            });
-
-            isGameOver = false; // ゲーム開始
-
-            if (!gameLoop) {
-                gameLoop = requestAnimationFrame(gameLoopUpdate);
-            } else {
-                gameLoop = requestAnimationFrame(gameLoopUpdate);
-            }
-        }
-
-        function gameLoopUpdate(timestamp) {
-            if (isGameOver) return;
-
-            const deltaTime = (timestamp - lastFrameTime) / (1000 / 60);
-            lastFrameTime = timestamp;
-            
-            // 🛡️ 無敵時間の更新
-            if (isInvincible) {
-                invincibleTimer -= 1; 
-                if (invincibleTimer <= 0) {
-                    isInvincible = false;
-                }
-            }
-
-            updateDirection(deltaTime);
-            updatePlayerSnake(deltaTime);
-            interpolateOtherPlayers(deltaTime); 
-            updatePlayerHeadAndBody(deltaTime); 
-            checkCollisions();
-            
-            const cameraX = mySnake[0].x;
-            const cameraY = mySnake[0].y;
-            draw(cameraX, cameraY);
-            drawMinimap(cameraX, cameraY);
-
-            updatePlayerPosition(false);
-
-            gameLoop = requestAnimationFrame(gameLoopUpdate);
-        }
-
-        function updateDirection(deltaTime) {
-            let angleDiff = targetAngle - directionAngle;
-            if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-            if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
-            // 📐 【修正 5】回転レートの調整: 急な曲がりを可能に
-            // 定数 NORMAL_TURN_RATE_FACTOR と DASH_TURN_RATE_FACTOR がここで使用される
-            const turnRate = (isDashing ? DASH_TURN_RATE_FACTOR : NORMAL_TURN_RATE_FACTOR) * deltaTime; 
-            if (Math.abs(angleDiff) > turnRate) {
-                directionAngle += Math.sign(angleDiff) * turnRate;
-                updatePlayerPosition(true);
-            } else {
-                directionAngle = targetAngle;
-            }
-            directionAngle = directionAngle % (2 * Math.PI);
-        }
-
-        function updatePlayerSnake(deltaTime) {
-            const head = mySnake[0];
-            
-            let currentSpeed = BASE_SPEED;
-            
-            if (isDashing && currentScore > INITIAL_LENGTH) {
-                currentSpeed *= DASH_SPEED_MULTIPLIER;
-                currentScore -= DASH_COST_PER_FRAME * deltaTime;
-                currentScoreElement.textContent = currentScore.toFixed(0);
-
-                if (currentScore <= INITIAL_LENGTH) {
-                    currentScore = INITIAL_LENGTH;
-                    isDashing = false; 
-                }
-            }
-            
-            const moveDistance = currentSpeed * deltaTime;
-
-            const newHead = { 
-                x: head.x + Math.cos(directionAngle) * moveDistance, 
-                y: head.y + Math.sin(directionAngle) * moveDistance 
+        Object.keys(allPlayers).forEach(pId => {
+          const data = allPlayers[pId];
+          if (pId === playerId || !data || now - data.lastUpdate > PLAYER_TIMEOUT_MS) {
+            if (pId === playerId) activePlayerCount++;
+            return;
+          }
+          activePlayerCount++;
+          if (!otherPlayers[pId]) {
+            otherPlayers[pId] = {
+              ...data,
+              segments: data.segments,
+              currentPosition: { x: data.x, y: data.y },
+              targetPosition: { x: data.x, y: data.y },
+              interpolatedAngle: data.angle,
+              localHistory: [{ x: data.x, y: data.y }],
+              lastKnownTime: now
             };
-            
-            mySnake.unshift(newHead);
+          } else {
+            const existing = otherPlayers[pId];
+            existing.targetPosition = { x: data.x, y: data.y };
+            existing.segments = data.segments;
+            existing.angle = data.angle;
+            existing.lastKnownTime = now;
+          }
+        });
 
-            const framesPerSegment = SEGMENT_GAP / currentSpeed; 
-            const requiredHistoryCount = Math.ceil(currentScore * framesPerSegment) + 1; 
-            
-            while (mySnake.length > requiredHistoryCount) {
-                 mySnake.pop();
-            }
+        playerCountElement.textContent = activePlayerCount;
+      });
+
+      return color;
+    }
+
+    function updatePlayerPosition(force = false) {
+      const now = Date.now();
+      if (playerId) {
+        const head = mySnake[0];
+        const updates = {
+          angle: directionAngle,
+          segments: currentScore,
+          lastUpdate: firebase.database.ServerValue.TIMESTAMP
+        };
+        if (head) {
+          updates.x = head.x;
+          updates.y = head.y;
         }
-        
-        function interpolateOtherPlayers(deltaTime) {
-            for (const pId in otherPlayers) {
-                const player = otherPlayers[pId];
-                
-                const lerpFactor = 0.05 * deltaTime; 
-                player.currentPosition.x += (player.targetPosition.x - player.currentPosition.x) * lerpFactor;
-                player.currentPosition.y += (player.targetPosition.y - player.currentPosition.y) * lerpFactor;
-                
-                let angleDiff = player.angle - player.interpolatedAngle;
-                if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                player.interpolatedAngle += angleDiff * lerpFactor;
-            }
+        playersRef.child(playerId).update(updates);
+        lastUpdateTime = now;
+      }
+    }
+
+    function fetchLeaderboard() {
+      scoresRef.orderByChild('score').limitToLast(5).on('value', (snapshot) => {
+        const scores = [];
+        snapshot.forEach((childSnapshot) => {
+          scores.push(childSnapshot.val());
+        });
+        scores.sort((a, b) => b.score - a.score);
+        let html = '<ol style="list-style-type: decimal; margin: 0; text-align: left;">';
+        if (scores.length === 0) {
+          html = '<p>まだスコアがありません。</p>';
+        } else {
+          scores.forEach((item) => {
+            html += `<li>${item.name} (${item.score})</li>`;
+          });
+          html += '</ol>';
         }
-        
-        // 他プレイヤーの体（ローカル履歴）を更新する
-        function updatePlayerHeadAndBody(deltaTime) {
-            for (const pId in otherPlayers) {
-                const player = otherPlayers[pId];
-                
-                const head = player.currentPosition;
-                const speed = BASE_SPEED; 
-                const moveDistance = speed * deltaTime;
-                
-                // 新しい位置を localHistory の先頭に追加
-                player.localHistory.unshift({ x: head.x, y: head.y });
+        leaderboardElement.innerHTML = html;
+      });
+    }
 
-                // 必要な体節数に合わせて localHistory の長さを調整
-                const framesPerSegment = SEGMENT_GAP / speed; 
-                const requiredHistoryCount = Math.ceil(player.segments * framesPerSegment) + 1; 
-                
-                while (player.localHistory.length > requiredHistoryCount) {
-                     player.localHistory.pop();
-                }
-            }
+    function saveHighScore(score) {
+      scoresRef.push().set({
+        name: playerName,
+        score: score,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    function initializeFood() {
+      foodItems = [];
+      for (let i = 0; i < FOOD_COUNT; i++) {
+        foodItems.push({
+          x: Math.random() * GAME_WIDTH,
+          y: Math.random() * GAME_HEIGHT,
+          color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+          growth: FOOD_GROWTH_NORMAL
+        });
+      }
+    }
+
+    function createDebris(segments, color) {
+      const step = Math.floor(segments.length / BODY_DEBRIS_COUNT) || 1;
+      for (let i = 0; i < segments.length; i += step) {
+        const offset = (Math.random() - 0.5) * CELL_SIZE * 2;
+        const angle = Math.random() * 2 * Math.PI;
+        foodItems.push({
+          x: segments[i].x + Math.cos(angle) * offset,
+          y: segments[i].y + Math.sin(angle) * offset,
+          color: color,
+          growth: FOOD_GROWTH_DEBRIS
+        });
+      }
+    }
+
+    function initGame() {
+      mySnake = [];
+      currentScore = INITIAL_LENGTH;
+      const framesPerSegment = SEGMENT_GAP / BASE_SPEED;
+      const requiredHistoryCount = Math.ceil(INITIAL_LENGTH * framesPerSegment) + 1;
+      for (let i = 0; i < requiredHistoryCount; i++) {
+        mySnake.push({ x: START_X - i * BASE_SPEED, y: START_Y });
+      }
+      directionAngle = 0;
+      targetAngle = 0;
+      currentScoreElement.textContent = currentScore.toFixed(0);
+      initializeFood();
+      isGameOver = true;
+      overlay.style.display = 'none';
+      isDashing = false;
+      boostButton.classList.remove('hidden');
+      isInvincible = true;
+      invincibleTimer = INVINCIBLE_DURATION;
+
+      const color = registerPlayer();
+
+      playersRef.child(playerId).set({
+        name: playerName,
+        segments: currentScore,
+        angle: directionAngle,
+        color: color,
+        x: mySnake[0].x,
+        y: mySnake[0].y,
+        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+      }).then(() => {
+        playersRef.child(playerId).onDisconnect().remove();
+      });
+
+      isGameOver = false;
+
+      if (!gameLoop) {
+        gameLoop = requestAnimationFrame(gameLoopUpdate);
+      } else {
+        gameLoop = requestAnimationFrame(gameLoopUpdate);
+      }
+    }
+
+    function gameLoopUpdate(timestamp) {
+      if (isGameOver) return;
+      const deltaTime = (timestamp - lastFrameTime) / (1000 / 60);
+      lastFrameTime = timestamp;
+
+      if (isInvincible) {
+        invincibleTimer -= 1;
+        if (invincibleTimer <= 0) {
+          isInvincible = false;
         }
+      }
 
-        function checkCollisions() {
-            const head = mySnake[0];
-            const myRadius = getSnakeRadius(currentScore);
+      updateDirection(deltaTime);
+      updatePlayerSnake(deltaTime);
+      interpolateOtherPlayers(deltaTime);
+      updatePlayerHeadAndBody(deltaTime);
+      checkCollisions();
 
-            // 1. 壁との衝突
-            if (head.x < 0 || head.x > GAME_WIDTH || head.y < 0 || head.y > GAME_HEIGHT) {
-                endGame(true); 
-                return;
-            }
+      const cameraX = mySnake[0].x;
+      const cameraY = mySnake[0].y;
 
-            // 2. 食べ物のチェック
-            for (let i = foodItems.length - 1; i >= 0; i--) {
-                const food = foodItems[i];
-                const dx = head.x - food.x;
-                const dy = head.y - food.y;
-                
-                // デブリと通常の食べ物で衝突判定に使用する半径を分ける
-                const isDebris = food.growth === FOOD_GROWTH_DEBRIS;
-                const foodRadius = isDebris ? CELL_SIZE * 0.8 : CELL_SIZE * 0.4;
-                
-                const collisionThresholdSq = (myRadius + foodRadius)**2; 
+      draw(cameraX, cameraY);
+      drawMinimap(cameraX, cameraY);
+      updatePlayerPosition(false);
 
-                if ((dx * dx + dy * dy) < collisionThresholdSq) {
-                    currentScore += food.growth; 
-                    currentScoreElement.textContent = currentScore.toFixed(0);
-                    foodItems.splice(i, 1);
-                    
-                    if (food.growth === FOOD_GROWTH_NORMAL) {
-                        foodItems.push({
-                            x: Math.random() * GAME_WIDTH,
-                            y: Math.random() * GAME_HEIGHT,
-                            color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-                            growth: FOOD_GROWTH_NORMAL
-                        });
-                    }
-                }
-            }
-            
-            // 3. 他のプレイヤーとの衝突 (頭 vs. 頭、頭 vs. 体)
-            // 🛡️ 無敵時間中は他のプレイヤーとの衝突判定をスキップ
-            if (isInvincible) return;
+      gameLoop = requestAnimationFrame(gameLoopUpdate);
+    }
 
-            for (const pId in otherPlayers) {
-                const player = otherPlayers[pId];
-                
-                // 3-1. 頭 vs 頭
-                const otherHead = player.currentPosition;
-                const otherRadius = getSnakeRadius(player.segments);
-                const dx_h = head.x - otherHead.x;
-                const dy_h = head.y - otherHead.y;
-                
-                if ((dx_h * dx_h + dy_h * dy_h) < (myRadius + otherRadius)**2) { 
-                    endGame(true); 
-                    return;
-                }
-                
-                // 3-2. 頭 vs 体 (ローカルで生成・更新した localHistory を使用)
-                const history = player.localHistory;
-                if (history && history.length > 1) {
-                    const checkStep = 1; 
-                    for (let i = 1; i < history.length; i += checkStep) {
-                        const segment = history[i];
-                        const dx_s = head.x - segment.x;
-                        const dy_s = head.y - segment.y;
+    function updateDirection(deltaTime) {
+      let angleDiff = targetAngle - directionAngle;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
 
-                        // 衝突判定距離は自分の頭の半径 + 相手のセグメントの半径
-                        if ((dx_s * dx_s + dy_s * dy_s) < (myRadius + otherRadius)**2) {
-                            endGame(true);
-                            return;
-                        }
-                    }
-                }
-            }
+      const turnRate = (isDashing ? DASH_TURN_RATE_FACTOR : NORMAL_TURN_RATE_FACTOR) * deltaTime;
+      if (Math.abs(angleDiff) > turnRate) {
+        directionAngle += Math.sign(angleDiff) * turnRate;
+        updatePlayerPosition(true);
+      } else {
+        directionAngle = targetAngle;
+      }
+      directionAngle = directionAngle % (2 * Math.PI);
+    }
+
+    function updatePlayerSnake(deltaTime) {
+      const head = mySnake[0];
+      let currentSpeed = BASE_SPEED;
+
+      if (isDashing && currentScore > INITIAL_LENGTH) {
+        currentSpeed *= DASH_SPEED_MULTIPLIER;
+        currentScore -= DASH_COST_PER_FRAME * deltaTime;
+        currentScoreElement.textContent = currentScore.toFixed(0);
+        if (currentScore <= INITIAL_LENGTH) {
+          currentScore = INITIAL_LENGTH;
+          isDashing = false;
         }
+      }
 
-        /**
-         * ヘビの体長に基づいて描画半径（太さ）を計算する
-         */
-        function getSnakeRadius(score) {
-            const base = CELL_SIZE / 2;
-            const growthFactor = Math.min(1.0, score / 300); 
-            const maxIncrease = CELL_SIZE * 1.5; 
-            return base + (maxIncrease * growthFactor);
+      const moveDistance = currentSpeed * deltaTime;
+      const newHead = {
+        x: head.x + Math.cos(directionAngle) * moveDistance,
+        y: head.y + Math.sin(directionAngle) * moveDistance
+      };
+      mySnake.unshift(newHead);
+
+      const framesPerSegment = SEGMENT_GAP / currentSpeed;
+      const requiredHistoryCount = Math.ceil(currentScore * framesPerSegment) + 1;
+      while (mySnake.length > requiredHistoryCount) {
+        mySnake.pop();
+      }
+    }
+
+    function interpolateOtherPlayers(deltaTime) {
+      for (const pId in otherPlayers) {
+        const player = otherPlayers[pId];
+        const lerpFactor = 0.05 * deltaTime;
+        player.currentPosition.x += (player.targetPosition.x - player.currentPosition.x) * lerpFactor;
+        player.currentPosition.y += (player.targetPosition.y - player.currentPosition.y) * lerpFactor;
+
+        let angleDiff = player.angle - player.interpolatedAngle;
+        if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        player.interpolatedAngle += angleDiff * lerpFactor;
+      }
+    }
+
+    function updatePlayerHeadAndBody(deltaTime) {
+      for (const pId in otherPlayers) {
+        const player = otherPlayers[pId];
+        const head = player.currentPosition;
+        const speed = BASE_SPEED;
+        const moveDistance = speed * deltaTime;
+
+        player.localHistory.unshift({ x: head.x, y: head.y });
+
+        const framesPerSegment = SEGMENT_GAP / speed;
+        const requiredHistoryCount = Math.ceil(player.segments * framesPerSegment) + 1;
+        while (player.localHistory.length > requiredHistoryCount) {
+          player.localHistory.pop();
         }
+      }
+    }
 
+    function checkCollisions() {
+      const head = mySnake[0];
+      const myRadius = getSnakeRadius(currentScore);
 
-        /**
-         * ゲームオーバー処理
-         */
-        function endGame(shouldCreateDebris = false) {
-            isGameOver = true;
-            isDashing = false; 
-            cancelAnimationFrame(gameLoop);
-            
-            // 自分のヘビの死骸生成
-            if (shouldCreateDebris && mySnake.length > 0) {
-                // 簡易的に自分の色は'lime'としておく。
-                createDebris(mySnake, 'lime'); 
-            }
+      if (head.x < 0 || head.x > GAME_WIDTH || head.y < 0 || head.y > GAME_HEIGHT) {
+        endGame(true);
+        return;
+      }
 
-            if (window.cleanup) window.cleanup(); 
-            
-            // 🚀 【修正 6】ブーストボタンを非表示
-            boostButton.classList.add('hidden');
-            
-            overlay.style.display = 'flex';
-            startButton.textContent = `ゲームオーバー! (${currentScore.toFixed(0)}点) リトライ?`;
-
-            if (currentScore > localHighScore) {
-                localHighScore = currentScore.toFixed(0);
-                localStorage.setItem('snakeioHighScore', localHighScore);
-                highScoreElement.textContent = localHighScore;
-                saveHighScore(currentScore.toFixed(0));
-            }
-        }
-
-        // --- 描画処理 (変更なし) ---
-
-        function draw(cameraX, cameraY) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const offsetX = canvas.width / 2 - cameraX;
-            const offsetY = canvas.height / 2 - cameraY;
-
-            // 1. マップの境界線
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.lineWidth = 5;
-            ctx.strokeRect(offsetX, offsetY, GAME_WIDTH, GAME_HEIGHT);
-
-            // 2. 食べ物/死骸
-            foodItems.forEach(food => {
-                const x = food.x + offsetX;
-                const y = food.y + offsetY;
-                
-                const isDebris = food.growth === FOOD_GROWTH_DEBRIS;
-                const radius = isDebris ? CELL_SIZE * 0.8 : CELL_SIZE * 0.4;
-
-                ctx.fillStyle = food.color;
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, 2 * Math.PI);
-                ctx.fill();
+      for (let i = foodItems.length - 1; i >= 0; i--) {
+        const food = foodItems[i];
+        const dx = head.x - food.x;
+        const dy = head.y - food.y;
+        const isDebris = food.growth === FOOD_GROWTH_DEBRIS;
+        const foodRadius = isDebris ? CELL_SIZE * 0.8 : CELL_SIZE * 0.4;
+        const collisionThresholdSq = (myRadius + foodRadius) ** 2;
+        if ((dx * dx + dy * dy) < collisionThresholdSq) {
+          currentScore += food.growth;
+          currentScoreElement.textContent = currentScore.toFixed(0);
+          foodItems.splice(i, 1);
+          if (food.growth === FOOD_GROWTH_NORMAL) {
+            foodItems.push({
+              x: Math.random() * GAME_WIDTH,
+              y: Math.random() * GAME_HEIGHT,
+              color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+              growth: FOOD_GROWTH_NORMAL
             });
-
-            // 3. 他のプレイヤー (頭、体、名前)
-            for (const pId in otherPlayers) {
-                const player = otherPlayers[pId];
-                const otherRadius = getSnakeRadius(player.segments);
-                const color = player.color || 'gray';
-
-                // 3-1. 体の描画 (ローカル履歴 localHistory を使用)
-                const history = player.localHistory; 
-                const segmentDrawStep = SEGMENT_GAP / BASE_SPEED; 
-                let segmentsDrawn = 0;
-
-                for (let i = 0; i < history.length; i += segmentDrawStep) {
-                    if (segmentsDrawn >= player.segments) break; 
-
-                    const segmentIndex = Math.floor(i);
-                    const segment = history[segmentIndex];
-                    if (!segment) break;
-
-                    const x = segment.x + offsetX;
-                    const y = segment.y + offsetY;
-                    
-                    ctx.fillStyle = color;
-                    ctx.beginPath();
-                    ctx.arc(x, y, otherRadius, 0, 2 * Math.PI); 
-                    ctx.fill();
-                    
-                    segmentsDrawn += 1;
-                }
-
-                // 3-2. 名前の描画 (頭の位置から計算)
-                const headX = player.currentPosition.x + offsetX; 
-                const headY = player.currentPosition.y + offsetY;
-                
-                ctx.fillStyle = 'white';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(player.name || 'Unknown', headX, headY - otherRadius - 5); // 念のため 'Unknown'
-                ctx.fillText(`L:${player.segments.toFixed(0)}`, headX, headY + otherRadius + 15);
-            }
-            
-            // 4. 自分のヘビ 
-            const myRadius = getSnakeRadius(currentScore); 
-            ctx.fillStyle = 'lime';
-            
-            // 🛡️ 無敵時間中は点滅させる
-            if (isInvincible) {
-                const blink = Math.floor(invincibleTimer / 10) % 2 === 0;
-                if (!blink) ctx.globalAlpha = 0.4; // 点滅時の透明度
-            }
-
-            const currentSpeed = isDashing && currentScore > INITIAL_LENGTH ? BASE_SPEED * DASH_SPEED_MULTIPLIER : BASE_SPEED;
-            const segmentDrawStep = SEGMENT_GAP / currentSpeed; 
-            let segmentsDrawn = 0;
-
-            for (let i = 0; i < mySnake.length; i += segmentDrawStep) {
-                if (segmentsDrawn >= currentScore) break; 
-
-                const segmentIndex = Math.floor(i);
-                const segment = mySnake[segmentIndex];
-                if (!segment) break;
-
-                const x = segment.x + offsetX;
-                const y = segment.y + offsetY;
-                
-                ctx.beginPath();
-                ctx.arc(x, y, myRadius, 0, 2 * Math.PI); 
-                ctx.fill();
-                
-                segmentsDrawn += 1;
-            }
-            
-            ctx.globalAlpha = 1.0; // 元に戻す
-            
-            // 自分の名前とスコアを画面中央に描画
-            ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(playerName, canvas.width / 2, canvas.height / 2 - myRadius - 25);
+          }
         }
-        
-        function drawMinimap(cameraX, cameraY) {
-            minimapCtx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
-            minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-            minimapCtx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
-            minimapCtx.strokeStyle = 'white';
-            minimapCtx.strokeRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
-            
-            const scaleX = MINIMAP_SIZE / GAME_WIDTH;
-            const scaleY = MINIMAP_SIZE / GAME_HEIGHT;
+      }
 
-            minimapCtx.fillStyle = 'red';
-            foodItems.forEach(food => { minimapCtx.fillRect(food.x * scaleX, food.y * scaleY, 1, 1); });
+      if (isInvincible) return;
 
-            // ミニマップにも他のプレイヤーの頭を描画
-            for (const pId in otherPlayers) {
-                const player = otherPlayers[pId];
-                minimapCtx.fillStyle = player.color || 'gray';
-                
-                if (player.localHistory && player.localHistory.length > 0) {
-                    const head = player.localHistory[0]; 
-                    minimapCtx.beginPath();
-                    minimapCtx.arc(head.x * scaleX, head.y * scaleY, 2, 0, 2 * Math.PI);
-                    minimapCtx.fill();
-                }
-            }
+      for (const pId in otherPlayers) {
+        const player = otherPlayers[pId];
 
-            minimapCtx.fillStyle = isInvincible ? 'yellow' : 'lime'; // 無敵中は色を変える
-            minimapCtx.beginPath();
-            minimapCtx.arc(mySnake[0].x * scaleX, mySnake[0].y * scaleY, 3, 0, 2 * Math.PI);
-            minimapCtx.fill();
+        const otherHead = player.currentPosition;
+        const otherRadius = getSnakeRadius(player.segments);
+        const dx_h = head.x - otherHead.x;
+        const dy_h = head.y - otherHead.y;
+        if ((dx_h * dx_h + dy_h * dy_h) < (myRadius + otherRadius) ** 2) {
+          endGame(true);
+          return;
         }
 
-        // --- イベントリスナー ---
-        
-        // 🎯 方向転換ロジック (変更なし)
-        function handleInput(clientX, clientY) {
-            if (isGameOver) return;
-            
-            const headX = canvas.width / 2;
-            const headY = canvas.height / 2;
-            
-            const dx = clientX - headX;
-            const dy = clientY - headY;
-            
-            targetAngle = Math.atan2(dy, dx);
+        const history = player.localHistory;
+        if (history && history.length > 1) {
+          const checkStep = 1;
+          for (let i = 1; i < history.length; i += checkStep) {
+            const segment = history[i];
+            const dx_s = head.x - segment.x;
+            const dy_s = head.y - segment.y;
+            if ((dx_s * dx_s + dy_s * dy_s) < (myRadius + otherRadius) ** 2) {
+              endGame(true);
+              return;
+            }
+          }
         }
+      }
+    }
 
-        // マウス移動・クリック（方向転換）
-        canvas.addEventListener('mousemove', (e) => handleInput(e.clientX, e.clientY));
-        canvas.addEventListener('click', (e) => handleInput(e.clientX, e.clientY));
+    function getSnakeRadius(score) {
+      const base = CELL_SIZE / 2;
+      const growthFactor = Math.min(1.0, score / 300);
+      const maxIncrease = CELL_SIZE * 1.5;
+      return base + (maxIncrease * growthFactor);
+    }
 
-        // タッチ操作（方向転換）
-        // 🚀 【修正 7】長押しダッシュを削除
-        let lastTouchPosition = null;
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            handleInput(touch.clientX, touch.clientY);
-            lastTouchPosition = { clientX: touch.clientX, clientY: touch.clientY };
-        }, { passive: false });
+    function endGame(shouldCreateDebris = false) {
+      isGameOver = true;
+      isDashing = false;
+      cancelAnimationFrame(gameLoop);
 
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            handleInput(touch.clientX, touch.clientY);
-            lastTouchPosition = { clientX: touch.clientX, clientY: touch.clientY };
-        }, { passive: false });
+      if (shouldCreateDebris && mySnake.length > 0) {
+        createDebris(mySnake, 'lime');
+      }
 
-        canvas.addEventListener('touchend', (e) => {
-            // touch-action: manipulation を設定しているため、click イベントは発生しないはず
-            lastTouchPosition = null;
-        });
+      if (window.cleanup) window.cleanup();
 
-        // キーボード操作 (変更なし)
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' && !isGameOver) {
-                isDashing = true;
-            }
-        });
+      boostButton.classList.add('hidden');
+      overlay.style.display = 'flex';
+      startButton.textContent = `ゲームオーバー! (${currentScore.toFixed(0)}点) リトライ?`;
 
-        document.addEventListener('keyup', (e) => {
-            if (e.key === ' ' && !isGameOver) {
-                isDashing = false;
-            }
-        });
-        
-        // 🚀 【修正 8】ブーストボタンのイベントリスナー (ブーストの開始/終了)
-        boostButton.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!isGameOver) isDashing = true;
-        }, { passive: false });
-
-        boostButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (!isGameOver) isDashing = false;
-        });
-        
-        boostButton.addEventListener('mousedown', () => {
-             if (!isGameOver) isDashing = true;
-        });
-
-        boostButton.addEventListener('mouseup', () => {
-            if (!isGameOver) isDashing = false;
-        });
-        
-        boostButton.addEventListener('mouseleave', () => {
-            if (!isGameOver) isDashing = false;
-        });
-
-
-        startButton.addEventListener('click', initGame);
-
-        // 初回ロード時のハイスコア表示とランキング取得
+      if (currentScore > localHighScore) {
+        localHighScore = currentScore.toFixed(0);
+        localStorage.setItem('snakeioHighScore', localHighScore);
         highScoreElement.textContent = localHighScore;
-        fetchLeaderboard();
-    </script>
+        saveHighScore(currentScore.toFixed(0));
+      }
+    }
+
+    function draw(cameraX, cameraY) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const offsetX = canvas.width / 2 - cameraX;
+      const offsetY = canvas.height / 2 - cameraY;
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(offsetX, offsetY, GAME_WIDTH, GAME_HEIGHT);
+
+      foodItems.forEach(food => {
+        const x = food.x + offsetX;
+        const y = food.y + offsetY;
+        const isDebris = food.growth === FOOD_GROWTH_DEBRIS;
+        const radius = isDebris ? CELL_SIZE * 0.8 : CELL_SIZE * 0.4;
+        ctx.fillStyle = food.color;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+
+      for (const pId in otherPlayers) {
+        const player = otherPlayers[pId];
+        const otherRadius = getSnakeRadius(player.segments);
+        const color = player.color || 'gray';
+
+        const history = player.localHistory;
+        const segmentDrawStep = SEGMENT_GAP / BASE_SPEED;
+        let segmentsDrawn = 0;
+        for (let i = 0; i < history.length; i += segmentDrawStep) {
+          if (segmentsDrawn >= player.segments) break;
+          const segmentIndex = Math.floor(i);
+          const segment = history[segmentIndex];
+          if (!segment) break;
+          const x = segment.x + offsetX;
+          const y = segment.y + offsetY;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, otherRadius, 0, 2 * Math.PI);
+          ctx.fill();
+          segmentsDrawn += 1;
+        }
+
+        const headX = player.currentPosition.x + offsetX;
+        const headY = player.currentPosition.y + offsetY;
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(player.name || 'Unknown', headX, headY - otherRadius - 5);
+        ctx.fillText(`L:${player.segments.toFixed(0)}`, headX, headY + otherRadius + 15);
+      }
+
+      const myRadius = getSnakeRadius(currentScore);
+      ctx.fillStyle = 'lime';
+
+      if (isInvincible) {
+        const blink = Math.floor(invincibleTimer / 10) % 2 === 0;
+        if (!blink) ctx.globalAlpha = 0.4;
+      }
+
+      const currentSpeed = isDashing && currentScore > INITIAL_LENGTH ? BASE_SPEED * DASH_SPEED_MULTIPLIER : BASE_SPEED;
+      const segmentDrawStep = SEGMENT_GAP / currentSpeed;
+      let segmentsDrawn = 0;
+      for (let i = 0; i < mySnake.length; i += segmentDrawStep) {
+        if (segmentsDrawn >= currentScore) break;
+        const segmentIndex = Math.floor(i);
+        const segment = mySnake[segmentIndex];
+        if (!segment) break;
+        const x = segment.x + offsetX;
+        const y = segment.y + offsetY;
+        ctx.beginPath();
+        ctx.arc(x, y, myRadius, 0, 2 * Math.PI);
+        ctx.fill();
+        segmentsDrawn += 1;
+      }
+      ctx.globalAlpha = 1.0;
+
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(playerName, canvas.width / 2, canvas.height / 2 - myRadius - 25);
+    }
+
+    function drawMinimap(cameraX, cameraY) {
+      minimapCtx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      minimapCtx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      minimapCtx.strokeStyle = 'white';
+      minimapCtx.strokeRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+
+      const scaleX = MINIMAP_SIZE / GAME_WIDTH;
+      const scaleY = MINIMAP_SIZE / GAME_HEIGHT;
+
+      minimapCtx.fillStyle = 'red';
+      foodItems.forEach(food => {
+        minimapCtx.fillRect(food.x * scaleX, food.y * scaleY, 1, 1);
+      });
+
+      for (const pId in otherPlayers) {
+        const player = otherPlayers[pId];
+        minimapCtx.fillStyle = player.color || 'gray';
+        if (player.localHistory && player.localHistory.length > 0) {
+          const head = player.localHistory[0];
+          minimapCtx.beginPath();
+          minimapCtx.arc(head.x * scaleX, head.y * scaleY, 2, 0, 2 * Math.PI);
+          minimapCtx.fill();
+        }
+      }
+
+      minimapCtx.fillStyle = isInvincible ? 'yellow' : 'lime';
+      minimapCtx.beginPath();
+      minimapCtx.arc(mySnake[0].x * scaleX, mySnake[0].y * scaleY, 3, 0, 2 * Math.PI);
+      minimapCtx.fill();
+    }
+
+    function handleInput(clientX, clientY) {
+      if (isGameOver) return;
+      const headX = canvas.width / 2;
+      const headY = canvas.height / 2;
+      const dx = clientX - headX;
+      const dy = clientY - headY;
+      targetAngle = Math.atan2(dy, dx);
+    }
+
+    canvas.addEventListener('mousemove', (e) => handleInput(e.clientX, e.clientY));
+    canvas.addEventListener('click', (e) => handleInput(e.clientX, e.clientY));
+
+    let lastTouchPosition = null;
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleInput(touch.clientX, touch.clientY);
+      lastTouchPosition = { clientX: touch.clientX, clientY: touch.clientY };
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleInput(touch.clientX, touch.clientY);
+      lastTouchPosition = { clientX: touch.clientX, clientY: touch.clientY };
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+      lastTouchPosition = null;
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ' && !isGameOver) {
+        isDashing = true;
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === ' ' && !isGameOver) {
+        isDashing = false;
+      }
+    });
+
+    boostButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!isGameOver) isDashing = true;
+    }, { passive: false });
+    boostButton.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (!isGameOver) isDashing = false;
+    });
+    boostButton.addEventListener('mousedown', () => {
+      if (!isGameOver) isDashing = true;
+    });
+    boostButton.addEventListener('mouseup', () => {
+      if (!isGameOver) isDashing = false;
+    });
+    boostButton.addEventListener('mouseleave', () => {
+      if (!isGameOver) isDashing = false;
+    });
+
+    startButton.addEventListener('click', initGame);
+
+    highScoreElement.textContent = localHighScore;
+    fetchLeaderboard();
+  </script>
 </body>
 </html>
