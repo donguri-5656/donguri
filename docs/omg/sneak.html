@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sneak</title>
+    <title>Sneak.io ドット描画・滑らか軌跡追従・重なり調整 (ブースト機能追加)</title>
     <style>
         body {
             width: 100vw;
@@ -111,7 +111,7 @@
     
     <canvas id="minimapCanvas" width="150" height="150"></canvas>
     
-    <div id="boost-button">BOOST</div>
+    <div id="boost-button">🚀 BOOST</div>
 
     <div id="ui-overlay">
         <h2>Sneak.io (Final)</h2>
@@ -160,6 +160,7 @@
         const CAMERA_SMOOTHING = 0.05; 
         const DECEASED_COLOR = '#ffffff'; 
         const INVULNERABLE_DURATION = 3000;
+        const INTERPOLATION_STEP = 5; // 相手のセグメント補間距離
 
         const OVERLAP_FACTOR = 0.8; 
         const TRAIL_STEP = 1; 
@@ -455,7 +456,7 @@
             
             for (const playerId in otherPlayers) {
                 const other = otherPlayers[playerId];
-                const otherSegments = other.segments || [];
+                const otherSegments = other.interpolatedSegments || [];
                 const otherHeadRadius = getHeadRadius(other.segmentsCount || INITIAL_SEGMENTS_COUNT); 
                 
                 if (other.isInvulnerable) continue;
@@ -541,7 +542,8 @@
         }
         
         function drawSnake(snakeData) {
-            const segments = snakeData.segments || [];
+            // 相手の蛇の場合、補間されたセグメントを使用
+            const segments = snakeData.interpolatedSegments || snakeData.segments || [];
             if (segments.length === 0) return;
 
             const dotRadius = getHeadRadius(snakeData.segmentsCount || INITIAL_SEGMENTS_COUNT);
@@ -646,20 +648,83 @@
                 length: mySnake.length,
                 segmentsCount: mySnake.segmentsCount,
                 color: mySnake.color,
-                segments: mySnake.segments.filter((_, i) => i % 2 === 0).slice(0, 30), 
+                segments: mySnake.segments.map(s => ({x: s.x, y: s.y})), // 全セグメントを送信
                 isInvulnerable: mySnake.isInvulnerable,
                 isBoosting: mySnake.isBoosting,
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             });
         }
+        
+        // 相手のセグメントを補間して滑らかにする関数
+        function interpolateSegments(segments, segmentsCount) {
+            if (!segments || segments.length < 2) return segments;
+
+            const interpolated = [];
+            
+            // サーバーから送られたセグメントの数と、本来描画すべきセグメント数の比率
+            const ratio = segments.length / segmentsCount;
+
+            for (let i = 0; i < segments.length - 1; i++) {
+                const p1 = segments[i];
+                const p2 = segments[i + 1];
+                
+                // セグメント間の距離
+                const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                
+                // 1セグメントあたりの描画ステップ数
+                const numSteps = Math.ceil(distance / INTERPOLATION_STEP); 
+
+                // 補間ステップ
+                for (let j = 0; j < numSteps; j++) {
+                    const factor = j / numSteps;
+                    const x = p1.x + (p2.x - p1.x) * factor;
+                    const y = p1.y + (p2.y - p1.y) * factor;
+                    interpolated.push({ x, y });
+                }
+            }
+            
+            // 最後のセグメントを追加
+            interpolated.push(segments[segments.length - 1]);
+
+            // 最終的に必要なセグメント数に合わせる
+            const finalSegments = [];
+            const step = interpolated.length / segmentsCount;
+            for(let i = 0; i < segmentsCount; i++) {
+                const index = Math.round(i * step);
+                if (index < interpolated.length) {
+                    finalSegments.push(interpolated[index]);
+                }
+            }
+            
+            return finalSegments;
+        }
+
 
         playersRef.on('value', (snapshot) => {
             const playersData = snapshot.val();
-            otherPlayers = {};
             
+            for (const id in otherPlayers) {
+                if (!playersData[id]) {
+                    delete otherPlayers[id];
+                }
+            }
+
             for (const id in playersData) {
                 if (id !== myPlayerId) {
-                    otherPlayers[id] = playersData[id];
+                    const data = playersData[id];
+                    
+                    if (!otherPlayers[id]) {
+                        otherPlayers[id] = { ...data, interpolatedSegments: [] };
+                    } else {
+                        // 既存のデータを更新
+                        Object.assign(otherPlayers[id], data);
+                    }
+
+                    // 相手のセグメントを補間して滑らかにする
+                    otherPlayers[id].interpolatedSegments = interpolateSegments(
+                        data.segments,
+                        data.segmentsCount || INITIAL_SEGMENTS_COUNT
+                    );
                 }
             }
         });
