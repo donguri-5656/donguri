@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sneak.io ドット描画・滑らか軌跡追従・重なり調整 (ブースト機能追加)</title>
+    <title>Sneak</title>
     <style>
         body {
             width: 100vw;
@@ -37,6 +37,7 @@
             border-radius: 10px;
             text-align: center;
             z-index: 10;
+            width: 500px; 
         }
         
         #ui-overlay input, #ui-overlay button {
@@ -53,6 +54,100 @@
             cursor: pointer;
             font-weight: bold;
         }
+
+        /* --- 色設定画面のスタイル --- */
+        #colorSettings {
+            display: none;
+            padding: 20px 0;
+        }
+
+        /* プレビューエリア */
+        #colorPreview {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px 5px;
+            max-width: 400px; 
+            margin: 0 auto 20px;
+        }
+        
+        /* ヘビの頭のように大きく、間隔を狭く */
+        .color-segment-preview {
+            width: 20px; 
+            height: 20px;
+            border-radius: 50%;
+            margin: 0 1px; 
+            border: 2px solid #fff;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+
+        .color-segment-preview.selected {
+            border-color: #2ecc71;
+            transform: scale(1.4); 
+            box-shadow: 0 0 10px #2ecc71;
+        }
+        
+        /* パレットと矢印のコンテナ */
+        #paletteContainer {
+            display: flex;
+            align-items: flex-start; 
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .arrow-button {
+            background: #555;
+            color: white;
+            padding: 5px 10px;
+            margin: 0 5px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border-radius: 5px;
+            user-select: none;
+            transition: background 0.1s;
+            height: 40px;
+            line-height: 20px;
+        }
+        
+        .arrow-button:hover {
+            background: #777;
+        }
+
+        #colorPalette {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 5px;
+            border-radius: 5px;
+            width: 450px; 
+            max-height: none; 
+            overflow-y: visible; 
+        }
+
+        .color-option {
+            width: 28px; 
+            height: 28px; 
+            border-radius: 50%;
+            margin: 1px; 
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.1s;
+        }
+        /* 横15個で改行されるように調整 */
+        .color-option:nth-child(15n+1) { 
+            clear: left; 
+        }
+
+        .color-option:hover {
+            border-color: #ccc;
+        }
+        /* --- ここまで色設定画面のスタイル --- */
+
 
         #score-display {
             position: absolute;
@@ -74,30 +169,41 @@
             z-index: 5;
         }
 
+        /* --- ブーストボタンのスタイル修正 (さらに大きく、半透明に) --- */
         #boost-button {
             position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
+            bottom: 20px; 
+            left: 20px; 
+            
+            width: 120px; /* 拡大 */
+            height: 120px; /* 拡大 */
+            border-radius: 50%;
+            
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
             background-color: #2ecc71;
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 1.2em;
+            font-size: 1.5em;
             cursor: pointer;
             z-index: 5;
-            display: none;
             user-select: none;
-            transition: background-color 0.1s;
+            transition: background-color 0.1s, box-shadow 0.1s;
+            
+            opacity: 0.6; /* 半透明設定 */
+            display: none; 
         }
 
         #boost-button.active {
             background-color: #27ae60;
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.8);
+            opacity: 0.8; /* アクティブ時は少し不透明に */
         }
 
         #boost-button:active {
-            transform: translateX(-50%) scale(0.95);
+            transform: scale(0.95);
         }
     </style>
 </head>
@@ -111,13 +217,33 @@
     
     <canvas id="minimapCanvas" width="150" height="150"></canvas>
     
-    <div id="boost-button">🚀 BOOST</div>
+    <button id="boost-button">🚀 BOOST</button>
 
     <div id="ui-overlay">
-        <h2>Sneak.io (Final)</h2>
-        <input type="text" id="playerName" placeholder="名前を入力 (必須)">
-        <button id="startButton">ゲームスタート</button>
-        <p id="message" style="color: yellow; margin-top: 15px;"></p>
+        <div id="mainMenu">
+            <h2>Sneak.io (Final)</h2>
+            <input type="text" id="playerName" placeholder="名前を入力 (必須)">
+            <button id="startButton">ゲームスタート</button>
+            <button id="colorSettingsButton">🎨 ヘビの色設定</button>
+            <p id="message" style="color: yellow; margin-top: 15px;"></p>
+        </div>
+
+        <div id="colorSettings">
+            <h3>ヘビの色設定 (<span id="dotCount">13</span>箇所)</h3>
+            <p style="font-size: 0.9em; margin-top: -10px;">👇 編集するドットを選択</p>
+            <div id="colorPreview">
+                </div>
+            
+            <p style="font-size: 0.9em; margin-top: 15px;">👇 色を選択 (明度: <span id="currentLightnessDisplay">60</span>%)</p>
+            <div id="paletteContainer">
+                <div class="arrow-button" id="brightnessDownButton" title="暗くする">&lt;</div>
+                <div id="colorPalette">
+                    </div>
+                <div class="arrow-button" id="brightnessUpButton" title="明るくする">&gt;</div>
+            </div>
+
+            <button id="backToMenuButton" style="background-color: #3498db; margin-top: 20px;">メニューに戻る</button>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -140,6 +266,9 @@
         const minimapCanvas = document.getElementById('minimapCanvas');
         const minimapCtx = minimapCanvas.getContext('2d');
         const boostButton = document.getElementById('boost-button');
+        const colorPalette = document.getElementById('colorPalette');
+        const colorPreview = document.getElementById('colorPreview');
+        const DOT_COUNT = 13; 
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -156,16 +285,40 @@
         const BOOST_SPEED = BASE_SPEED * 2;
         const BOOST_CONSUMPTION_RATE = 2.0;
         const MIN_LENGTH_TO_BOOST = INITIAL_LENGTH * 0.5;
-        const TURN_RATE = 0.05; 
+        
+        const TURN_RATE = 0.12; 
+        
         const CAMERA_SMOOTHING = 0.05; 
         const DECEASED_COLOR = '#ffffff'; 
         const INVULNERABLE_DURATION = 3000;
-        const INTERPOLATION_STEP = 5; // 相手のセグメント補間距離
+        const INTERPOLATION_STEP = 5; 
 
-        const OVERLAP_FACTOR = 0.8; 
+        const BASE_RADIUS = 5; 
+        const LENGTH_TO_RADIUS_FACTOR = 0.3; 
+        const MAX_RADIUS = 15; 
+        const SEGMENT_OVERLAP_FACTOR = 0.7; 
+        const SEGMENT_GROWTH_FACTOR = 0.5; 
         const TRAIL_STEP = 1; 
-
         
+        // ジョイスティック設定
+        const JOYSTICK_RADIUS = 70;
+        const JOYSTICK_KNOB_RADIUS = 25;
+        let joystickCenter = null;
+        let joystickCurrent = null;
+
+        // 色相のベースとなる色（H値）を10度刻みで36色
+        const BASE_HUES = Array.from({length: 36}, (_, i) => i * 10); 
+        
+        // 設定点を13個に増やし、初期色を設定
+        const INITIAL_CUSTOM_COLORS = [
+            '#FF0000', '#FF4000', '#FFFF00', '#40FF00', '#00FF00', '#0040FF', '#0000FF', 
+            '#4B0082', '#9400D3', '#FF00FF', '#FF00A0', '#FFA000', '#FF0000'
+        ];
+        
+        // 彩度レイヤーを追加: 低彩度(30), 中彩度(60), 高彩度(90)
+        const SATURATION_LAYERS = [90, 60, 30]; 
+        let currentLightness = 60;  // L値 (明度)
+
         let myPlayerId = null;
         let playerName = '';
         let mySnake = {
@@ -177,7 +330,8 @@
             segments: [],
             segmentsCount: INITIAL_SEGMENTS_COUNT, 
             score: 0,
-            color: '#' + Math.floor(Math.random()*16777215).toString(16),
+            color: INITIAL_CUSTOM_COLORS[0], 
+            customColors: [...INITIAL_CUSTOM_COLORS], 
             trail: [], 
             isInvulnerable: false,
             invulnerableEndTime: 0,
@@ -185,12 +339,19 @@
         };
         let isGameOver = true;
         
+        let currentEditingSegment = 0; 
+
         let cameraX = 0;
         let cameraY = 0;
         let otherPlayers = {};
         let foodItems = []; 
         let localFoodItems = []; 
         let eatenFoodCount = 0; 
+        
+        // --- マルチタッチ対応のための変数 ---
+        let joystickTouchId = null; 
+        let boostTouchId = null;
+
 
         
         firebase.initializeApp(firebaseConfig);
@@ -204,16 +365,20 @@
             mySnake.angle = Math.random() * 2 * Math.PI;
             mySnake.targetAngle = mySnake.angle;
             mySnake.length = INITIAL_LENGTH;
-            mySnake.segmentsCount = INITIAL_SEGMENTS_COUNT;
+            
+            mySnake.segmentsCount = calculateSegmentsCount(mySnake.length); 
 
-            const initialRadius = getHeadRadius(INITIAL_SEGMENTS_COUNT);
-            const initialSpacing = initialRadius * 2 * OVERLAP_FACTOR;
+            const initialRadius = getHeadRadius(mySnake.length);
+            const initialSpacing = initialRadius * 2 * SEGMENT_OVERLAP_FACTOR;
 
             mySnake.trail = []; 
             mySnake.segments = [];
+            // 初期セグメントをヘビの初期位置から一定の間隔で配置
             for(let i=0; i<mySnake.segmentsCount; i++) {
-                mySnake.trail.push({x: mySnake.x - i * initialSpacing, y: mySnake.y});
-                mySnake.segments.push({x: mySnake.x - i * initialSpacing, y: mySnake.y});
+                const segmentX = mySnake.x - i * initialSpacing * Math.cos(mySnake.angle);
+                const segmentY = mySnake.y - i * initialSpacing * Math.sin(mySnake.angle);
+                mySnake.trail.push({x: segmentX, y: segmentY});
+                mySnake.segments.push({x: segmentX, y: segmentY});
             }
 
             mySnake.score = INITIAL_LENGTH;
@@ -229,8 +394,15 @@
             document.getElementById('currentScore').textContent = mySnake.score;
             boostButton.style.display = 'flex';
 
-            canvas.addEventListener('mousemove', handleInput);
-            canvas.addEventListener('touchmove', handleInput, { passive: false });
+            // ジョイスティック操作のためのイベントリスナーを設定 (document全体でイベントを処理する)
+            document.addEventListener('mousedown', handleInputDown);
+            document.addEventListener('mousemove', handleInputMove);
+            document.addEventListener('mouseup', handleInputUp);
+
+            document.addEventListener('touchstart', handleInputDown, { passive: false });
+            document.addEventListener('touchmove', handleInputMove, { passive: false });
+            document.addEventListener('touchend', handleInputUp);
+            
             setupBoostEvents();
             
             updateFirebase();
@@ -242,16 +414,21 @@
         }
         
         function setupBoostEvents() {
-            boostButton.addEventListener('mousedown', startBoost);
-            document.addEventListener('mouseup', endBoost);
-            
+            // ブーストとジョイスティックの干渉を避けるため、イベントは documentレベルで処理する
             document.addEventListener('visibilitychange', handleVisibilityChange);
 
-            boostButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                startBoost();
+            // ブラウザ/タブが閉じられる/移動する際の処理 (ゲームオーバー処理をgameOver()に集約)
+            window.addEventListener('beforeunload', () => {
+                if (myPlayerId) {
+                    gameOver(false); // 完全に閉じる場合は、メニューに戻る必要はないが、死体は残す
+                }
             });
-            document.addEventListener('touchend', endBoost);
+
+            window.addEventListener('pagehide', () => {
+                if (myPlayerId) {
+                    gameOver(false); // 完全に非表示になる場合
+                }
+            });
         }
 
         function startBoost() {
@@ -266,39 +443,148 @@
         }
 
         function handleVisibilityChange() {
+            // タブが非アクティブになり、かつゲーム中の場合 (死体を残してメニューに戻る)
             if (document.hidden && !isGameOver && myPlayerId) {
-                playersRef.child(myPlayerId).remove();
-                clearInterval(window.syncInterval);
-                isGameOver = true;
-            } else if (!document.hidden && isGameOver && myPlayerId === null) {
-                
-            }
+                gameOver(true); 
+            } 
+            // タブがアクティブに戻った場合は、メニュー画面が表示されている (gameOver()の結果)
+        }
+        
+        // --- ジョイスティック/マルチタッチ制御のロジック ---
+
+        function isTargetingBoostButton(x, y) {
+            const rect = boostButton.getBoundingClientRect();
+            
+            // 円形の判定（中心からの距離）
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const radius = rect.width / 2;
+            
+            const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+            
+            return distance <= radius;
         }
 
-
-        function handleInput(e) {
+        function handleInputDown(e) {
             e.preventDefault();
             if (isGameOver) return;
             
-            let clientX, clientY;
-
-            if (e.touches && e.touches.length > 0) {
-                if (e.touches[0].target === boostButton) return;
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+            if (e.type === 'mousedown') {
+                const x = e.clientX;
+                const y = e.clientY;
+                
+                if (isTargetingBoostButton(x, y)) {
+                    startBoost();
+                } else if (!joystickCenter) { 
+                    // ジョイスティックが未操作の場合にのみ開始
+                    joystickCenter = { x: x, y: y };
+                    joystickCurrent = { x: x, y: y };
+                }
+            } else if (e.type === 'touchstart') {
+                const changedTouches = e.changedTouches;
+                
+                for (let i = 0; i < changedTouches.length; i++) {
+                    const touch = changedTouches[i];
+                    const x = touch.clientX;
+                    const y = touch.clientY;
+                    
+                    if (isTargetingBoostButton(x, y) && boostTouchId === null) {
+                        // ブースト操作の開始
+                        startBoost();
+                        boostTouchId = touch.identifier;
+                    } else if (joystickTouchId === null && !isTargetingBoostButton(x, y)) {
+                        // ジョイスティック操作の開始（ブーストボタン以外で）
+                        joystickCenter = { x: x, y: y };
+                        joystickCurrent = { x: x, y: y };
+                        joystickTouchId = touch.identifier;
+                    }
+                }
             }
-
-            const mouseX = clientX - canvas.getBoundingClientRect().left;
-            const mouseY = clientY - canvas.getBoundingClientRect().top;
-
-            const headXScreen = canvas.width / 2;
-            const headYScreen = canvas.height / 2;
-            
-            mySnake.targetAngle = Math.atan2(mouseY - headYScreen, mouseX - headXScreen);
         }
+        
+        function handleInputMove(e) {
+            e.preventDefault();
+            if (isGameOver || (!joystickCenter && !e.touches)) return; 
+
+            if (e.type === 'mousemove') {
+                if (!joystickCenter) return;
+                
+                const coords = { x: e.clientX, y: e.clientY };
+                joystickCurrent = { x: coords.x, y: coords.y };
+
+                // ジョイスティックの処理
+                updateJoystickDirection(coords.x, coords.y);
+
+            } else if (e.type === 'touchmove') {
+                const touches = e.touches;
+
+                for (let i = 0; i < touches.length; i++) {
+                    const touch = touches[i];
+                    
+                    if (touch.identifier === joystickTouchId) {
+                        // ジョイスティックの移動
+                        const x = touch.clientX;
+                        const y = touch.clientY;
+                        joystickCurrent = { x: x, y: y };
+                        updateJoystickDirection(x, y);
+                    }
+                    // ブーストボタンは移動で状態が変わらないため、ここでは処理しない
+                }
+            }
+        }
+        
+        function updateJoystickDirection(x, y) {
+            // ジョイスティックの中心からの差分
+            const dx = x - joystickCenter.x;
+            const dy = y - joystickCenter.y;
+            
+            // 距離を計算し、ジョイスティックの半径に制限
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 5) { // わずかな動きは無視
+                // 角度を計算
+                mySnake.targetAngle = Math.atan2(dy, dx);
+
+                if (distance > JOYSTICK_RADIUS) {
+                    // つまみの位置を制限
+                    const ratio = JOYSTICK_RADIUS / distance;
+                    joystickCurrent.x = joystickCenter.x + dx * ratio;
+                    joystickCurrent.y = joystickCenter.y + dy * ratio;
+                }
+            }
+        }
+
+        function handleInputUp(e) {
+            if (isGameOver) return;
+
+            if (e.type === 'mouseup') {
+                // マウスアップでブーストとジョイスティックをリセット
+                endBoost();
+                joystickCenter = null;
+                joystickCurrent = null;
+            } else if (e.type === 'touchend') {
+                const changedTouches = e.changedTouches;
+                
+                for (let i = 0; i < changedTouches.length; i++) {
+                    const touch = changedTouches[i];
+                    
+                    if (touch.identifier === boostTouchId) {
+                        // ブースト操作の終了
+                        endBoost();
+                        boostTouchId = null;
+                    } 
+                    
+                    if (touch.identifier === joystickTouchId) {
+                        // ジョイスティック操作の終了
+                        joystickCenter = null;
+                        joystickCurrent = null;
+                        joystickTouchId = null;
+                    }
+                }
+            }
+        }
+        
+        // --- ゲームロジック ---
         
         function generateFood(count, minSize, maxSize, type) {
             if (type === 'deceased') return; 
@@ -338,12 +624,13 @@
             updateCamera();
 
             drawScene();
+            drawJoystick(); 
             drawMinimap();
 
             checkEatFood();
             
             if (!mySnake.isInvulnerable && checkCollision()) {
-                gameOver();
+                gameOver(true); // 衝突死の場合はメニューに戻る
                 return;
             }
             
@@ -352,10 +639,14 @@
             requestAnimationFrame(gameLoop);
         }
 
-        function getHeadRadius(segmentsCount) {
-            const baseRadius = 5;
-            const growthFactor = 0.5; 
-            return baseRadius + segmentsCount * growthFactor;
+        function getHeadRadius(length) {
+            const radius = BASE_RADIUS + Math.sqrt(length) * LENGTH_TO_RADIUS_FACTOR;
+            return Math.min(radius, MAX_RADIUS);
+        }
+
+        function calculateSegmentsCount(length) {
+            const count = INITIAL_SEGMENTS_COUNT + Math.floor(Math.sqrt(Math.max(0, length - INITIAL_LENGTH)) * SEGMENT_GROWTH_FACTOR);
+            return Math.max(INITIAL_SEGMENTS_COUNT, count);
         }
 
         function updateSnakeMovement() {
@@ -372,14 +663,18 @@
             mySnake.x += dx;
             mySnake.y += dy;
 
+            // 1. 新しい位置を軌跡の先頭に追加
             mySnake.trail.unshift({ x: mySnake.x, y: mySnake.y });
 
-            const INITIAL_POINTS = 4 * 20; 
-            const totalGrowthPoints = mySnake.length - INITIAL_LENGTH;
-            const growthSegments = Math.floor(Math.max(0, totalGrowthPoints) / INITIAL_POINTS); 
+            mySnake.segmentsCount = calculateSegmentsCount(mySnake.length);
+
+            const headRadius = getHeadRadius(mySnake.length);
             
-            mySnake.segmentsCount = Math.max(INITIAL_SEGMENTS_COUNT, INITIAL_SEGMENTS_COUNT + growthSegments);
+            // 2. セグメント間の目標距離を計算
+            const segmentDistance = headRadius * 2 * SEGMENT_OVERLAP_FACTOR; 
+            const trailDistancePerSegment = segmentDistance; 
             
+            // ヘビの体節数を調整 (増減ロジック)
             while (mySnake.segments.length < mySnake.segmentsCount) {
                 const last = mySnake.segments[mySnake.segments.length - 1] || mySnake.trail[mySnake.trail.length - 1] || { x: mySnake.x, y: mySnake.y };
                 mySnake.segments.push({ x: last.x, y: last.y });
@@ -387,39 +682,66 @@
             while (mySnake.segments.length > mySnake.segmentsCount) {
                 mySnake.segments.pop();
             }
-
-            const headRadius = getHeadRadius(mySnake.segmentsCount);
-            const segmentDistance = headRadius * 2 * OVERLAP_FACTOR; 
-            const stepsPerSegment = segmentDistance / currentSpeed * TRAIL_STEP; 
             
+            // 3. 軌跡からの距離ベースのサンプリング
             for (let i = 0; i < mySnake.segments.length; i++) {
-                const index = Math.round(i * stepsPerSegment); 
+                // 先頭のセグメントは常にヘビの現在位置
+                if (i === 0) {
+                    mySnake.segments[i].x = mySnake.trail[0].x;
+                    mySnake.segments[i].y = mySnake.trail[0].y;
+                    continue;
+                }
+
+                // 目標の距離（体節間の距離×体節のインデックス）
+                const targetDistance = i * trailDistancePerSegment;
                 
-                if (index < mySnake.trail.length) {
-                    mySnake.segments[i].x = mySnake.trail[index].x;
-                    mySnake.segments[i].y = mySnake.trail[index].y;
-                } else {
-                    const lastTrailPos = mySnake.trail[mySnake.trail.length - 1];
-                    if (lastTrailPos) {
-                        mySnake.segments[i].x = lastTrailPos.x;
-                        mySnake.segments[i].y = lastTrailPos.y;
+                let accumulatedDistance = 0;
+                let foundPosition = false;
+
+                for (let j = 0; j < mySnake.trail.length - 1; j++) {
+                    const p1 = mySnake.trail[j];
+                    const p2 = mySnake.trail[j + 1];
+                    const segmentLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+                    if (accumulatedDistance + segmentLength >= targetDistance) {
+                        // 目標距離をまたぐ位置を見つけた
+                        const excessDistance = targetDistance - accumulatedDistance;
+                        const ratio = excessDistance / segmentLength;
+                        
+                        mySnake.segments[i].x = p1.x + (p2.x - p1.x) * ratio;
+                        mySnake.segments[i].y = p1.y + (p2.y - p1.y) * ratio;
+                        foundPosition = true;
+                        break;
+                    }
+
+                    accumulatedDistance += segmentLength;
+                }
+                
+                // 軌跡が足りない場合、最後の点を維持
+                if (!foundPosition) {
+                    const last = mySnake.trail[mySnake.trail.length - 1];
+                    if (last) {
+                        mySnake.segments[i].x = last.x;
+                        mySnake.segments[i].y = last.y;
                     }
                 }
             }
             
-            const maxLengthNeeded = mySnake.segmentsCount * stepsPerSegment + 100;
-            if (mySnake.trail.length > maxLengthNeeded) {
-                mySnake.trail.splice(maxLengthNeeded);
+            // 4. 軌跡の長さを適切な長さに制限
+            const trailIndexNeeded = mySnake.segmentsCount * 20; 
+            if (mySnake.trail.length > trailIndexNeeded) {
+                 mySnake.trail.splice(trailIndexNeeded);
             }
 
+
             if (mySnake.x < 0 || mySnake.x > WORLD_SIZE || mySnake.y < 0 || mySnake.y > WORLD_SIZE) {
-                gameOver();
+                gameOver(true); 
             }
         }
         
         function checkEatFood() {
             const head = mySnake.segments[0];
-            const headRadius = getHeadRadius(mySnake.segmentsCount);
+            const headRadius = getHeadRadius(mySnake.length);
 
             const allFood = [...foodItems, ...localFoodItems];
             const foodToKeep = [];
@@ -452,12 +774,12 @@
         
         function checkCollision() {
             const head = mySnake.segments[0];
-            const headRadius = getHeadRadius(mySnake.segmentsCount); 
+            const headRadius = getHeadRadius(mySnake.length); 
             
             for (const playerId in otherPlayers) {
                 const other = otherPlayers[playerId];
                 const otherSegments = other.interpolatedSegments || [];
-                const otherHeadRadius = getHeadRadius(other.segmentsCount || INITIAL_SEGMENTS_COUNT); 
+                const otherHeadRadius = getHeadRadius(other.length || INITIAL_LENGTH); 
                 
                 if (other.isInvulnerable) continue;
 
@@ -474,7 +796,11 @@
             return false;
         }
 
-        function gameOver() {
+        /**
+         * ゲームオーバー処理。死体を残し、オプションでメニューに戻る。
+         * @param {boolean} showMenu - trueの場合、メニュー画面を表示する
+         */
+        function gameOver(showMenu = true) {
             if(isGameOver) return; 
 
             isGameOver = true;
@@ -482,28 +808,45 @@
             
             endBoost();
 
+            // --- 死亡時の処理 (死体をまく) ---
+            const snakeLengthForDeath = mySnake.length;
             mySnake.segments.forEach(segment => {
                 const deadFoodId = deceasedFoodRef.push().key; 
 
                 deceasedFoodRef.child(deadFoodId).set({
                     x: segment.x + (Math.random() - 0.5) * 5, 
                     y: segment.y + (Math.random() - 0.5) * 5,
-                    size: getHeadRadius(mySnake.segmentsCount) * 0.8, 
+                    size: getHeadRadius(snakeLengthForDeath) * 0.8, 
                     color: DECEASED_COLOR, 
                     isDeceased: true, 
                     id: deadFoodId
                 });
             });
 
+            // プレイヤーをFirebaseから削除
             playersRef.child(myPlayerId).remove();
             myPlayerId = null;
             
-            document.getElementById('message').textContent = `ゲームオーバー！最終体長: ${mySnake.score}`;
-            document.getElementById('ui-overlay').style.display = 'block';
+            // --- UI処理 ---
+            if (showMenu) {
+                document.getElementById('message').textContent = `ゲームオーバー！最終体長: ${mySnake.score}`;
+                document.getElementById('ui-overlay').style.display = 'block';
+                document.getElementById('mainMenu').style.display = 'block';
+                document.getElementById('colorSettings').style.display = 'none';
+            }
             boostButton.style.display = 'none';
             
-            canvas.removeEventListener('mousemove', handleInput);
-            canvas.removeEventListener('touchmove', handleInput, { passive: false });
+            // イベントリスナーを削除（次回initGameで再設定）
+            document.removeEventListener('mousedown', handleInputDown);
+            document.removeEventListener('mousemove', handleInputMove);
+            document.removeEventListener('mouseup', handleInputUp);
+            document.removeEventListener('touchstart', handleInputDown);
+            document.removeEventListener('touchmove', handleInputMove);
+            document.removeEventListener('touchend', handleInputUp);
+            
+            // タッチIDもリセット
+            joystickTouchId = null; 
+            boostTouchId = null;
         }
 
         function updateCamera() {
@@ -541,32 +884,86 @@
             drawSnake(mySnake);
         }
         
+        // --- ジョイスティックの描画 ---
+        function drawJoystick() {
+            if (!joystickCenter || isGameOver) return;
+            
+            // 描画Y座標を、タップした位置から半径分下にオフセットする
+            const centerOffsetY = joystickCenter.y + JOYSTICK_RADIUS;
+            
+            // ノブのY座標も、描画オフセットに合わせて修正する
+            const knobOffsetY = joystickCurrent.y + JOYSTICK_RADIUS;
+
+
+            // 1. ジョイスティックの外枠 (ベース)
+            ctx.beginPath();
+            ctx.arc(joystickCenter.x, centerOffsetY, JOYSTICK_RADIUS, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.stroke();
+
+            // 2. ジョイスティックのつまみ (ノブ)
+            ctx.beginPath();
+            ctx.arc(joystickCurrent.x, knobOffsetY, JOYSTICK_KNOB_RADIUS, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.stroke();
+        }
+
+        // --- 描画関数 ---
+        
         function drawSnake(snakeData) {
-            // 相手の蛇の場合、補間されたセグメントを使用
             const segments = snakeData.interpolatedSegments || snakeData.segments || [];
             if (segments.length === 0) return;
 
-            const dotRadius = getHeadRadius(snakeData.segmentsCount || INITIAL_SEGMENTS_COUNT);
+            const snakeLength = snakeData.length || INITIAL_LENGTH;
+            const dotRadius = getHeadRadius(snakeLength); 
+            
+            const customColors = snakeData.customColors || INITIAL_CUSTOM_COLORS;
+            const colorCount = customColors.length;
 
-            let color = snakeData.color;
             let drawInvulnerableAura = snakeData.isInvulnerable;
             
-            if (drawInvulnerableAura) {
-                if (Math.floor(Date.now() / 100) % 2 === 0) {
-                    color = 'rgba(255, 255, 255, 0.7)';
-                }
+            // ★★★ 修正点: ブースト時の発光設定 ★★★
+            const isBoosting = snakeData.isBoosting;
+            if (isBoosting) {
+                // ブースト中は明るい緑色でぼかしを強く設定
+                ctx.shadowColor = 'rgba(46, 204, 113, 1)'; // エメラルドグリーン
+                ctx.shadowBlur = dotRadius * 2; // 体のサイズに応じてぼかしを調整
             }
-
-            ctx.fillStyle = color;
+            // ★★★ 修正点ここまで ★★★
+            
             segments.forEach((segment, index) => {
                 const screenPos = worldToScreen(segment.x, segment.y);
                 
+                let colorIndex = index % colorCount;
+                let color = customColors[colorIndex];
+
+                if (drawInvulnerableAura) {
+                    if (Math.floor(Date.now() / 100) % 2 === 0) {
+                        color = 'rgba(255, 255, 255, 0.7)';
+                    }
+                }
+
+                ctx.fillStyle = color;
                 const currentRadius = dotRadius * (1 - index * 0.002);
                 
                 ctx.beginPath();
                 ctx.arc(screenPos.x, screenPos.y, currentRadius, 0, 2 * Math.PI);
                 ctx.fill();
             });
+
+            // ★★★ 修正点: ブースト後にシャドウをリセット ★★★
+            if (isBoosting) {
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            }
+            // ★★★ 修正点ここまで ★★★
+
 
             if (snakeData.name) {
                 const headScreen = worldToScreen(segments[0].x, segments[0].y);
@@ -608,7 +1005,7 @@
                 const mapX = data.x * scale;
                 const mapY = data.y * scale;
                 
-                minimapCtx.fillStyle = data.color;
+                minimapCtx.fillStyle = data.customColors ? data.customColors[0] : data.color;
                 if (data.isInvulnerable && Math.floor(Date.now() / 200) % 2 === 0) {
                     minimapCtx.fillStyle = '#ffffff'; 
                 }
@@ -620,7 +1017,7 @@
             const myMapX = mySnake.x * scale;
             const myMapY = mySnake.y * scale;
 
-            minimapCtx.fillStyle = mySnake.color;
+            minimapCtx.fillStyle = mySnake.customColors[0];
             if (mySnake.isInvulnerable && Math.floor(Date.now() / 200) % 2 === 0) {
                 minimapCtx.fillStyle = '#ffffff'; 
             }
@@ -647,34 +1044,28 @@
                 angle: mySnake.angle,
                 length: mySnake.length,
                 segmentsCount: mySnake.segmentsCount,
-                color: mySnake.color,
-                segments: mySnake.segments.map(s => ({x: s.x, y: s.y})), // 全セグメントを送信
+                customColors: mySnake.customColors, 
+                segments: mySnake.segments.map(s => ({x: s.x, y: s.y})), 
                 isInvulnerable: mySnake.isInvulnerable,
-                isBoosting: mySnake.isBoosting,
+                isBoosting: mySnake.isBoosting, // Firebaseにブースト状態を送信
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             });
         }
         
-        // 相手のセグメントを補間して滑らかにする関数
-        function interpolateSegments(segments, segmentsCount) {
+        function interpolateSegments(segments, length) {
             if (!segments || segments.length < 2) return segments;
 
+            const segmentsCount = calculateSegmentsCount(length);
             const interpolated = [];
             
-            // サーバーから送られたセグメントの数と、本来描画すべきセグメント数の比率
-            const ratio = segments.length / segmentsCount;
-
             for (let i = 0; i < segments.length - 1; i++) {
                 const p1 = segments[i];
                 const p2 = segments[i + 1];
                 
-                // セグメント間の距離
                 const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
                 
-                // 1セグメントあたりの描画ステップ数
                 const numSteps = Math.ceil(distance / INTERPOLATION_STEP); 
 
-                // 補間ステップ
                 for (let j = 0; j < numSteps; j++) {
                     const factor = j / numSteps;
                     const x = p1.x + (p2.x - p1.x) * factor;
@@ -683,10 +1074,8 @@
                 }
             }
             
-            // 最後のセグメントを追加
             interpolated.push(segments[segments.length - 1]);
 
-            // 最終的に必要なセグメント数に合わせる
             const finalSegments = [];
             const step = interpolated.length / segmentsCount;
             for(let i = 0; i < segmentsCount; i++) {
@@ -703,8 +1092,10 @@
         playersRef.on('value', (snapshot) => {
             const playersData = snapshot.val();
             
+            const playerIds = Object.keys(playersData || {});
+            
             for (const id in otherPlayers) {
-                if (!playersData[id]) {
+                if (!playerIds.includes(id)) {
                     delete otherPlayers[id];
                 }
             }
@@ -716,14 +1107,12 @@
                     if (!otherPlayers[id]) {
                         otherPlayers[id] = { ...data, interpolatedSegments: [] };
                     } else {
-                        // 既存のデータを更新
                         Object.assign(otherPlayers[id], data);
                     }
 
-                    // 相手のセグメントを補間して滑らかにする
                     otherPlayers[id].interpolatedSegments = interpolateSegments(
                         data.segments,
-                        data.segmentsCount || INITIAL_SEGMENTS_COUNT
+                        data.length || INITIAL_LENGTH
                     );
                 }
             }
@@ -740,6 +1129,111 @@
             }
         });
 
+        // --- HSL helper function ---
+        function hslToHex(h, s, l) {
+            l /= 100;
+            const a = s * Math.min(l, 1 - l) / 100;
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        }
+
+        // --- UI / イベント処理 ---
+
+        function generateColorPalette() {
+            colorPalette.innerHTML = '';
+            
+            // 色相（36色）× 彩度（3種類）のパレットを生成 (合計 108色)
+            SATURATION_LAYERS.forEach(s => {
+                BASE_HUES.forEach(h => {
+                    const colorHex = hslToHex(h, s, currentLightness);
+                    
+                    const colorOption = document.createElement('div');
+                    colorOption.className = 'color-option';
+                    colorOption.style.backgroundColor = colorHex;
+                    colorOption.dataset.color = colorHex;
+                    colorOption.addEventListener('click', () => selectColor(colorHex));
+                    colorPalette.appendChild(colorOption);
+                });
+            });
+            
+            // 無彩色（白・灰色・黒）を追加 (6色)
+            [100, 80, 60, 40, 20, 0].forEach(l => {
+                const colorHex = hslToHex(0, 0, l);
+                const colorOption = document.createElement('div');
+                colorOption.className = 'color-option';
+                colorOption.style.backgroundColor = colorHex;
+                colorOption.dataset.color = colorHex;
+                colorOption.addEventListener('click', () => selectColor(colorHex));
+                colorPalette.appendChild(colorOption);
+            });
+            
+            document.getElementById('currentLightnessDisplay').textContent = currentLightness;
+        }
+
+
+        function setupColorSettings() {
+            colorPreview.innerHTML = '';
+            for (let i = 0; i < DOT_COUNT; i++) {
+                const segmentDiv = document.createElement('div');
+                segmentDiv.className = 'color-segment-preview';
+                segmentDiv.style.backgroundColor = mySnake.customColors[i];
+                segmentDiv.dataset.index = i;
+                
+                if (i > 0 && i % 6 === 0) { 
+                    segmentDiv.style.clear = 'left';
+                    segmentDiv.style.marginTop = '5px';
+                }
+
+                if (i === currentEditingSegment) {
+                    segmentDiv.classList.add('selected');
+                }
+                segmentDiv.addEventListener('click', () => selectSegmentToEdit(i));
+                colorPreview.appendChild(segmentDiv);
+            }
+            
+            generateColorPalette();
+        }
+        
+        function selectSegmentToEdit(index) {
+            currentEditingSegment = index;
+            document.querySelectorAll('.color-segment-preview').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+        }
+
+        function selectColor(color) {
+            mySnake.customColors[currentEditingSegment] = color;
+            document.querySelector(`.color-segment-preview[data-index="${currentEditingSegment}"]`).style.backgroundColor = color;
+        }
+
+        function adjustBrightness(change) {
+            currentLightness = Math.max(0, Math.min(100, currentLightness + change));
+            generateColorPalette();
+        }
+
+        document.getElementById('brightnessDownButton').addEventListener('click', () => {
+            adjustBrightness(-10); 
+        });
+
+        document.getElementById('brightnessUpButton').addEventListener('click', () => {
+            adjustBrightness(10); 
+        });
+
+        document.getElementById('colorSettingsButton').addEventListener('click', () => {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('colorSettings').style.display = 'block';
+            setupColorSettings();
+        });
+
+        document.getElementById('backToMenuButton').addEventListener('click', () => {
+            document.getElementById('mainMenu').style.display = 'block';
+            document.getElementById('colorSettings').style.display = 'none';
+        });
+
         document.getElementById('startButton').addEventListener('click', () => {
             playerName = document.getElementById('playerName').value.trim();
             if (!playerName) {
@@ -753,17 +1247,7 @@
             initGame();
         });
 
-        window.addEventListener('beforeunload', () => {
-            if (myPlayerId) {
-                playersRef.child(myPlayerId).remove();
-            }
-        });
-
-        window.addEventListener('pagehide', () => {
-            if (myPlayerId) {
-                playersRef.child(myPlayerId).remove();
-            }
-        });
+        setupColorSettings();
 
     </script>
 </body>
