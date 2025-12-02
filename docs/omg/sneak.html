@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sneak</title>
+    <title>Sneak.io ドット描画・滑らか軌跡追従・重なり調整 (Slither.io風)</title>
     <style>
         body {
             width: 100vw;
@@ -294,15 +294,23 @@
         const INTERPOLATION_STEP = 5; 
 
         const BASE_RADIUS = 5; 
-        const LENGTH_TO_RADIUS_FACTOR = 0.3; 
         const MAX_RADIUS = 15; 
         const SEGMENT_OVERLAP_FACTOR = 0.7; 
-        const SEGMENT_GROWTH_FACTOR = 0.5; 
         const TRAIL_STEP = 1; 
+        
+        // ★★★ 修正: 太くなるスピードを極限まで遅くする ★★★
+        const RADIUS_GROWTH_RATE = 0.005; 
+        
+        // ★★★ 修正: セグメント増加のコストを大幅に下げる ★★★
+        const SEGMENT_INITIAL_COST = 20; 
+        const SEGMENT_COST_INCREASE = 30; 
         
         // ジョイスティック設定
         const JOYSTICK_RADIUS = 70;
         const JOYSTICK_KNOB_RADIUS = 25;
+        // ジョイスティックが少し動いたときに角度が敏感に反応しすぎるのを防ぐデッドゾーン
+        const JOYSTICK_DEADZONE_DISTANCE = 5; 
+
         let joystickCenter = null;
         let joystickCurrent = null;
 
@@ -405,6 +413,12 @@
             
             setupBoostEvents();
             
+            // プレイヤーIDの生成とFirebaseへの登録は、initGameの最後で実行する。
+            myPlayerId = playersRef.push().key; 
+            
+            // ★★★ 修正: 接続が切れた場合にデータを自動で削除する設定 ★★★
+            playersRef.child(myPlayerId).onDisconnect().remove(); 
+            
             updateFirebase();
 
             requestAnimationFrame(gameLoop);
@@ -420,7 +434,8 @@
             // ブラウザ/タブが閉じられる/移動する際の処理 (ゲームオーバー処理をgameOver()に集約)
             window.addEventListener('beforeunload', () => {
                 if (myPlayerId) {
-                    gameOver(false); // 完全に閉じる場合は、メニューに戻る必要はないが、死体は残す
+                    // onDisconnectが設定されているため、ここで直接削除はしない
+                    gameOver(false); 
                 }
             });
 
@@ -445,6 +460,7 @@
         function handleVisibilityChange() {
             // タブが非アクティブになり、かつゲーム中の場合 (死体を残してメニューに戻る)
             if (document.hidden && !isGameOver && myPlayerId) {
+                // ここでのgameOver呼び出しは、死体生成とonDisconnectのキャンセル（手動削除の準備）を行う
                 gameOver(true); 
             } 
             // タブがアクティブに戻った場合は、メニュー画面が表示されている (gameOver()の結果)
@@ -541,7 +557,8 @@
             // 距離を計算し、ジョイスティックの半径に制限
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance > 5) { // わずかな動きは無視
+            // ★★★ 修正: JOYSTICK_DEADZONE_DISTANCE を利用して微小な動きを無視する ★★★
+            if (distance > JOYSTICK_DEADZONE_DISTANCE) { 
                 // 角度を計算
                 mySnake.targetAngle = Math.atan2(dy, dx);
 
@@ -551,6 +568,10 @@
                     joystickCurrent.x = joystickCenter.x + dx * ratio;
                     joystickCurrent.y = joystickCenter.y + dy * ratio;
                 }
+            } else {
+                 // デッドゾーン内の場合、ジョイスティックの位置をセンターに戻す（視覚的に）
+                 joystickCurrent.x = joystickCenter.x;
+                 joystickCurrent.y = joystickCenter.y;
             }
         }
 
@@ -640,17 +661,37 @@
         }
 
         function getHeadRadius(length) {
-            const radius = BASE_RADIUS + Math.sqrt(length) * LENGTH_TO_RADIUS_FACTOR;
+            const radius = BASE_RADIUS + length * RADIUS_GROWTH_RATE;
             return Math.min(radius, MAX_RADIUS);
         }
 
         function calculateSegmentsCount(length) {
-            const count = INITIAL_SEGMENTS_COUNT + Math.floor(Math.sqrt(Math.max(0, length - INITIAL_LENGTH)) * SEGMENT_GROWTH_FACTOR);
-            return Math.max(INITIAL_SEGMENTS_COUNT, count);
+            if (length <= INITIAL_LENGTH) {
+                return INITIAL_SEGMENTS_COUNT;
+            }
+
+            const addedLength = length - INITIAL_LENGTH; 
+            
+            let currentLength = 0;
+            let addedSegments = 0;
+            
+            while (true) {
+                const cost = SEGMENT_INITIAL_COST + (addedSegments * SEGMENT_COST_INCREASE);
+                
+                if (currentLength + cost > addedLength) {
+                    break;
+                }
+                
+                currentLength += cost;
+                addedSegments++;
+            }
+
+            return INITIAL_SEGMENTS_COUNT + addedSegments;
         }
 
         function updateSnakeMovement() {
             let angleDiff = mySnake.targetAngle - mySnake.angle;
+            // 短い方の角度差分を計算
             if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
 
@@ -750,16 +791,24 @@
                 const dist = Math.sqrt(Math.pow(head.x - food.x, 2) + Math.pow(head.y - food.y, 2));
                 
                 if (dist < headRadius + food.size) { 
-                    const growthAmount = 5 + food.size * 2;
-                    mySnake.length += growthAmount; 
-                    mySnake.score = Math.round(mySnake.length);
+                    
+                    let growthAmount;
                     
                     if (food.isDeceased) {
+                        // ★★★ 修正: 死体の場合、元の成長量 (200 + food.size * 50) を0.5倍にする ★★★
+                        growthAmount = (200 + food.size * 50) * 0.5; 
                         deceasedFoodRef.child(food.id).remove();
+
                     } else {
+                        // 通常の餌
+                        growthAmount = 20 + food.size * 5; 
                         eatenFoodCount++;
                     }
 
+
+                    mySnake.length += growthAmount; 
+                    mySnake.score = Math.round(mySnake.length);
+                    
                 } else {
                     foodToKeep.push(food);
                 }
@@ -808,23 +857,32 @@
             
             endBoost();
 
+            // ★★★ 修正: onDisconnectをキャンセルする（手動削除前に実行） ★★★
+            if (myPlayerId) {
+                 playersRef.child(myPlayerId).onDisconnect().cancel();
+            }
+
             // --- 死亡時の処理 (死体をまく) ---
             const snakeLengthForDeath = mySnake.length;
+            // ★★★ 修正: 死体のサイズ（スコア価値）を計算 ★★★
+            const deadFoodSize = getHeadRadius(snakeLengthForDeath) * 0.8; 
+            
             mySnake.segments.forEach(segment => {
                 const deadFoodId = deceasedFoodRef.push().key; 
 
                 deceasedFoodRef.child(deadFoodId).set({
                     x: segment.x + (Math.random() - 0.5) * 5, 
                     y: segment.y + (Math.random() - 0.5) * 5,
-                    size: getHeadRadius(snakeLengthForDeath) * 0.8, 
-                    color: DECEASED_COLOR, 
+                    size: deadFoodSize, // ★★★ 修正: 色を削除し、サイズと座標のみ保存 ★★★
                     isDeceased: true, 
                     id: deadFoodId
                 });
             });
 
             // プレイヤーをFirebaseから削除
-            playersRef.child(myPlayerId).remove();
+            if (myPlayerId) {
+                playersRef.child(myPlayerId).remove();
+            }
             myPlayerId = null;
             
             // --- UI処理 ---
@@ -888,16 +946,19 @@
         function drawJoystick() {
             if (!joystickCenter || isGameOver) return;
             
-            // 描画Y座標を、タップした位置から半径分下にオフセットする
-            const centerOffsetY = joystickCenter.y + JOYSTICK_RADIUS;
+            // ジョイスティックが中央にある場合、描画Y座標は通常のまま。
+            // タッチパネルでは、指で操作する際に手が邪魔にならないよう、ジョイスティックを画面下部にオフセットすることが一般的だが、
+            // 現在のロジックではタップ位置をセンターとしているため、オフセットは不要。
             
-            // ノブのY座標も、描画オフセットに合わせて修正する
-            const knobOffsetY = joystickCurrent.y + JOYSTICK_RADIUS;
+            const centerX = joystickCenter.x;
+            const centerY = joystickCenter.y;
+            const currentX = joystickCurrent.x;
+            const currentY = joystickCurrent.y;
 
 
             // 1. ジョイスティックの外枠 (ベース)
             ctx.beginPath();
-            ctx.arc(joystickCenter.x, centerOffsetY, JOYSTICK_RADIUS, 0, 2 * Math.PI);
+            ctx.arc(centerX, centerY, JOYSTICK_RADIUS, 0, 2 * Math.PI);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.fill();
             ctx.lineWidth = 2;
@@ -906,7 +967,7 @@
 
             // 2. ジョイスティックのつまみ (ノブ)
             ctx.beginPath();
-            ctx.arc(joystickCurrent.x, knobOffsetY, JOYSTICK_KNOB_RADIUS, 0, 2 * Math.PI);
+            ctx.arc(currentX, currentY, JOYSTICK_KNOB_RADIUS, 0, 2 * Math.PI);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.fill();
             ctx.lineWidth = 2;
@@ -928,14 +989,12 @@
 
             let drawInvulnerableAura = snakeData.isInvulnerable;
             
-            // ★★★ 修正点: ブースト時の発光設定 ★★★
+            // ブースト時の発光設定
             const isBoosting = snakeData.isBoosting;
             if (isBoosting) {
-                // ブースト中は明るい緑色でぼかしを強く設定
-                ctx.shadowColor = 'rgba(46, 204, 113, 1)'; // エメラルドグリーン
-                ctx.shadowBlur = dotRadius * 2; // 体のサイズに応じてぼかしを調整
+                ctx.shadowColor = 'rgba(46, 204, 113, 1)'; 
+                ctx.shadowBlur = dotRadius * 2; 
             }
-            // ★★★ 修正点ここまで ★★★
             
             segments.forEach((segment, index) => {
                 const screenPos = worldToScreen(segment.x, segment.y);
@@ -957,12 +1016,11 @@
                 ctx.fill();
             });
 
-            // ★★★ 修正点: ブースト後にシャドウをリセット ★★★
+            // ブースト後にシャドウをリセット
             if (isBoosting) {
                 ctx.shadowColor = 'transparent';
                 ctx.shadowBlur = 0;
             }
-            // ★★★ 修正点ここまで ★★★
 
 
             if (snakeData.name) {
@@ -1124,7 +1182,11 @@
             
             for (const id in deceasedData) {
                 if (deceasedData[id]) {
-                     foodItems.push(deceasedData[id]);
+                     // ★★★ 修正: ローカルでの描画用に色を設定 ★★★
+                     foodItems.push({ 
+                        ...deceasedData[id], 
+                        color: DECEASED_COLOR // 取得したデータにローカルで色を追加
+                     });
                 }
             }
         });
@@ -1241,7 +1303,6 @@
                 return;
             }
             
-            myPlayerId = playersRef.push().key;
             document.getElementById('ui-overlay').style.display = 'none';
             document.getElementById('message').textContent = '';
             initGame();
