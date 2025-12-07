@@ -47,6 +47,15 @@
             border: none;
             width: 200px;
         }
+
+        /* サーバー選択ドロップダウンに既存のスタイルを適用 */
+        #ui-overlay select {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            width: 200px;
+        }
         
         #ui-overlay button {
             background-color: #e74c3c;
@@ -225,6 +234,12 @@
         <div id="mainMenu">
             <h2>Sneak.io (Final)</h2>
             <input type="text" id="playerName" placeholder="名前を入力 (必須)">
+
+            <select id="serverSelect">
+                <option value="server1">サーバー1 (donguri-st1)</option>
+                <option value="server2">サーバー2 (donguri-st2)</option>
+                <option value="server3">サーバー3 (donguri-st3)</option>
+            </select>
     
             <button id="startButton">ゲームスタート</button>
             <button id="colorSettingsButton">🎨 ヘビの色設定</button>
@@ -234,13 +249,14 @@
         <div id="colorSettings">
             <h3>ヘビの色設定 (<span id="dotCount">13</span>箇所)</h3>
             <p style="font-size: 0.9em; margin-top: -10px;">👇 編集するドットを選択</p>
-            
+        
             <div id="colorPreview">
             </div>
             
             <p style="font-size: 0.9em; margin-top: 15px;">👇 色を選択 (明度: <span id="currentLightnessDisplay">60</span>%)</p>
             <div id="paletteContainer">
                 <div class="arrow-button" id="brightnessDownButton" title="暗くする">&lt;</div>
+       
                 <div id="colorPalette">
   
                 </div>
@@ -256,27 +272,61 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyA6aLjtLMsEt3ximM2nVRBqPWe7B2j0tDs",
-            authDomain: "donguri-st1.firebaseapp.com",
-            databaseURL: "https://donguri-st1-default-rtdb.firebaseio.com",
-            projectId: "donguri-st1",
-          
-            storageBucket: "donguri-st1.firebasestorage.app",
-            messagingSenderId: "999142601494",
-            appId: "1:999142601494:web:db8bceed54e23e0cf21637",
-            measurementId: "G-VZ1YJLMV1C"
+        // 複数のFirebaseプロジェクト設定
+        const FIREBASE_CONFIGS = {
+            'server1': {
+                name: 'サーバー1 (donguri-st1)',
+                config: {
+                    apiKey: "AIzaSyA6aLjtLMsEt3ximM2nVRBqPWe7B2j0tDs",
+                    authDomain: "donguri-st1.firebaseapp.com",
+                    databaseURL: "https://donguri-st1-default-rtdb.firebaseio.com",
+                    projectId: "donguri-st1",
+                    storageBucket: "donguri-st1.firebasestorage.app",
+                    messagingSenderId: "999142601494",
+                    appId: "1:999142601494:web:db8bceed54e23e0cf21637",
+                    measurementId: "G-VZ1YJLMV1C"
+                }
+            },
+            'server2': {
+                name: 'サーバー2 (donguri-st2)',
+                config: {
+                    apiKey: "AIzaSyDj6brEQowFaATPL7sPIKFFsB1-ZeZNrsk",
+                    authDomain: "donguri-st2.firebaseapp.com",
+                    databaseURL: "https://donguri-st2-default-rtdb.firebaseio.com",
+                    projectId: "donguri-st2",
+                    storageBucket: "donguri-st2.firebasestorage.app",
+                    messagingSenderId: "926527636216",
+                    appId: "1:926527636216:web:1820ab7c9d8750076ab10d",
+                    measurementId: "G-C7ZB3FWKS5"
+                }
+            },
+            'server3': {
+                name: 'サーバー3 (donguri-st3)',
+                config: {
+                    apiKey: "AIzaSyAKevtyDhP4IeUjpfa2nuqH8ioOFVeuSSk",
+                    authDomain: "donguri-st3.firebaseapp.com",
+                    databaseURL: "https://donguri-st3-default-rtdb.firebaseio.com",
+                    projectId: "donguri-st3",
+                    storageBucket: "donguri-st3.firebasestorage.app",
+                    messagingSenderId: "778118838722",
+                    appId: "1:778118838722:web:1a205b3f0df9179673fe5b",
+                    measurementId: "G-0QTSQVTWZ6"
+                }
+            }
         };
-        
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const minimapCanvas = document.getElementById('minimapCanvas');
-        const 
-        minimapCtx = minimapCanvas.getContext('2d');
+        const minimapCtx = minimapCanvas.getContext('2d');
         const boostButton = document.getElementById('boost-button');
         const colorPalette = document.getElementById('colorPalette');
         const colorPreview = document.getElementById('colorPreview');
-        const DOT_COUNT = 13; 
+        const DOT_COUNT = 13;
+        
+        let playersRef; // let に変更
+        let deceasedFoodRef; // let に変更
+        let firebaseAppInstance = null; // Firebaseアプリインスタンスを保持
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -286,7 +336,7 @@
         resizeCanvas();
 
         const WORLD_SIZE = 1500;
-        const INITIAL_LENGTH = 100; 
+        const INITIAL_LENGTH = 100;
         const FOOD_COUNT = 500; 
         const BASE_SPEED = 2.5;
         const BOOST_SPEED = BASE_SPEED * 2;
@@ -295,15 +345,14 @@
         
         const TURN_RATE = 0.3;
         const CAMERA_SMOOTHING = 0.05; 
-        const DECEASED_COLOR = '#ffffff'; 
+        const DECEASED_COLOR = '#ffffff';
         const INVULNERABLE_DURATION = 3000;
         
         const BASE_RADIUS = 7; 
         const MAX_RADIUS = 15; 
         const RADIUS_GROWTH_RATE = 0.003; 
         
-        const FOOD_VALUE = 15; 
-        
+        const FOOD_VALUE = 15;
         // 描画用に送信するセグメントの間隔 (ワールド単位)
         const SEGMENT_DISTANCE = 8; 
 
@@ -314,8 +363,7 @@
         let joystickCenter = null;
         let joystickCurrent = null;
         
-        let initialRadius = 0; 
-        
+        let initialRadius = 0;
         const BASE_HUES = Array.from({length: 36}, (_, i) => i * 10);
         const INITIAL_CUSTOM_COLORS = [
             '#FF0000', '#FF4000', '#FFFF00', '#40FF00', '#00FF00', '#0040FF', '#0000FF', 
@@ -334,6 +382,7 @@
             length: INITIAL_LENGTH,
             score: 0,
             color: INITIAL_CUSTOM_COLORS[0], 
+ 
             customColors: [...INITIAL_CUSTOM_COLORS], 
             trail: [], // 高密度なローカルトレイル (衝突判定と描画に使用)
             isInvulnerable: false,
@@ -353,18 +402,13 @@
         let eatenFoodCount = 0;
         let joystickTouchId = null; 
         let boostTouchId = null;
-
-
         
-        firebase.initializeApp(firebaseConfig);
-        const playersRef = firebase.database().ref('players');
-        const deceasedFoodRef = firebase.database().ref('deceasedFood'); 
-        
+        // 以前のfirebase.initializeApp(...)を削除し、ゲーム開始時に初期化するように変更
         
         // ★★★ 共通データ圧縮・復元ユーティリティ ★★★
 
         /**
-         * 数値を小数点第1位に丸める (主にデルタ座標計算に使用)
+         * 数値を小数点第1位に丸める
          * @param {number} num 
          * @returns {number} 丸められた数値
          */
@@ -374,18 +418,9 @@
         }
 
         /**
-         * 数値を最も近い整数に丸める (ヘッド・フードデータ圧縮に使用)
-         * @param {number} num 
-         * @returns {number} 丸められた整数
-         */
-        const roundToInt = (num) => {
-            if (num === null || num === undefined) return 0;
-            return Math.round(num);
-        }
-
-        /**
          * 13個のHEXカラー配列をBase64文字列に圧縮
-         * (※前バージョンからの変更なし)
+         * @param {string[]} hexArray - 例: ["#FF0000", "#00FF00", ...]
+         * @returns {string} Base64文字列
          */
         function hexArrayToBase64(hexArray) {
             let bytes = '';
@@ -400,10 +435,13 @@
 
         /**
          * Base64文字列を13個のHEXカラー配列に復元
-         * (※前バージョンからの変更なし)
+         * @param {string} base64Str - Base64文字列
+         * @param {number} count - 期待されるカラー数 (13)
+         * @returns {string[]} HEXカラー配列
          */
         function base64ToHexArray(base64Str, count = DOT_COUNT) {
             try {
+      
                 if (!base64Str || typeof base64Str !== 'string') return INITIAL_CUSTOM_COLORS;
                 const bytes = atob(base64Str);
                 const hexArray = [];
@@ -414,7 +452,7 @@
                     hexArray.push(`#${r}${g}${b}`.toUpperCase());
                 }
                 while (hexArray.length < count) {
-                    hexArray.push(hexArray[hexArray.length - 1] || INITIAL_CUSTOM_COLORS[0]); 
+                    hexArray.push(hexArray[hexArray.length - 1] || INITIAL_CUSTOM_COLORS[0]);
                 }
                 return hexArray;
             } catch (e) {
@@ -422,195 +460,123 @@
                 return INITIAL_CUSTOM_COLORS;
             }
         }
-        
-        // --- 座標デルタ圧縮/復元ロジック (変更なし) ---
-        const DELTA_OFFSET = 100;
-
-        function compressDeltas(deltas) {
-            if (deltas.length === 0) return '';
-            
-            let bytes = [];
-            
-            for (const d of deltas) {
-                const dx = Math.round(d.x * 10);
-                const dy = Math.round(d.y * 10);
-                
-                const Dx = dx + DELTA_OFFSET;
-                const Dy = dy + DELTA_OFFSET;
-                
-                bytes.push(Dx);
-                bytes.push(Dy);
-            }
-            
-            const byteString = String.fromCharCode.apply(null, bytes);
-            return btoa(byteString);
-        }
-
-        function decompressDeltas(base64Str, headX, headY) {
-            let currentX = headX;
-            let currentY = headY;
-            const path = [{ x: headX, y: headY }];
-            
-            if (!base64Str || typeof base64Str !== 'string') return path;
-            
-            try {
-                const byteString = atob(base64Str);
-                
-                for (let i = 0; i < byteString.length; i += 2) {
-                    const Dx = byteString.charCodeAt(i);
-                    const Dy = byteString.charCodeAt(i + 1);
-                    
-                    const dx = Dx - DELTA_OFFSET;
-                    const dy = Dy - DELTA_OFFSET;
-                    
-                    const deltaX = dx / 10;
-                    const deltaY = dy / 10;
-                    
-                    currentX += deltaX;
-                    currentY += deltaY;
-                    
-                    path.push({ 
-                        x: roundToOneDecimal(currentX), 
-                        y: roundToOneDecimal(currentY) 
-                    });
-                }
-            } catch (e) {
-                console.error("Delta decompression failed:", e);
-                return [{ x: headX, y: headY }];
-            }
-            
-            return path;
-        }
-
-        // --- ★ 新規: ヘビの頭/体長圧縮 (h) ★ ---
-        function compressHeadData(x, y, length) {
-            // 全て整数に丸める (WORLD_SIZE 1500, MAX_LENGTH ~3000)
-            const Xi = roundToInt(x);   // 11 bits (0-2047)
-            const Yi = roundToInt(y);   // 11 bits (0-2047)
-            const Li = roundToInt(length); // 12 bits (0-4095)
-            // 合計 34 bits -> 5 bytes
-
-            let bytes = new Uint8Array(5);
-            
-            // X: 11 bits, Y: 11 bits, L: 12 bits (L is LSB side)
-            // L: 12 bits
-            bytes[0] = (Li >> 4) & 0xFF; // L[11:4] (8 bits)
-            bytes[1] = ((Li & 0x0F) << 4) | ((Yi >> 7) & 0x0F); // L[3:0], Y[10:7] (4+4 bits)
-            bytes[2] = ((Yi & 0x7F) << 1) | ((Xi >> 9) & 0x01); // Y[6:0], X[10] (7+1 bits)
-            bytes[3] = (Xi >> 1) & 0xFF;            // X[8:1] (8 bits)
-            bytes[4] = (Xi & 0x01) << 7;            // X[0], Padding (1+7 bits)
-
-            const byteString = String.fromCharCode.apply(null, bytes);
-            return btoa(byteString);
-        }
-
-        function decompressHeadData(base64Str) {
-            if (!base64Str) return { x: 0, y: 0, l: 0 };
-            
-            try {
-                const byteString = atob(base64Str);
-                const bytes = new Uint8Array(byteString.length);
-                for(let i=0; i<byteString.length; i++) {
-                    bytes[i] = byteString.charCodeAt(i);
-                }
-
-                const B4 = bytes[0]; // B4 is most significant in packing logic
-                const B3 = bytes[1];
-                const B2 = bytes[2];
-                const B1 = bytes[3];
-                const B0 = bytes[4];
-
-                // L: 12 bits
-                const Li = ((B4 & 0xFF) << 4) | ((B3 >> 4) & 0x0F);
-                
-                // Y: 11 bits
-                const Yi = ((B3 & 0x0F) << 7) | ((B2 >> 1) & 0x7F);
-
-                // X: 11 bits
-                const Xi = ((B2 & 0x01) << 9) | ((B1 & 0xFF) << 1) | ((B0 >> 7) & 0x01);
-                
-                return { x: Xi, y: Yi, l: Li };
-
-            } catch(e) {
-                console.error("Head data decompression failed:", e);
-                return { x: 0, y: 0, l: 0 };
-            }
-        }
-        // --- ★ 新規: 死体データ圧縮 (f) ★ ---
-        function compressFoodData(x, y, size, value) {
-            // 全て整数に丸める
-            const X_int = roundToInt(x);    // 11 bits (0-2047)
-            const Y_int = roundToInt(y);    // 11 bits
-            const S_int = roundToInt(size); // 4 bits (0-15)
-            const V_int = roundToInt(value);  // 11 bits (0-2047)
-            // 合計 37 bits -> 5 bytes
-
-            let bytes = new Uint8Array(5);
-
-            // V is LSB, X is MSB
-            
-            // Byte 0: X[10:3] (8 bits)
-            bytes[0] = (X_int >> 3) & 0xFF;
-            
-            // Byte 1: X[2:0], Y[10:6] (3 + 5 = 8 bits)
-            bytes[1] = ((X_int & 0x07) << 5) | ((Y_int >> 6) & 0x1F);
-
-            // Byte 2: Y[5:0], S[3:2] (6 + 2 = 8 bits)
-            bytes[2] = ((Y_int & 0x3F) << 2) | ((S_int >> 2) & 0x03);
-
-            // Byte 3: S[1:0], V[10:5] (2 + 6 = 8 bits)
-            bytes[3] = ((S_int & 0x03) << 6) | ((V_int >> 5) & 0x3F);
-            
-            // Byte 4: V[4:0] (5 bits), Padding (3 bits)
-            bytes[4] = (V_int & 0x1F) << 3;
-
-            const byteString = String.fromCharCode.apply(null, bytes);
-            return btoa(byteString);
-        }
-
-        function decompressFoodData(base64Str) {
-            if (!base64Str) return { x: 0, y: 0, size: 0, value: 0 };
-            
-            try {
-                const byteString = atob(base64Str);
-                const bytes = new Uint8Array(byteString.length);
-                for(let i=0; i<byteString.length; i++) {
-                    bytes[i] = byteString.charCodeAt(i);
-                }
-
-                const B0 = bytes[0];
-                const B1 = bytes[1];
-                const B2 = bytes[2];
-                const B3 = bytes[3];
-                const B4 = bytes[4];
-                
-                // X: 11 bits
-                const Xi = ((B0 & 0xFF) << 3) | ((B1 >> 5) & 0x07);
-
-                // Y: 11 bits
-                const Yi = ((B1 & 0x1F) << 6) | ((B2 >> 2) & 0x3F);
-
-                // S: 4 bits
-                const Si = ((B2 & 0x03) << 2) | ((B3 >> 6) & 0x03);
-
-                // V: 11 bits
-                const Vi = ((B3 & 0x3F) << 5) | ((B4 >> 3) & 0x1F);
-                
-                return { x: Xi, y: Yi, size: Si, value: Vi };
-
-            } catch(e) {
-                console.error("Food data decompression failed:", e);
-                return { x: 0, y: 0, size: 0, value: 0 };
-            }
-        }
         // ★★★ ユーティリティ終わり ★★★
+
+        /**
+         * Firebaseを初期化し、データベース参照とリスナーを設定します。
+         * ゲーム開始時に選択されたサーバー設定で呼び出されます。
+         * @param {object} config - 選択されたFirebase設定オブジェクト
+         */
+        function initializeFirebase(config) {
+            // 既に初期化されている場合は、そのインスタンスを削除 (または既存のインスタンスを再利用)
+            if (firebaseAppInstance) {
+                // 既存のリスナーを解除 (必須)
+                if(playersRef) playersRef.off('value');
+                if(deceasedFoodRef) deceasedFoodRef.off('value');
+
+                // 既存のアプリを削除 (推奨)
+                try {
+                    firebaseAppInstance.delete();
+                } catch (e) {
+                    console.warn("Could not delete previous Firebase app instance:", e);
+                }
+            }
+            
+            // アプリを初期化し、インスタンスを保持
+            firebaseAppInstance = firebase.initializeApp(config, 'selectedApp' + Date.now()); // ユニークな名前を付ける
+            const database = firebaseAppInstance.database();
+            
+            // 参照を更新
+            playersRef = database.ref('players');
+            deceasedFoodRef = database.ref('deceasedFood');
+            
+            // 監視イベントを再設定
+            setupFirebaseListeners();
+        }
+
+        /**
+         * Firebaseのデータベースリスナーを設定します。
+         * initializeFirebaseの後に呼び出されます。
+         */
+        function setupFirebaseListeners() {
+            // playersRefのリスナーを再設定
+            playersRef.on('value', (snapshot) => {
+                const playersData = snapshot.val();
+                
+                const playerIds = Object.keys(playersData || {});
+                
+                for (const id in otherPlayers) {
+                    
+                    if (!playerIds.includes(id)) {
+                        delete otherPlayers[id];
+                    }
+                }
+
+                for (const id in playersData) {
+                    if (id !== myPlayerId) {
+                
+                        const data = playersData[id];
+                        // ★ 短縮されたフィールド名を復元し、色をデコード
+                        const decodedColors = base64ToHexArray(data.c, DOT_COUNT); 
+                        
+                        const remoteData = {
+                            name: data.n,
+                            x: data.x,
+       
+                            y: data.y,
+                            length: data.l,
+                            customColors: decodedColors,
+                            bodySegments: data.b || [],
+                            // nullをfalseとして扱う
+                            isInvulnerable: !!data.i, 
+                            isBoosting: !!data.s,     
+                       
+                        };
+
+                        if (!otherPlayers[id]) {
+                            otherPlayers[id] = { ...remoteData };
+                        } else {
+                            Object.assign(otherPlayers[id], remoteData);
+                        }
+
+                        // 受信した bodySegments をそのまま描画パスとして使用
+                        otherPlayers[id].bodySegments = data.b || [];
+                    }
+                }
+            });
+
+            // deceasedFoodRefのリスナーを再設定
+            deceasedFoodRef.on('value', (snapshot) => {
+                const deceasedData = snapshot.val();
+                foodItems = [];
+                
+                for (const id in deceasedData) {
+                    const data = deceasedData[id];
+                    if (data) {
+      
+                        // ★ 短縮されたキーを復元
+                         foodItems.push({ 
+                            x: data.x,
+                            y: data.y,
+           
+                            size: data.s,   // s -> size
+                            value: data.v,  // v -> value
+                            color: DECEASED_COLOR,
+                         
+                            isDeceased: true, 
+                            id: id // FirebaseのキーをIDとして使用
+                         });
+     
+                    }
+                }
+            });
+        }
 
 
         
         function initGame() {
             // 太さ計算の基準として、初期体長の時の半径を保存
-            initialRadius = getHeadRadius(INITIAL_LENGTH); 
-            
+            initialRadius = getHeadRadius(INITIAL_LENGTH);
             mySnake.x = Math.random() * WORLD_SIZE;
             mySnake.y = Math.random() * WORLD_SIZE;
             mySnake.angle = Math.random() * 2 * Math.PI;
@@ -644,15 +610,15 @@
             document.addEventListener('touchend', handleInputUp);
             
             setupBoostEvents();
-            myPlayerId = playersRef.push().key;
+            // Firebaseの参照がここで設定されていることを前提とする
+            myPlayerId = playersRef.push().key; 
             playersRef.child(myPlayerId).onDisconnect().remove(); 
             
             updateFirebase();
-
             requestAnimationFrame(gameLoop);
-            // データ送信間隔: 100ms
+            // データ送信間隔を 50ms に設定
             if (window.syncInterval) clearInterval(window.syncInterval);
-            window.syncInterval = setInterval(updateFirebase, 100);
+            window.syncInterval = setInterval(updateFirebase, 50);
         }
         
         function setupBoostEvents() {
@@ -660,6 +626,7 @@
                 if (myPlayerId && !isGameOver) {
                     gameOver(false); 
                 }
+      
             });
         }
 
@@ -680,7 +647,6 @@
             const centerY = rect.top + rect.height / 2;
             const radius = rect.width / 2;
             const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-            
             return distance <= radius;
         }
 
@@ -793,6 +759,7 @@
                     size: size,
                     color: color,
     
+ 
                     type: type || 'normal'
                 });
             }
@@ -823,13 +790,13 @@
 
             checkEatFood();
             
-            // 衝突判定は、自機の頭と他のヘビの体（復元されたトレイル）で行う
+            // 衝突判定は、自機の頭と他のヘビの体（補間されたトレイル）で行う
             if (!mySnake.isInvulnerable && checkCollision()) {
                 gameOver(true);
                 return;
             }
             
-            document.getElementById('currentScore').textContent = Math.round(mySnake.length); 
+            document.getElementById('currentScore').textContent = Math.round(mySnake.length);
             requestAnimationFrame(gameLoop);
         }
 
@@ -843,10 +810,8 @@
             let angleDiff = mySnake.targetAngle - mySnake.angle;
             if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
             // 旋回速度が向上
             mySnake.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), TURN_RATE);
-
             const currentSpeed = mySnake.isBoosting ?
             BOOST_SPEED : BASE_SPEED;
 
@@ -861,12 +826,10 @@
 
             // 2. トレイルの総距離を mySnake.length になるように後方をトリミング
             let currentLength = 0;
-            
             for (let i = 0; i < mySnake.trail.length - 1; i++) {
                 const p1 = mySnake.trail[i];
                 const p2 = mySnake.trail[i + 1];
                 const segmentLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-
                 if (currentLength + segmentLength >= mySnake.length) {
                     const excessDistance = mySnake.length - currentLength;
                     const ratio = excessDistance / segmentLength;
@@ -874,7 +837,6 @@
                     // 終点を正確な位置に設定
                     const newTailX = p1.x + (p2.x - p1.x) * ratio;
                     const newTailY = p1.y + (p2.y - p1.y) * ratio;
-
                     // 超過分以降の要素を削除し、新しい終点を追加
                     mySnake.trail.splice(i + 1);
                     mySnake.trail.push({ x: newTailX, y: newTailY });
@@ -891,64 +853,105 @@
             }
         }
         
+        /**
+         * 餌の吸引と消費のロジック
+         */
         function checkEatFood() {
-            // head は常にトレイルの先頭
             const head = mySnake.trail[0];
             const headRadius = getHeadRadius(mySnake.length);
+            
+            // 吸引の定数
+            const SUCK_RANGE = headRadius * 4; // 吸引範囲 (頭の半径の4倍)
+            const SUCK_SPEED = 5; // 吸引速度 (ピクセル/フレーム)
 
             const allFood = [...foodItems, ...localFoodItems];
             const foodToKeep = [];
+            const eatenDeceasedIds = []; // 削除する死体のIDリスト
+
             allFood.forEach(food => {
-                // food.x/food.y は既に小数点第1位に丸められている
-                const dist = Math.sqrt(Math.pow(head.x - food.x, 2) + Math.pow(head.y - food.y, 2));
-                
+                let dx = head.x - food.x;
+                let dy = head.y - food.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                let isEaten = false;
+
+                // 1. **EATING CONDITION (Direct Contact)**
                 if (dist < headRadius + food.size) { 
+                    isEaten = true;
+                } 
+                // 2. **SUCKING CONDITION (Attraction & Guaranteed Eating)**
+                else if (dist < SUCK_RANGE) {
+                    // Attraction motion
+                    const angle = Math.atan2(dy, dx);
+                    const moveX = Math.cos(angle) * SUCK_SPEED;
+                    const moveY = Math.sin(angle) * SUCK_SPEED;
                     
+                    // Move the food item
+                    food.x += moveX;
+                    food.y += moveY;
+                    
+                    // Recalculate distance after movement
+                    const newDx = head.x - food.x;
+                    const newDy = head.y - food.y;
+                    const newDist = Math.sqrt(newDx * newDx + newDy * newDy);
+                    
+                    // 吸引後の接触判定、または死体餌の確定消費判定
+                    if (newDist < headRadius + food.size * 0.5) { // 接触判定を少し緩くする
+                         isEaten = true;
+                    } else if (food.isDeceased && newDist < SUCK_RANGE * 0.8) {
+                        // 死体は動くとめんどい、という要望に基づき、吸引範囲内の一定距離で確定消費
+                        isEaten = true; 
+                    }
+                }
+
+                if (isEaten) {
+                    // --- Consumption Logic ---
                     let foodValue;
                     
                     if (food.isDeceased) {
-                        // 死亡時の餌は保存したvalueを使用
                         foodValue = food.value; 
-                        deceasedFoodRef.child(food.id).remove();
-
+                        eatenDeceasedIds.push(food.id);
                     } else {
-                        // 通常の餌は固定値
                         foodValue = FOOD_VALUE; 
-                        eatenFoodCount++;
+                        eatenFoodCount++; // Global variable
                     }
 
-                    // --- 動的成長コスト計算 ---
                     const currentHeadRadius = getHeadRadius(mySnake.length);
                     const initialHeadRadius = initialRadius; 
                     
                     // コスト = 今の太さ / 最初の太さ * 10
                     const costToGainOneLength = (currentHeadRadius / initialHeadRadius) * 10; 
-                    
                     // 成長量 = 得られたポイント / コスト
-                    const growthAmount = foodValue / costToGainOneLength; 
-
+                    const growthAmount = foodValue / costToGainOneLength;
                     mySnake.length += growthAmount; 
-             
                     mySnake.score = Math.round(mySnake.length);
                     
                 } else {
+                    // Food is kept (either untouched or moved by sucking)
                     foodToKeep.push(food);
                 }
             });
+            
+            // Remove eaten deceased food from Firebase
+            eatenDeceasedIds.forEach(id => {
+                deceasedFoodRef.child(id).remove();
+            });
+
+            // Update localFoodItems with remaining non-deceased food
             localFoodItems = foodToKeep.filter(f => !f.isDeceased);
             
+            // Food regeneration check
             if (localFoodItems.length < FOOD_COUNT) {
                 generateFood(FOOD_COUNT - localFoodItems.length, 3, 5, 'normal');
             }
         }
         
         function checkCollision() {
-            const head = mySnake.trail[0]; // トレイルの先頭を使用
-            const headRadius = getHeadRadius(mySnake.length); 
-            
+            const head = mySnake.trail[0];
+            // トレイルの先頭を使用
+            const headRadius = getHeadRadius(mySnake.length);
             for (const playerId in otherPlayers) {
                 const other = otherPlayers[playerId];
-                // 他のヘビの体は受信・復元した絶対座標配列 bodySegments を使用
+                // 他のヘビの体は受信したセグメント座標を使用
                 const otherPath = other.bodySegments || []; 
                 const otherHeadRadius = getHeadRadius(other.length || INITIAL_LENGTH); 
                 
@@ -984,21 +987,22 @@
 
             // --- 死亡時の処理 (死体をまく) ---
             const deceasedLength = mySnake.length;
-            const deadFoodValue = deceasedLength * 0.5; 
+            const deadFoodValue = deceasedLength * 0.5; // 新しい死亡時の餌のポイント
             const deadFoodSize = getHeadRadius(deceasedLength) * 0.8;
-            
+            // mySnake.trail を使用して死体を生成
             mySnake.trail.forEach((point, index) => {
+                // トレイルの点の数が多すぎるため、間引いて死体をまく (約10点に1点)
                 if (index % 10 !== 0) return; 
 
                 const deadFoodId = deceasedFoodRef.push().key; 
-                
-                // ★ 4つの数値を統合圧縮し、フィールド名を 'f' に短縮
-                const foodX = point.x + (Math.random() - 0.5) * 5;
-                const foodY = point.y + (Math.random() - 0.5) * 5;
-                const compressedFood = compressFoodData(foodX, foodY, deadFoodSize, deadFoodValue);
-                
+                // ★ 軽量化された死体データとして保存
+    
                 deceasedFoodRef.child(deadFoodId).set({
-                    f: compressedFood, // 圧縮されたデータ
+                    x: roundToOneDecimal(point.x + (Math.random() - 0.5) * 5), 
+                    y: roundToOneDecimal(point.y + (Math.random() - 0.5) * 5),
+                    s: roundToOneDecimal(deadFoodSize), // size -> s
+        
+                    v: roundToOneDecimal(deadFoodValue), // value -> v
                 });
             });
             // プレイヤーをFirebaseから削除
@@ -1052,6 +1056,7 @@
                 const screenPos = worldToScreen(food.x, food.y);
                 if (screenPos.x > -food.size && screenPos.x < canvas.width + food.size &&
                     screenPos.y > -food.size && screenPos.y < canvas.height + food.size) {
+     
                     drawFood(food, screenPos);
                 }
             });
@@ -1065,7 +1070,6 @@
         
         function drawJoystick() {
             if (!joystickCenter || isGameOver) return;
-            
             const centerX = joystickCenter.x;
             const centerY = joystickCenter.y;
             const currentX = joystickCurrent.x;
@@ -1091,7 +1095,7 @@
 
         function drawSnake(snakeData) {
             // 自機: snakeData.trail 
-            // 他のプレイヤー: snakeData.bodySegments (受信・復元した絶対座標配列)
+            // 他のプレイヤー: snakeData.bodySegments (受信した座標配列)
             const path = snakeData.bodySegments || snakeData.trail || []; 
             if (path.length < 2) {
                 // パスが短すぎる場合は頭のみ描画
@@ -1117,7 +1121,12 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             
-            // ヘビの体（線）を描画
+            const OUTLINE_WIDTH_ADDITION = 3; // 輪郭線の太さ（追加分）
+            const OUTLINE_COLOR = 'rgba(255, 255, 255, 0.3)'; // 薄い白
+
+            // --- 1. 輪郭線 (Outline) パス (ヘビの体) ---
+            ctx.strokeStyle = OUTLINE_COLOR;
+
             for (let i = 0; i < path.length - 1; i++) {
                 const segment1 = path[i];
                 const segment2 = path[i + 1];
@@ -1126,32 +1135,54 @@
                 const screenPos2 = worldToScreen(segment2.x, segment2.y);
                 
                 // 太さの計算（非常に緩やかに細くなるように係数を調整）
-                const radius1 = headRadius * (1 - i * 0.0001); 
+                const radius1 = headRadius * (1 - i * 0.0001);
                 const radius2 = headRadius * (1 - (i + 1) * 0.0001);
-                const currentLineWidth = (radius1 + radius2); 
+                const currentLineWidth = (radius1 + radius2);
+                
+                // 輪郭線は本体より太い幅で描画
+                ctx.lineWidth = currentLineWidth + OUTLINE_WIDTH_ADDITION; 
+
+                ctx.beginPath();
+                ctx.moveTo(screenPos1.x, screenPos1.y);
+                ctx.lineTo(screenPos2.x, screenPos2.y);
+                ctx.stroke();
+            }
+
+            // --- 2. 本体 (Main Body) パス (ヘビの体) ---
+            for (let i = 0; i < path.length - 1; i++) {
+                const segment1 = path[i];
+                const segment2 = path[i + 1];
+
+                const screenPos1 = worldToScreen(segment1.x, segment1.y);
+                const screenPos2 = worldToScreen(segment2.x, segment2.y);
+                
+                const radius1 = headRadius * (1 - i * 0.0001);
+                const radius2 = headRadius * (1 - (i + 1) * 0.0001);
+                const currentLineWidth = (radius1 + radius2);
+                
+                // 本体は元の太さで描画
+                ctx.lineWidth = currentLineWidth;
 
                 // 色の切り替え (2セグメントで1色、頭の色が長くならないように+2でオフセット)
                 let colorIndex;
                 if (snakeData === mySnake) {
                     // 自機は高密度の trail を使っているので、色を滑らかにグラデーションさせるために細かく計算
-                    colorIndex = Math.floor((i + 2) / 2) % colorCount; 
+                    colorIndex = Math.floor((i + 2) / 2) % colorCount;
                 } else {
                     // 他のプレイヤーは疎な bodySegments を使っているので、セグメント数を基準に色を割り当てる
-                    // segment の数に応じて色を繰り返す
-                    colorIndex = Math.floor(i / 2) % colorCount; 
+                    colorIndex = Math.floor(i / 2) % colorCount;
                 }
                 
                 let color = customColors[colorIndex];
-
+                
                 // 無敵/ブースト効果の適用
                 if (snakeData.isInvulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
                     color = 'rgba(255, 255, 255, 0.7)';
                 } else if (isBoosting) {
-                    color = `rgba(46, 204, 113, 1)`; 
+                    color = `rgba(46, 204, 113, 1)`;
                 }
 
                 ctx.strokeStyle = color;
-                ctx.lineWidth = currentLineWidth;
 
                 // 線セグメントの描画
                 ctx.beginPath();
@@ -1163,9 +1194,19 @@
             // ヘビの頭を最後に描画して、体の上に重ねて目立たせる
             const head = path[0];
             const headScreen = worldToScreen(head.x, head.y);
-            
-            ctx.fillStyle = customColors[0];
             const headRadiusFinal = headRadius * (1 - 0 * 0.0001);
+
+            // 頭の輪郭線
+            ctx.strokeStyle = OUTLINE_COLOR;
+            // 頭の輪郭線は少し細くする
+            ctx.lineWidth = 2; 
+            // 輪郭線の太さ分、半径を広げて描画
+            ctx.beginPath();
+            ctx.arc(headScreen.x, headScreen.y, headRadiusFinal + OUTLINE_WIDTH_ADDITION/2, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // 頭の本体
+            ctx.fillStyle = customColors[0];
             ctx.beginPath();
             ctx.arc(headScreen.x, headScreen.y, headRadiusFinal, 0, 2 * Math.PI);
             ctx.fill();
@@ -1208,16 +1249,23 @@
 
             minimapCtx.strokeStyle = '#ffffff';
             minimapCtx.strokeRect(0, 0, mapSize, mapSize);
+            
+            // マップ上のヘビの基本色は常に赤
+            const SNAKE_MAP_COLOR = '#FF0000'; 
 
             for (const playerId in otherPlayers) {
                 const data = otherPlayers[playerId];
                 const mapX = data.x * scale;
                 const mapY = data.y * scale;
                 
-                minimapCtx.fillStyle = data.customColors ? data.customColors[0] : data.color;
+                let dotColor = SNAKE_MAP_COLOR; // 基本色を赤に設定
+                
+                // 無敵状態の点滅処理は白を優先
                 if (data.isInvulnerable && Math.floor(Date.now() / 200) % 2 === 0) {
-                    minimapCtx.fillStyle = '#ffffff';
+                    dotColor = '#ffffff'; 
                 }
+                
+                minimapCtx.fillStyle = dotColor;
                 minimapCtx.beginPath();
                 minimapCtx.arc(mapX, mapY, 2, 0, 2 * Math.PI);
                 minimapCtx.fill();
@@ -1226,13 +1274,18 @@
             const myMapX = mySnake.x * scale;
             const myMapY = mySnake.y * scale;
 
-            minimapCtx.fillStyle = mySnake.customColors[0];
+            let myDotColor = SNAKE_MAP_COLOR; // 自機も赤に設定
+            
+            // 無敵状態の点滅処理は白を優先
             if (mySnake.isInvulnerable && Math.floor(Date.now() / 200) % 2 === 0) {
-                minimapCtx.fillStyle = '#ffffff';
+                myDotColor = '#ffffff';
             }
+
+            minimapCtx.fillStyle = myDotColor;
             minimapCtx.beginPath();
             minimapCtx.arc(myMapX, myMapY, 4, 0, 2 * Math.PI);
             minimapCtx.fill();
+
 
             const viewWidth = canvas.width * scale;
             const viewHeight = canvas.height * scale;
@@ -1245,150 +1298,71 @@
 
         function updateFirebase() {
             if (!myPlayerId || isGameOver) return;
-            
-            // デルタ圧縮には小数点第1位の精度が必要 (roundToOneDecimal)
-            const headX = roundToOneDecimal(mySnake.x);
-            const headY = roundToOneDecimal(mySnake.y);
-            
-            let deltas = []; 
+            // 高密度トレイルから固定間隔(8)でセグメント座標をサンプリング
+            const bodySegments = [];
             let currentDistance = 0;
             
-            let lastSegment = { x: headX, y: headY }; 
-
             if (mySnake.trail.length > 0) {
+                // ★ 座標を小数点第1位に丸める
+                const headX = roundToOneDecimal(mySnake.trail[0].x);
+                const headY = roundToOneDecimal(mySnake.trail[0].y);
+                bodySegments.push({ x: headX, y: headY });
+                // 常に頭は追加 (インデックス0)
+
                 for (let i = 1; i < mySnake.trail.length; i++) {
                     const p1 = mySnake.trail[i - 1];
                     const p2 = mySnake.trail[i];
                     const segmentLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-
                     if (currentDistance + segmentLength >= SEGMENT_DISTANCE) {
+                        // SEGMENT_DISTANCE に達した位置を計算して追加
                         const excessDistance = SEGMENT_DISTANCE - currentDistance;
                         const ratio = excessDistance / segmentLength;
                         
-                        const newSegmentX = p1.x + (p2.x - p1.x) * ratio;
-                        const newSegmentY = p1.y + (p2.y - p1.y) * ratio;
-                        
-                        const newSegment = { 
-                            x: roundToOneDecimal(newSegmentX), 
-                            y: roundToOneDecimal(newSegmentY) 
-                        };
-                        
-                        const dx = newSegment.x - lastSegment.x;
-                        const dy = newSegment.y - lastSegment.y;
-                        deltas.push({ x: dx, y: dy });
-                        
-                        lastSegment = newSegment;
-                        
+                        const segmentX = p1.x + (p2.x - p1.x) * ratio;
+                        const segmentY = p1.y + (p2.y - p1.y) * ratio;
+                        // ★ 座標を小数点第1位に丸める
+                        bodySegments.push({ x: roundToOneDecimal(segmentX), y: roundToOneDecimal(segmentY) });
+                        // 残りの距離を次のセグメントの計算に繰り越し
                         currentDistance = segmentLength - excessDistance;
                     } else {
                         currentDistance += segmentLength;
                     }
                 }
-                
-                if (mySnake.trail.length > 0) {
-                    const tail = {
-                        x: roundToOneDecimal(mySnake.trail[mySnake.trail.length - 1].x),
-                        y: roundToOneDecimal(mySnake.trail[mySnake.trail.length - 1].y)
-                    };
+                // 最後に計算された座標と、実際の尻尾の座標の距離が SEGMENT_DISTANCE 未満であれば尻尾を追加
+                if (mySnake.trail.length > 0 && bodySegments.length > 0) {
+                    const tail = mySnake.trail[mySnake.trail.length - 1];
+                    const lastSegment = bodySegments[bodySegments.length - 1];
                     const distToTail = Math.sqrt(Math.pow(tail.x - lastSegment.x, 2) + Math.pow(tail.y - lastSegment.y, 2));
                     if (distToTail < SEGMENT_DISTANCE) {
-                        const dx = tail.x - lastSegment.x;
-                        const dy = tail.y - lastSegment.y;
-                        deltas.push({ x: dx, y: dy });
+                        bodySegments.push({x: roundToOneDecimal(tail.x), y: roundToOneDecimal(tail.y)});
                     }
                 }
             }
             
-            // ★ 頭と体長を統合圧縮し、フィールド名を 'h' に短縮
-            const compressedHead = compressHeadData(mySnake.x, mySnake.y, mySnake.length);
-            
-            const compressedDeltas = compressDeltas(deltas);
+            // ★ 色をBase64にエンコード
             const colorBase64 = hexArrayToBase64(mySnake.customColors);
-
-            // 送信
+            // ★ タイムスタンプ(t)を削除し、短縮されたフィールド名のみを送信
             playersRef.child(myPlayerId).set({
                 n: playerName,
-                h: compressedHead, // 圧縮された X, Y, Length
+                x: roundToOneDecimal(mySnake.x),
+                y: roundToOneDecimal(mySnake.y),
+                l: roundToOneDecimal(mySnake.length), 
                 c: colorBase64, 
-                b: compressedDeltas, // 圧縮されたデルタ文字列
-                i: mySnake.isInvulnerable || null, 
-                s: mySnake.isBoosting || null, 
+                b: bodySegments, 
+                i: mySnake.isInvulnerable || null, // trueの場合のみ送信
+                s: mySnake.isBoosting || null, // trueの場合のみ送信
             });
         }
         
         // Catmull-Rom 関数は削除しました
 
 
-        playersRef.on('value', (snapshot) => {
-            const playersData = snapshot.val();
-            
-            const playerIds = Object.keys(playersData || {});
-            
-            for (const id in otherPlayers) {
-                
-                if (!playerIds.includes(id)) {
-                    delete otherPlayers[id];
-                }
-            }
-
-            for (const id in playersData) {
-                if (id !== myPlayerId) {
-            
-                    const data = playersData[id];
-                    
-                    // ★ 統合されたヘッドデータを復元
-                    const headData = decompressHeadData(data.h);
-                    
-                    // ★ 圧縮されたデルタを復元して絶対座標配列を生成
-                    // 復元には整数化された座標を使用 (描画もこの絶対座標を使用)
-                    const absolutePath = decompressDeltas(data.b, headData.x, headData.y);
-
-                    const decodedColors = base64ToHexArray(data.c, DOT_COUNT); 
-                    
-                    const remoteData = {
-                        name: data.n,
-                        x: headData.x, 
-                        y: headData.y, 
-                        length: headData.l,
-                        customColors: decodedColors,
-                        bodySegments: absolutePath, 
-                        isInvulnerable: !!data.i, 
-                        isBoosting: !!data.s,     
-                    };
-
-                    if (!otherPlayers[id]) {
-                        otherPlayers[id] = { ...remoteData };
-                 
-                    } else {
-                        Object.assign(otherPlayers[id], remoteData);
-                    }
-                }
-            }
-        });
-        deceasedFoodRef.on('value', (snapshot) => {
-            const deceasedData = snapshot.val();
-            foodItems = [];
-            
-            for (const id in deceasedData) {
-                const data = deceasedData[id];
-                if (data && data.f) {
-                     // ★ 統合されたフードデータを復元
-                     const food = decompressFoodData(data.f);
-                     
-                     foodItems.push({ 
-                        x: food.x,
-                        y: food.y,
-                        size: food.size,   
-                        value: food.value,  
-                        color: DECEASED_COLOR,
-                        isDeceased: true, 
-                        id: id // FirebaseのキーをIDとして使用
-                     });
- 
-                }
-            }
-        });
+        // 以下のリスナーブロックはsetupFirebaseListeners関数に移動しました
+        /* playersRef.on('value', (snapshot) => { ... });
+        deceasedFoodRef.on('value', (snapshot) => { ... });
+        */
         
+
         function hslToHex(h, s, l) {
             l /= 100;
             const a = s * Math.min(l, 1 - l) / 100;
@@ -1407,11 +1381,13 @@
                     const colorHex = hslToHex(h, s, currentLightness);
                     
                     const colorOption = document.createElement('div');
+            
                     colorOption.className = 'color-option';
                     colorOption.style.backgroundColor = colorHex;
                     colorOption.dataset.color = colorHex;
                     colorOption.addEventListener('click', () => selectColor(colorHex));
        
+                
                     colorPalette.appendChild(colorOption);
                 });
             });
@@ -1421,6 +1397,7 @@
                 colorOption.className = 'color-option';
                 colorOption.style.backgroundColor = colorHex;
    
+              
                 colorOption.dataset.color = colorHex;
                 colorOption.addEventListener('click', () => selectColor(colorHex));
                 colorPalette.appendChild(colorOption);
@@ -1491,12 +1468,49 @@
                 return;
             }
             
-           
+           // --- サーバー選択とFirebase初期化の追加 ---
+            const serverSelect = document.getElementById('serverSelect');
+            const selectedServerId = serverSelect.value;
+            const selectedConfig = FIREBASE_CONFIGS[selectedServerId].config;
+            
+            // 選択されたサーバーでFirebaseを初期化し、参照を設定
+            initializeFirebase(selectedConfig); 
+            // ----------------------------------------
+
             document.getElementById('ui-overlay').style.display = 'none';
             document.getElementById('message').textContent = '';
             initGame();
         });
         setupColorSettings();
+
+        // ★★★ 追加するコードブロック ★★★
+
+        /**
+         * ブラウザがフォーカスを失った際に、ジョイスティックとブーストを強制リセットする
+         * これにより、マウスアップやタッチアップイベントが欠落した場合の操作ロックを防ぐ。
+         */
+        function resetControlsOnBlur() {
+            if (isGameOver) return;
+            
+            console.log("Window blur detected. Resetting controls.");
+            
+            // 1. ジョイスティックの状態をリセット
+            joystickCenter = null;
+            joystickCurrent = null;
+            joystickTouchId = null;
+            
+            // 2. ブースト状態を解除
+            endBoost();
+            boostTouchId = null;
+            
+            // mySnake.angle はそのままなので、ヘビは直進を続けます。
+            // ページに戻った後、プレイヤーはすぐに新しい入力を開始できます。
+        }
+
+        // ブラウザの 'blur' イベントにリスナーを追加
+        window.addEventListener('blur', resetControlsOnBlur);
+        
+        // ★★★ ここまで追加するコードブロック ★★★
 
     </script>
 </body>
