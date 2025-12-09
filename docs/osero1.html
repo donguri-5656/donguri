@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>特殊オセロ</title>
     <style>
-        /* --- 基本レイアウト --- */
         html, body {
             height: 100%;
             margin: 0;
@@ -30,9 +29,9 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
-        h2 { margin-bottom: 20px; }
+        h2 { margin-bottom: 20px;
+        }
 
-        /* --- ボタン共通 --- */
         button:not(#pause-button, .discard-button) {
             padding: 8px 16px;
             margin: 5px;
@@ -56,7 +55,6 @@
             cursor: not-allowed;
         }
 
-        /* --- ゲーム画面レイアウト --- */
         #main-game-area {
             display: flex;
             align-items: flex-start; 
@@ -73,7 +71,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
         }
 
-        /* --- 盤面要素 --- */
         .cell {
             width: 50px;
             height: 50px;
@@ -85,7 +82,6 @@
             position: relative;
         }
         
-        /* ポイントマス（お楽しみマス）のスタイル */
         .point-spot::after {
             content: '🐵';
             position: absolute;
@@ -103,10 +99,11 @@
             position: absolute;
         }
 
-        .disc.black { background-color: black; }
-        .disc.white { background-color: white; }
+        .disc.black { background-color: black;
+        }
+        .disc.white { background-color: white;
+        }
         
-        /* 要塞石のスタイル */
         .fortress {
             width: 48px;
             height: 48px;
@@ -115,13 +112,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 3px solid #ffaa00; 
+            border: 3px solid #ffaa00;
             box-shadow: 0 0 15px rgba(255, 165, 0, 0.8);
             box-sizing: border-box;
         }
         
         .fortress .disc {
-            border: 2px solid #444; 
+            border: 2px solid #444;
             z-index: 10;
         }
 
@@ -136,30 +133,42 @@
             cursor: pointer;
         }
 
-        .flip-black { animation: flipToBlack 0.5s forwards; }
-        .flip-white { animation: flipToWhite 0.5s forwards; }
-        .remove-disc { animation: removeDisc 0.5s forwards; }
+        .flip-black { animation: flipToBlack 0.5s forwards;
+        }
+        .flip-white { animation: flipToWhite 0.5s forwards;
+        }
+        .remove-disc { animation: removeDisc 0.5s forwards;
+        }
 
         @keyframes flipToBlack {
-            0% { transform: scaleX(1) rotateY(0deg); background-color: white; }
-            50% { transform: scaleX(0.1) rotateY(90deg); background-color: white; }
-            51% { background-color: black; }
-            100% { transform: scaleX(1) rotateY(180deg); background-color: black; }
+            0% { transform: scaleX(1) rotateY(0deg);
+            background-color: white; }
+            50% { transform: scaleX(0.1) rotateY(90deg);
+            background-color: white; }
+            51% { background-color: black;
+            }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: black;
+            }
         }
 
         @keyframes flipToWhite {
-            0% { transform: scaleX(1) rotateY(0deg); background-color: black; }
-            50% { transform: scaleX(0.1) rotateY(90deg); background-color: black; }
-            51% { background-color: white; }
-            100% { transform: scaleX(1) rotateY(180deg); background-color: white; }
+            0% { transform: scaleX(1) rotateY(0deg);
+            background-color: black; }
+            50% { transform: scaleX(0.1) rotateY(90deg);
+            background-color: black; }
+            51% { background-color: white;
+            }
+            100% { transform: scaleX(1) rotateY(180deg); background-color: white;
+            }
         }
         
         @keyframes removeDisc {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(0); opacity: 0; }
+            0% { transform: scale(1);
+            opacity: 1; }
+            100% { transform: scale(0); opacity: 0;
+            }
         }
 
-        /* --- 情報パネルとコントロール --- */
         #control-panel {
             width: 90%;
             max-width: 500px;
@@ -186,8 +195,10 @@
             align-items: center;
             position: relative; 
         }
-        .player-info.black { border: 2px solid black; }
-        .player-info.white { border: 2px solid #555; }
+        .player-info.black { border: 2px solid black;
+        }
+        .player-info.white { border: 2px solid #555;
+        }
         
         .point-display {
             font-size: 1.5em;
@@ -196,9 +207,8 @@
             margin-bottom: 5px;
         }
         
-        /* --- 手札エリア --- */
         .hand-area {
-            width: 270px; 
+            width: 270px;
             height: 350px;
             overflow-y: auto; 
             padding-top: 10px;
@@ -215,7 +225,6 @@
             grid-column: 1 / span 2;
         }
 
-        /* --- カードスタイル --- */
         .hand-card {
             width: 120px;
             height: 160px;
@@ -273,7 +282,6 @@
             margin-top: 5px;
         }
 
-        /* カード破棄ボタン */
         .discard-button {
             position: absolute;
             top: -1px; 
@@ -302,7 +310,6 @@
             cursor: not-allowed;
         }
 
-        /* --- ポーズ/全体通知 --- */
         #pause-button {
             position: fixed;
             top: 20px;
@@ -315,7 +322,6 @@
             cursor: pointer;
         }
         
-        /* 全体通知 */
         #notification {
             position: fixed;
             top: 50%;
@@ -331,17 +337,17 @@
             pointer-events: none;
             z-index: 1000;
         }
-        #notification.visible { opacity: 1; }
+        #notification.visible { opacity: 1;
+        }
         
-        /* --- カード破棄時のローカル通知 (スタイル調整) --- */
         .discard-confirmation {
             position: absolute;
-            top: 50%; /* カードの中心 */
-            left: 50%; /* カードの中心 */
+            top: 50%; 
+            left: 50%;
             transform: translate(-50%, -50%);
-            width: 120px; /* カードと同じ幅 */
+            width: 120px;
             padding: 5px;
-            background-color: white; /* 不透明 */
+            background-color: white;
             border: 2px solid #333;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -353,7 +359,7 @@
             font-size: 0.8em;
             line-height: 1.2;
             box-sizing: border-box; 
-            white-space: normal; /* 折り返しを許可 */
+            white-space: normal; 
         }
 
         .discard-confirmation p {
@@ -362,7 +368,7 @@
         }
         
         .discard-confirmation button {
-            width: 90%; 
+            width: 90%;
             margin: 2px auto;
             background-color: #f44336;
             color: white;
@@ -374,7 +380,7 @@
         }
         
         .discard-confirmation .confirm-yes {
-            background-color: #007bff; /* 青系に変更して区別 */
+            background-color: #007bff;
         }
         
     </style>
@@ -391,6 +397,7 @@
         
         <div id="info-panel">
             <p>黒: <span id="black-score">2</span> 白: <span id="white-score">2</span></p>
+ 
             <p id="message">黒のターンです</p>
         </div>
 
@@ -399,6 +406,7 @@
             <div id="player1-info" class="player-info black">
                 黒プレイヤー<br>
                 ポイント: <span id="black-points" class="point-display">0</span>
+         
                 <div id="black-hand-area" class="hand-area">
                     </div>
             </div>
@@ -407,6 +415,7 @@
 
             <div id="player2-info" class="player-info white">
                 白プレイヤー<br>
+   
                 ポイント: <span id="white-points" class="point-display">0</span>
                 <div id="white-hand-area" class="hand-area">
                     </div>
@@ -414,6 +423,7 @@
         </div>
         
         <div id="control-panel">
+         
             <button id="pass-button" onclick="handlePass()">パス (1P獲得)</button>
             <button id="draw-button" onclick="handleDrawCard()">カードを引く (1P消費)</button>
         </div>
@@ -423,7 +433,6 @@
     <div id="notification"></div>
 
     <script>
-        // --- 定数とDOM要素 ---
         const menuContainer = document.getElementById('menu-container');
         const gameContainer = document.getElementById('game-container');
         const boardElement = document.getElementById('game-board');
@@ -439,41 +448,36 @@
         const passButton = document.getElementById('pass-button');
 
         const boardSize = 8;
-        const POINT_MAX = 10; // ポイント上限
-        const HAND_MAX = 4;   // 手札上限
+        const POINT_MAX = 10;
+        const HAND_MAX = 4;
         const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
         const DISC_STATES = ['black', 'white', null];
-        const POINT_SPOT_COUNT = 16; // 配置するポイントマスの数
+        const POINT_SPOT_COUNT = 16;
 
-        // --- ゲーム状態変数 ---
-        let board = []; 
+        let board = [];
         let fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null)); 
-        let pointSpotMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(false)); // ポイントマス
+        let pointSpotMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(false));
         let currentPlayer = 'black';
         let isGameOver = false;
         let isProcessingMove = false; 
         let points = { 'black': 0, 'white': 0 };
         let hand = { 'black': [], 'white': [] };
         let selectedCard = null; 
-        let specialMoveType = null; 
-        let skipNextTurn = { 'black': false, 'white': false }; 
-        let isDiscarding = false; // 破棄確認中フラグ
+        let specialMoveType = null;
+        let skipNextTurn = { 'black': 0, 'white': 0 }; 
+        let isDiscarding = false;
 
-        // --- カード定義 ---
         const DECK = [
             { id: 1, name: 'どこでも置ける', cost: 2, type: 'special_move', effect: '空マスに石を置き、周囲の石をひっくり返す', action: 'anywhere' },
             { id: 2, name: '色反転', cost: 3, type: 'special_move', effect: '相手の石一つを自分の色に反転', action: 'flipcolor' },
-            { id: 3, name: 'パス禁止', cost: 2, type: 'status_effect', effect: 'tukattaraosimai', action: 'skip_next' },
-            { id: 4, name: '石除去', cost: 4, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' },
+            { id: 3, name: '連続ターン', cost: 2, type: 'status_effect', effect: '相手の次の2ターンを強制パスさせ、連続で2回置ける', action: 'skip_next_two' }, 
+           { id: 4, name: '石除去', cost: 4, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' },
             { id: 6, name: '要塞化', cost: 8, type: 'special_move', effect: '空マスに、ゲーム終了まで破壊されない要塞石（自色）を置く', action: 'fortify' }, 
             { id: 7, name: 'カオス', cost: 6, type: 'special_move', effect: '選択マス中心の3x3範囲の石の色をランダムに変更', action: 'chaos_3x3' }
         ];
-
         function drawRandomCard() {
             return DECK[Math.floor(Math.random() * DECK.length)];
         }
-
-        // --- UI/ゲーム管理 ---
 
         function showMenuScreen() {
             menuContainer.style.display = 'flex';
@@ -500,14 +504,14 @@
             hand = { 'black': [], 'white': [] };
             selectedCard = null;
             specialMoveType = null;
-            skipNextTurn = { 'black': false, 'white': false };
-            fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null)); 
+            skipNextTurn = { 'black': 0, 'white': 0 }; 
+            fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
             pointSpotMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(false)); 
             initializeBoard();
             placePointSpots(); 
             renderBoard();
             highlightValidMoves();
-            updateAllUI(); 
+            updateAllUI();
         }
 
         function initializeBoard() {
@@ -522,8 +526,8 @@
             const availableSpots = [];
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
-                    // 4x4 初期配置エリアを避ける
                     if (!((x >= 2 && x <= 5) && (y >= 2 && y <= 5))) {
+        
                         availableSpots.push({ x, y });
                     }
                 }
@@ -561,15 +565,17 @@
         }
 
         function updateMessage() {
-            let turnText = currentPlayer === 'black' ? '黒' : '白';
+            let turnText = currentPlayer === 'black' ?
+            '黒' : '白';
             let actionText = '';
             
-            if (skipNextTurn[currentPlayer]) {
+            if (skipNextTurn[currentPlayer] > 0) {
                 turnText = `${turnText}はパス！ (カード効果)`;
             } else if (specialMoveType) {
-                const cardName = selectedCard ? selectedCard.card.name : 'カード';
-                if (specialMoveType === 'skip_next') {
-                    actionText = ` (${cardName}使用中)`;
+                const cardName = selectedCard ?
+                selectedCard.card.name : 'カード';
+                if (specialMoveType === 'skip_next_two') { 
+                    actionText = ` (${cardName}使用中: 相手にスキップ適用)`;
                 } else {
                     actionText = ` (${cardName}使用中: 盤面を選択)`;
                 }
@@ -579,11 +585,10 @@
         }
         
         function updateControlButtons() {
-             // 破棄確認中はボタン操作を全て無効にする
-             const disabled = isProcessingMove || specialMoveType !== null || isDiscarding;
+             const disabled = isProcessingMove ||
+             specialMoveType !== null || isDiscarding;
              drawButton.disabled = disabled || points[currentPlayer] < 1; 
-             passButton.disabled = disabled || points[currentPlayer] >= POINT_MAX; 
-             
+             passButton.disabled = disabled || points[currentPlayer] >= POINT_MAX;
              document.querySelectorAll('.discard-button').forEach(btn => {
                  btn.disabled = disabled;
              });
@@ -595,23 +600,16 @@
             setTimeout(() => notificationElement.classList.remove('visible'), 1500);
         }
         
-        /**
-         * カード破棄時のローカル確認ダイアログを表示
-         * @param {HTMLElement} targetCard - 破棄対象のカードDOM要素
-         * @param {number} index - 手札のインデックス
-         * @param {string} player - プレイヤー ('black' or 'white')
-         */
         function showDiscardConfirmation(targetCard, index, player) {
+   
             if (isDiscarding) return;
-            isDiscarding = true;
+            isDiscarding = true; 
             updateControlButtons();
 
             const card = hand[player][index];
             if (!card) return;
 
-            // 既に表示されている確認ダイアログがあれば削除
             document.querySelectorAll('.discard-confirmation').forEach(el => el.remove());
-
             const confirmationDiv = document.createElement('div');
             confirmationDiv.className = 'discard-confirmation';
             confirmationDiv.innerHTML = `
@@ -619,28 +617,28 @@
                 <p style="font-size:0.8em; color:#999;">(ポイントは獲得できません)</p>
                 <div>
                     <button class="confirm-yes">はい</button>
+                    
                     <button class="confirm-no">いいえ</button>
                 </div>
             `;
-            
-            // カードの近くに表示するため、カードの子要素に追加
             targetCard.appendChild(confirmationDiv);
 
-            confirmationDiv.querySelector('.confirm-yes').onclick = () => {
+            confirmationDiv.querySelector('.confirm-yes').onclick = (e) => {
+                e.stopPropagation(); 
                 confirmationDiv.remove();
                 discardCard(index, player, card);
-                isDiscarding = false;
+                isDiscarding = false; 
                 updateControlButtons();
             };
 
-            confirmationDiv.querySelector('.confirm-no').onclick = () => {
+            confirmationDiv.querySelector('.confirm-no').onclick = (e) => { 
+                e.stopPropagation(); 
                 confirmationDiv.remove();
-                isDiscarding = false;
+                isDiscarding = false; 
                 updateControlButtons();
             };
         }
 
-        // --- カード描画と操作 ---
         function renderHand() {
             blackHandArea.innerHTML = '';
             whiteHandArea.innerHTML = '';
@@ -650,28 +648,29 @@
                 const currentHand = hand[player];
                 
                 if (currentHand.length === 0) {
-                     targetArea.innerHTML = '<p style="color: #555; margin: 0; font-size: 0.9em;">手札なし</p>';
+              
+                    targetArea.innerHTML = '<p style="color: #555; margin: 0; font-size: 0.9em;">手札なし</p>';
                      return;
                 }
                 
-                // 4枚以下の場合は、グリッドセルを埋めるためにダミーを追加
                 const displayHand = [...currentHand];
                 while (displayHand.length < HAND_MAX) {
                     displayHand.push(null);
                 }
 
                 displayHand.forEach((card, index) => {
-                    if (!card) return; 
+                    if 
+                    (!card) return; 
 
                     const cardDiv = document.createElement('div');
                     cardDiv.className = 'hand-card';
                     cardDiv.dataset.index = index;
                     
+           
                     const isUsable = points[player] >= card.cost;
                     
-                    // カード使用中は破棄もカード使用も不可 (isDiscardingフラグも参照)
-                    const isDisabled = !isUsable || isProcessingMove || specialMoveType !== null || player !== currentPlayer || isDiscarding;
-                    
+                    const isDisabled = !isUsable ||
+                    isProcessingMove || specialMoveType !== null || player !== currentPlayer || isDiscarding;
                     if (isDisabled) {
                         cardDiv.classList.add('disabled-card');
                     } else {
@@ -682,20 +681,19 @@
                         cardDiv.classList.add('selected-card');
                     }
 
-                    // 破棄ボタン
                     const discardBtn = document.createElement('button');
                     discardBtn.className = 'discard-button';
                     discardBtn.textContent = '❌';
-                    // 自分のターンかつゲーム進行中でなければ破棄可能
-                    discardBtn.disabled = player !== currentPlayer || isProcessingMove || specialMoveType !== null || isDiscarding;
+                    discardBtn.disabled = player !== currentPlayer ||
+                    isProcessingMove || specialMoveType !== null || isDiscarding; 
                     
                     discardBtn.addEventListener('click', (e) => {
                         e.stopPropagation(); 
                         if (!discardBtn.disabled) {
                             showDiscardConfirmation(cardDiv, index, player);
+         
                         }
                     });
-
                     cardDiv.innerHTML = `
                         <div class="card-cost">${card.cost}P</div>
                         <div class="card-title">${card.name}</div>
@@ -712,7 +710,7 @@
                  showNotification('ポイントが足りません！');
                  return;
             }
-            if (isDiscarding) return; // 破棄確認中はカード使用も不可
+            if (isDiscarding) return; 
 
             if (selectedCard && selectedCard.index === index) {
                 selectedCard = null;
@@ -720,7 +718,6 @@
                 showNotification('カードの使用をキャンセルしました');
                 highlightValidMoves();
             } else {
-                // 既に別のカードが選択されている場合、強制的に解除
                 if (selectedCard) {
                     selectedCard = null;
                     specialMoveType = null;
@@ -729,8 +726,8 @@
                 selectedCard = { index, card };
                 specialMoveType = card.action;
                 
-                if (specialMoveType === 'skip_next') {
-                    isProcessingMove = true; 
+                if (specialMoveType === 'skip_next_two') {
+                    isProcessingMove = true;
                     setTimeout(() => {
                         activateCardEffect(null, null);
                     }, 100);
@@ -745,19 +742,20 @@
         }
 
         function discardCard(index, player, card) {
-            // ポイント獲得のロジックを削除
             
             hand[player].splice(index, 1);
             showNotification(`${player === 'black' ? '黒' : '白'}は「${card.name}」を破棄しました。`);
             
+            if (selectedCard && selectedCard.index === index) {
+                selectedCard = null;
+                specialMoveType = null;
+            }
+
             updateAllUI();
         }
 
-        // --- 特殊アクション ---
-
         function handleDrawCard() {
             if (points[currentPlayer] < 1 || isProcessingMove || specialMoveType !== null || isDiscarding) return;
-            
             points[currentPlayer] -= 1;
             
             if (hand[currentPlayer].length >= HAND_MAX) {
@@ -778,7 +776,6 @@
 
         function handlePass() {
             if (isProcessingMove || specialMoveType !== null || isDiscarding) return;
-            
             let message = '';
             
             if (points[currentPlayer] < POINT_MAX) {
@@ -789,7 +786,6 @@
             }
             
             showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は${message}`);
-            
             isProcessingMove = true;
             setTimeout(() => {
                 isProcessingMove = false;
@@ -802,16 +798,15 @@
             const opponent = player === 'black' ? 'white' : 'black';
             let success = false;
             let msg = '';
-            
             const cardCost = selectedCard.card.cost;
             const targetContent = (x !== null && y !== null) ? board[y][x] : null;
             const targetFortress = (x !== null && y !== null) ? fortressMap[y][x] : null;
-
-            if (specialMoveType === 'skip_next') {
+            
+            if (specialMoveType === 'skip_next_two') { 
                 const nextPlayer = opponent;
-                skipNextTurn[nextPlayer] = true;
+                skipNextTurn[nextPlayer] += 2; 
                 points[player] -= cardCost;
-                msg = `カード効果で相手(${nextPlayer === 'black' ? '黒' : '白'})の次のターンを強制パスさせます！`;
+                msg = `カード効果で相手(${nextPlayer === 'black' ? '黒' : '白'})の次の2ターンを強制パスさせます！連続で2回行動できます！`;
                 success = true;
             } 
             else if (specialMoveType === 'fortify') { 
@@ -826,7 +821,7 @@
                 pointSpotMap[y][x] = false; 
                 msg = '空マスに要塞石を配置しました！ゲーム終了まで破壊されません。';
                 success = true;
-                renderBoard(); 
+                renderBoard();
             }
             else if (specialMoveType === 'chaos_3x3') {
                 if (targetContent === null && targetFortress === null) {
@@ -835,7 +830,6 @@
                     return;
                 }
                 points[player] -= cardCost;
-                
                 const changed = [];
                 for (let dy = -1; dy <= 1; dy++) {
                     for (let dx = -1; dx <= 1; dx++) {
@@ -843,7 +837,7 @@
                         const newY = y + dy;
                         if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
                             if (fortressMap[newY][newX]) {
-                                continue; 
+                                continue;
                             }
                             
                             const newColor = DISC_STATES[Math.floor(Math.random() * DISC_STATES.length)];
@@ -875,7 +869,7 @@
                     msg = '石を置きましたが、ひっくり返せる石はありませんでした。';
                     renderBoard(); 
                 }
-                pointSpotMap[y][x] = false; 
+                pointSpotMap[y][x] = false;
                 success = true;
                 
             } else if (specialMoveType === 'flipcolor') {
@@ -900,7 +894,7 @@
                     flippedDisc.classList.add(`flip-${player}`);
                     setTimeout(() => flippedDisc.classList.remove(`flip-${player}`), 500); 
                 }
-                pointSpotMap[y][x] = false; 
+                pointSpotMap[y][x] = false;
                 success = true;
                 
             } else if (specialMoveType === 'remove_disc') {
@@ -916,7 +910,6 @@
                 }
                  
                  points[player] -= cardCost;
-                 
                  const removedDisc = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"] .disc`);
                  if (removedDisc) {
                     removedDisc.classList.add('remove-disc');
@@ -944,8 +937,6 @@
                 }, 600);
             }
         }
-
-        // --- 盤面ロジック (変更なし) ---
 
         function renderBoard() {
             boardElement.innerHTML = '';
@@ -984,34 +975,34 @@
 
         function flipDiscs(x, y, player, forced = false) {
             if (!forced && (board[y][x] !== null || fortressMap[y][x] !== null)) return { success: false };
-
             const opponent = player === 'black' ? 'white' : 'black';
             const flipped = [];
-
             directions.forEach(([dx, dy]) => {
                 const lineToFlip = [];
                 let newX = x + dx;
                 let newY = y + dy;
 
                 while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
+    
                     if (fortressMap[newY][newX]) {
                         lineToFlip.length = 0; 
                         break; 
                     }
-                    
+          
                     if (board[newY][newX] === opponent) {
                         lineToFlip.push({ x: newX, y: newY });
                     } else if (board[newY][newX] === player) {
+           
                         flipped.push(...lineToFlip);
                         break;
                     } else {
                         break;
+                 
                     }
                     newX += dx;
                     newY += dy;
                 }
             });
-
             if (flipped.length > 0 || forced) {
                 board[y][x] = player;
                 flipped.forEach(pos => {
@@ -1036,14 +1027,11 @@
 
         function canPlaceDisc(x, y, player, currentBoard) {
             if (currentBoard[y][x] !== null || fortressMap[y][x] !== null) return false;
-
             const opponent = player === 'black' ? 'white' : 'black';
-            
             for (const [dx, dy] of directions) {
                 let newX = x + dx;
                 let newY = y + dy;
                 let foundOpponent = false;
-
                 while (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
                     if (fortressMap[newY][newX]) {
                         foundOpponent = false;
@@ -1073,11 +1061,10 @@
             if (isGameOver || isProcessingMove || isDiscarding) return;
 
             const opponent = currentPlayer === 'black' ? 'white' : 'black';
-
-            // 盤面選択を伴うカードのハイライト
             if (specialMoveType === 'anywhere' || specialMoveType === 'fortify') {
                  for (let y = 0; y < boardSize; y++) {
                     for (let x = 0; x < boardSize; x++) {
+                        
                         if (board[y][x] === null && fortressMap[y][x] === null) {
                             document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
                         }
@@ -1085,6 +1072,7 @@
                 }
             } else if (specialMoveType === 'flipcolor') {
                  for (let y = 0; y < boardSize; y++) {
+                    
                     for (let x = 0; x < boardSize; x++) {
                         if (board[y][x] === opponent && fortressMap[y][x] === null) {
                             document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
@@ -1093,6 +1081,7 @@
                 }
             } else if (specialMoveType === 'remove_disc') {
                  for (let y = 0; y < boardSize; y++) {
+                    
                     for (let x = 0; x < boardSize; x++) {
                         if (board[y][x] !== null && fortressMap[y][x] === null) {
                             document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
@@ -1101,6 +1090,7 @@
                 }
             } else if (specialMoveType === 'chaos_3x3') {
                  for (let y = 0; y < boardSize; y++) {
+                    
                     for (let x = 0; x < boardSize; x++) {
                         if (board[y][x] !== null || fortressMap[y][x] !== null) {
                             document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`).classList.add('card-highlight');
@@ -1109,8 +1099,8 @@
                 }
             }
             else {
-                // 通常の手
                 getValidMoves(currentPlayer, board).forEach(move => {
+   
                     document.querySelector(`.cell[data-x="${move.x}"][data-y="${move.y}"]`).classList.add('highlight');
                 });
             }
@@ -1118,34 +1108,30 @@
         
         function handleFlipAnimation(flipped, player) {
              if (!flipped || flipped.length === 0) {
-                 renderBoard(); 
+                 renderBoard();
                  return;
              }
              isProcessingMove = true;
              
              renderBoard();
-             
              flipped.forEach(pos => {
                 const flippedDisc = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"] .disc`);
                 if (flippedDisc) {
                     flippedDisc.classList.add(`flip-${player}`);
                     setTimeout(() => flippedDisc.classList.remove(`flip-${player}`), 500); 
+                
                 }
             });
         }
 
-
-        // --- ターンとゲーム終了 ---
-
         function afterTurnAction() {
-            // ターン交代
-            const nextPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            const nextPlayer = currentPlayer === 'black' ?
+            'white' : 'black';
             currentPlayer = nextPlayer;
             
-            // パス禁止チェック
-            if (skipNextTurn[currentPlayer]) {
-                skipNextTurn[currentPlayer] = false; 
-                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はパス禁止カードにより強制パス！ (1P獲得)`);
+            if (skipNextTurn[currentPlayer] > 0) {
+                skipNextTurn[currentPlayer] -= 1; 
+                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はカード効果により強制パス！(残り${skipNextTurn[currentPlayer]}回) (1P獲得)`);
                 if (points[currentPlayer] < POINT_MAX) {
                     points[currentPlayer] += 1;
                 }
@@ -1153,7 +1139,6 @@
                 return;
             }
 
-            // 通常のパスチェック
             const blackMoves = getValidMoves('black', board);
             const whiteMoves = getValidMoves('white', board);
 
@@ -1166,23 +1151,19 @@
                 }
                 setTimeout(afterTurnAction, 1500);
             } else {
-                // 通常ターン
-                updateAllUI(); 
+                updateAllUI();
                 highlightValidMoves();
             }
         }
 
         function endGame() {
             isGameOver = true;
-            
             let blackCount = board.flat().filter(cell => cell === 'black').length;
             blackCount += fortressMap.flat().filter(cell => cell === 'black').length;
-            
             let whiteCount = board.flat().filter(cell => cell === 'white').length;
             whiteCount += fortressMap.flat().filter(cell => cell === 'white').length;
             
             let winnerMessage = '';
-
             if (blackCount > whiteCount) {
                 winnerMessage = `ゲーム終了: 黒の勝ち！ (${blackCount}対${whiteCount})`;
             } else if (whiteCount > blackCount) {
@@ -1195,46 +1176,38 @@
             setTimeout(showMenuScreen, 3000);
         }
 
-        // --- クリックハンドラ ---
-
         function handleCellClick(event) {
             if (isGameOver || isProcessingMove || isDiscarding) return;
-
             let targetCell = event.target.closest('.cell');
             if (!targetCell) return;
 
             const x = parseInt(targetCell.dataset.x);
             const y = parseInt(targetCell.dataset.y);
             
-            // 1. カード使用準備中で、かつポイントがある場合
             if (specialMoveType !== null && points[currentPlayer] >= selectedCard.card.cost) {
-                isProcessingMove = true; 
+                isProcessingMove = true;
                 activateCardEffect(x, y);
                 return;
             }
 
-            // 2. 通常の手の処理
             if (!canPlaceDisc(x, y, currentPlayer, board)) {
                 showNotification('そこには置けません。');
                 return;
             }
             
-            isProcessingMove = true; 
+            isProcessingMove = true;
             const result = flipDiscs(x, y, currentPlayer);
             
             if (result.success) {
                 handleFlipAnimation(result.flipped, currentPlayer);
-
-                // ポイントマス判定とポイント獲得処理
                 if (pointSpotMap[y][x]) {
-                    // 2P獲得 (上限チェックあり)
                     if (points[currentPlayer] < POINT_MAX) {
                          points[currentPlayer] += 2;
                          showNotification(`ポイントマスに置きました！2P獲得！`);
                     } else {
                          showNotification(`ポイントマスに置きましたが、ポイントが上限です。`);
                     }
-                    pointSpotMap[y][x] = false; 
+                    pointSpotMap[y][x] = false;
                 }
 
                 setTimeout(() => {
