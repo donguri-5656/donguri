@@ -3,36 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
+    <title>Chat - Two Pane Layout Fixed</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
     <style>
+        :root {
+            --sidebar-width: 300px;
+            --main-color: #4CAF50;
+            --secondary-color: #66bb6a;
+            --error-color: #f44336;
+        }
+
         body {
             font-family: sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #f4f7f6;
             color: #333;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #fff;
+        
+        /* 認証画面用コンテナ */
+        #auth-container {
+            max-width: 400px;
             padding: 20px;
+            background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
-        h1 {
-            color: #4CAF50;
-            text-align: center;
-            margin-bottom: 20px;
+        /* メインチャットコンテナ（2ペイン） */
+        #main-container {
+            width: 100%;
+            height: 100vh; 
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            border-radius: 0; 
+            overflow: hidden;
+            box-shadow: none; 
+            background-color: #fff;
         }
 
-        input[type="text"], button {
+        /* 💡 左側のルーム一覧ペイン */
+        #left-pane {
+            width: var(--sidebar-width);
+            background-color: #fff;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            
+            /* 幅が縮まらないように固定 */
+            flex-shrink: 0;
+        }
+
+        /* 💡 右側のチャット画面ペイン */
+        #right-pane {
+            flex-grow: 1;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* チャット画面のヘッダー */
+        #chat-header {
+            padding: 10px 20px;
+            border-bottom: 1px solid #eee;
+            background-color: #e8f5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0; 
+        }
+        
+        /* レスポンシブ対応 (モバイル表示時) */
+        @media (max-width: 768px) {
+            #main-container {
+                 height: 100vh; 
+                 border-radius: 0;
+            }
+            #left-pane {
+                width: 100%;
+                position: absolute; 
+                z-index: 10;
+                height: 100%;
+                border-right: none;
+            }
+            #right-pane {
+                width: 100%;
+                position: absolute; 
+                height: 100%;
+            }
+            #auth-container {
+                margin: 20px;
+            }
+        }
+
+        /* --- 共通部品 --- */
+        input[type="text"], input[type="password"], input[type="email"], button {
             padding: 10px;
             margin-bottom: 10px;
             border: 1px solid #ddd;
@@ -41,13 +115,8 @@
             box-sizing: border-box;
         }
         
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
         button {
-            background-color: #4CAF50;
+            background-color: var(--main-color);
             color: white;
             cursor: pointer;
             border: none;
@@ -58,136 +127,225 @@
             background-color: #45a049;
         }
         
-        .form-group {
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px dashed #ddd;
-            border-radius: 4px;
-        }
-        
-        .radio-group label {
-            margin-right: 20px;
-        }
-
-        #public-room-list {
-            margin-top: 20px;
-            border: 1px solid #4CAF50;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #e8f5e9;
+        /* ルーム一覧リスト */
+        #room-list-view {
+            overflow-y: auto;
+            flex-grow: 1;
         }
 
         #public-rooms {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
 
         #public-rooms li {
-            padding: 8px;
-            margin-bottom: 5px;
-            border-bottom: 1px dotted #a5d6a7;
-            display: flex;
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            display: flex; 
             justify-content: space-between;
             align-items: center;
         }
+        #public-rooms li:hover {
+            background-color: #f0f0f0;
+        }
 
+        /* ルームリスト内のボタン */
         #public-rooms li button {
             width: auto;
-            padding: 5px 10px;
-            margin-bottom: 0;
-            background-color: #66bb6a;
-            font-size: 0.9em;
+            padding: 3px 8px;
+            margin-left: 10px;
+            background-color: var(--secondary-color);
+            font-size: 0.8em;
+            display: inline-block;
         }
-
+        
+        /* チャットウィンドウ */
         #chat-window {
-            height: 300px;
-            border: 1px solid #ddd;
             overflow-y: scroll;
             padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            background-color: #f9f9f9;
+            flex-grow: 1;
+            background-color: #fcfcfc;
+        }
+        
+        #message-form {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background-color: #fff;
+            flex-shrink: 0; 
+        }
+        #message-input {
+            margin-bottom: 0;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        #message-form button {
+            width: auto;
+            min-width: 80px;
+            margin-bottom: 0;
         }
 
+        /* --- LINE風メッセージ表示 --- */
         #messages {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-
         #messages li {
-            margin-bottom: 8px;
-            padding: 8px;
-            border-radius: 4px;
-            background-color: #e0f7fa;
-            word-wrap: break-word;
+            margin-bottom: 15px;
+            clear: both; 
+            display: flow-root; 
         }
-
-        .system-message {
+        .message-bubble {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            word-wrap: break-word;
+            position: relative;
+        }
+        .sender-name {
+            font-size: 0.8em;
+            color: #555;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
+        .message-text {
+            font-size: 1em;
+            margin: 0;
+        }
+        .message-timestamp {
+            font-size: 0.7em;
+            color: #999;
+            position: absolute;
+            bottom: 0;
+            margin-left: 5px;
+            white-space: nowrap;
+        }
+        .other-message .message-bubble {
+            float: left;
+            background-color: #e6e6e6; 
+            border-bottom-left-radius: 2px;
+        }
+        .other-message .message-timestamp {
+            left: 100%;
+            margin-left: 5px;
+            transform: translateY(-100%);
+        }
+        .my-message .message-bubble {
+            float: right;
+            background-color: #ccff90; 
+            border-bottom-right-radius: 2px;
+        }
+        .my-message .message-timestamp {
+            right: 100%;
+            margin-right: 5px;
+            transform: translateY(-100%);
+        }
+        .delete-button {
+            float: right;
+            padding: 0px 5px;
+            margin-left: 5px;
+            font-size: 0.7em;
+            background-color: var(--error-color);
+            width: auto;
+            height: 20px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .system-message, .system-message-small {
             text-align: center;
             font-style: italic;
             color: #999;
+            font-size: 0.8em;
+            margin: 5px 0;
         }
     </style>
 </head>
-<body>
-
-    <div class="container">
-        <h1>チャット</h1>
-
-        <div id="setup-view">
-            <p class="system-message">✅ 最初にユーザー名を入力・決定してください。</p>
-            <input type="text" id="username-input" placeholder="ユーザー名" maxlength="15">
-            <button id="set-name-button" onclick="setName()">ユーザー名を決定</button>
-            <hr>
+<body onload="checkLocalStorage()">
+    
+    <div id="auth-container">
+        <h1 style="color: var(--main-color);">チャット ログイン</h1>
+        <div id="auth-section">
+            <p class="system-message">🔐 ユーザー名とパスワードでログイン/登録してください。</p>
+            <input type="text" id="username-input" placeholder="ユーザー名 (必須)" maxlength="15" required>
+            <input type="password" id="password-input" placeholder="パスワード (必須)" required>
+            <button id="login-button" onclick="handleAuth('login')">ログイン</button>
+            <button id="register-button" onclick="handleAuth('register')" style="background-color: #00bcd4;">新規登録</button>
+        </div>
+    </div>
+    
+    <div id="main-container" style="display: none;">
+        
+        <div id="left-pane">
+            <div style="padding: 15px; border-bottom: 1px solid #ddd; background-color: #f7f7f7; flex-shrink: 0;">
+                <h2 style="margin: 0; font-size: 1.2em; color: var(--main-color);">ようこそ、<span id="welcome-user"></span></h2>
+                <button onclick="logout()" style="background-color: var(--error-color); margin-top: 10px;">ログアウト</button>
+            </div>
             
-            <div id="room-controls" style="opacity: 0.5; pointer-events: none;">
-                <p class="system-message">部屋名を入力して、作成または参加してください。</p>
-                <input type="text" id="room-name-input" placeholder="チャットルーム名 (例: general)" maxlength="20">
-                
-                <div class="form-group">
-                    <p>アクセス設定:</p>
-                    <div class="radio-group">
+            <div id="room-controls" style="padding: 10px; flex-shrink: 0;">
+                <div style="display: flex; gap: 5px;">
+                    <button style="width: 50%;" onclick="showRoomListView('joined')">参加中の部屋</button>
+                    <button style="width: 50%; background-color: #00bcd4;" onclick="showRoomListView('new')">部屋を探す</button>
+                </div>
+
+                <div id="create-room-view" class="form-group" style="display:none; border-color: #00bcd4; margin-top: 10px;">
+                    <h3>🆕 新しい部屋を作成</h3>
+                    <input type="text" id="room-name-input" placeholder="チャットルーム名" maxlength="20">
+                    
+                    <p style="margin: 5px 0 5px;">アクセス設定:</p>
+                    <div class="radio-group" style="display: flex; justify-content: space-around;">
                         <label>
-                            <input type="radio" name="access-type" value="public" checked> 💡 公開 (自由参加)
+                            <input type="radio" name="access-type" value="public" checked onchange="togglePrivatePassword(false)"> 公開
                         </label>
                         <label>
-                            <input type="radio" name="access-type" value="private"> 🔒 非公開 (招待専用)
+                            <input type="radio" name="access-type" value="private" onchange="togglePrivatePassword(true)"> 非公開
                         </label>
                     </div>
-                    <button onclick="createRoom()">部屋を作成</button>
+                    <input type="password" id="private-room-password" placeholder="非公開ルーム用パスワード" style="display:none;">
+                    <button onclick="createRoom()">作成・入室</button>
                 </div>
-                
-                <p class="system-message">または、**入力した名前の公開ルーム**に参加</p>
-                <button onclick="joinRoomByInput()">入力名で参加</button>
-                
-                <hr>
-                
+            </div>
+
+            <div id="room-list-view">
                 <div id="public-room-list">
-                    <h3>💡 公開ルーム一覧</h3>
+                    <h4 id="room-list-title" style="padding: 0 15px; margin: 10px 0;">参加中のルーム一覧</h4>
                     <ul id="public-rooms">
-                        <li class="system-message">公開ルームを読み込み中...</li>
+                        <li class="system-message">ルームを読み込み中...</li>
                     </ul>
                 </div>
             </div>
+            
         </div>
-
-        <div id="chat-view" style="display: none;">
-            <h2 id="current-room-name"></h2>
+        
+        <div id="right-pane" style="display: none;">
+            <div id="chat-header">
+                <h2 id="current-room-name" style="margin: 0; font-size: 1.1em;">ルームを選択してください</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button id="back-to-list-button" onclick="showRoomList()" style="width: auto; padding: 5px 10px; background-color: #5cb85c; display: none;">&#x25C0; 戻る</button> 
+                    <button onclick="leaveRoom(true)" style="width: auto; padding: 5px 10px; background-color: var(--error-color);">退出</button>
+                </div>
+            </div>
+            
             <div id="chat-window">
                 <ul id="messages">
+                    <li class="system-message">左側のリストからチャットルームを選択してください。</li>
                 </ul>
             </div>
+            
             <form id="message-form">
                 <input type="text" id="message-input" placeholder="メッセージを入力..." autocomplete="off">
                 <button type="submit">送信</button>
             </form>
-            <button onclick="leaveRoom()">部屋から退出</button>
         </div>
     </div>
 
     <script>
         const firebaseConfig = {
+            // ... (Firebaseの設定情報は省略)
             apiKey: "AIzaSyDj6brEQowFaATPL7sPIKFFsB1-ZeZNrsk",
             authDomain: "donguri-st2.firebaseapp.com",
             databaseURL: "https://donguri-st2-default-rtdb.firebaseio.com",
@@ -200,169 +358,405 @@
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        const roomsRef = database.ref('chat-rooms'); 
+        const roomsRef = database.ref('chat-rooms');
+        const usersRef = database.ref('users'); 
         
-        let userName = '';
-        let currentRoom = null;
-        let messagesRef = null; 
+        let currentUserName = '';
+        let currentRoom = null; 
+        let messagesRef = null;
+        let isPrivateRoom = false; 
 
-        const setupView = document.getElementById('setup-view');
-        const chatView = document.getElementById('chat-view');
-        const messageForm = document.getElementById('message-form');
-        const messagesList = document.getElementById('messages');
-        const messageInput = document.getElementById('message-input');
+        const authContainer = document.getElementById('auth-container');
+        const mainContainer = document.getElementById('main-container');
+        const leftPane = document.getElementById('left-pane');
+        const rightPane = document.getElementById('right-pane');
+        const welcomeUser = document.getElementById('welcome-user');
         const currentRoomName = document.getElementById('current-room-name');
         const usernameInput = document.getElementById('username-input');
-        const roomControls = document.getElementById('room-controls');
-        const setNameButton = document.getElementById('set-name-button');
+        const passwordInput = document.getElementById('password-input');
         const roomNameInput = document.getElementById('room-name-input');
-        const publicRoomsList = document.getElementById('public-rooms'); 
+        const privatePasswordInput = document.getElementById('private-room-password');
+        const createRoomView = document.getElementById('create-room-view');
+        const roomListView = document.getElementById('room-list-view');
+        const roomListTitle = document.getElementById('room-list-title');
+        const publicRoomsList = document.getElementById('public-rooms');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesList = document.getElementById('messages');
+        const chatWindow = document.getElementById('chat-window');
+        const backToListButton = document.getElementById('back-to-list-button');
 
-        function startRoomListListener() {
-            roomsRef.on('value', (snapshot) => {
-                const roomsData = snapshot.val();
-                updatePublicRoomList(roomsData);
+
+        // --- 認証・セッション管理 ---
+        
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        function checkLocalStorage() {
+            const storedUser = localStorage.getItem('chatUser');
+            if (storedUser) {
+                currentUserName = storedUser;
+                showMainLayout(currentUserName);
+            } else {
+                authContainer.style.display = 'block';
+                mainContainer.style.display = 'none';
+            }
+        }
+        
+        function handleAuth(type) {
+            const user = usernameInput.value.trim();
+            const pass = passwordInput.value;
+            if (!user || !pass) return alert('ユーザー名とパスワードを入力してください。');
+            
+            usersRef.child(user).once('value', (snapshot) => {
+                const userData = snapshot.val();
+                
+                if (type === 'register') {
+                    if (userData) {
+                        alert('そのユーザー名はすでに登録されています。');
+                    } else {
+                        usersRef.child(user).set({ password: pass })
+                            .then(() => {
+                                currentUserName = user;
+                                localStorage.setItem('chatUser', user);
+                                showMainLayout(user);
+                            });
+                    }
+                } else { // login
+                    if (userData && userData.password === pass) {
+                        currentUserName = user;
+                        localStorage.setItem('chatUser', user);
+                        showMainLayout(user);
+                    } else {
+                        alert('ユーザー名またはパスワードが違います。');
+                    }
+                }
             });
         }
         
-        function updatePublicRoomList(roomsData) {
+        function showMainLayout(user) {
+            authContainer.style.display = 'none';
+            mainContainer.style.display = 'flex';
+            welcomeUser.textContent = user;
+            
+            if (isMobile()) {
+                leftPane.style.display = 'flex';
+                rightPane.style.display = 'none'; 
+                backToListButton.style.display = 'none';
+            } else {
+                leftPane.style.display = 'flex';
+                rightPane.style.display = 'flex';
+                backToListButton.style.display = 'none';
+            }
+            
+            showRoomListView('joined'); 
+        }
+
+        function logout() {
+            if (currentRoom) {
+                // ログアウト時も、現在の部屋からメンバー情報を削除し、通知を出す (isManualLeave=true, postMessage=true)
+                // データベースからメンバー情報を削除するため、async/awaitやthen/catchを使うべきだが、
+                // ログアウト時の挙動は簡易的に同期的に処理する
+                database.ref('chat-rooms/' + currentRoom + '/messages').push({
+                     user: 'System',
+                     text: `${currentUserName} が退出しました。`,
+                     timestamp: Date.now()
+                });
+                database.ref('chat-rooms/' + currentRoom + '/members/' + currentUserName).remove();
+            }
+            localStorage.removeItem('chatUser');
+            currentUserName = '';
+            currentRoom = null;
+            
+            mainContainer.style.display = 'none';
+            authContainer.style.display = 'block';
+            usernameInput.value = '';
+            passwordInput.value = '';
+            roomsRef.off('value'); 
+            alert('ログアウトしました。');
+        }
+
+        function togglePrivatePassword(show) {
+            privatePasswordInput.style.display = show ? 'block' : 'none';
+        }
+
+        // --- ルームリスト・ルーム操作 ---
+        
+        function showCreateRoomView() {
+            createRoomView.style.display = 'block';
+            roomListView.style.display = 'none';
+        }
+
+        function showRoomListView(type) {
+            createRoomView.style.display = 'none';
+            roomListView.style.display = 'block';
+            
+            if (type === 'joined') {
+                roomListTitle.textContent = '🏠 参加中のルーム';
+            } else {
+                roomListTitle.textContent = '🔍 部屋を探す (新規参加)';
+            }
+            
+            startRoomListListener(type);
+        }
+
+        function startRoomListListener(type) {
+            roomsRef.off('value');
+            roomsRef.on('value', (snapshot) => {
+                const roomsData = snapshot.val();
+                updateRoomList(roomsData, type);
+            });
+        }
+        
+        function updateRoomList(roomsData, type) {
             publicRoomsList.innerHTML = ''; 
-            let publicRoomFound = false;
+            let roomFound = false;
 
             if (roomsData) {
                 Object.keys(roomsData).forEach(roomName => {
                     const roomInfo = roomsData[roomName];
+                    const isPrivate = roomInfo.access === 'private';
+                    // 💡 修正点 4: 参加判定を /members リストの有無に統一
+                    const isMember = roomInfo.members && roomInfo.members[currentUserName]; 
+                    const isCurrentlyJoined = currentRoom === roomName;
                     
-                    if (roomInfo.access === 'public') {
-                        publicRoomFound = true;
-                        
+                    let shouldDisplay = false;
+                    
+                    if (type === 'joined') {
+                        // 参加中のルーム: /members にユーザー名がある部屋
+                        if (isMember) {
+                            shouldDisplay = true;
+                        }
+                    } else { // type === 'new' (部屋を探す)
+                        // 新規のルーム: /members にユーザー名がない部屋
+                        if (!isMember) {
+                             shouldDisplay = true;
+                        }
+                    }
+
+                    if (shouldDisplay) {
+                        roomFound = true;
+                        const lockIcon = isPrivate ? '🔒' : '💡';
+                        const status = isCurrentlyJoined ? ' (滞在中)' : '';
+                        // 参加中ではない、かつ非公開の部屋を探している場合のみパスワードが必要
+                        const needsPassword = isPrivate && type === 'new';
+
                         const li = document.createElement('li');
+                        li.className = isCurrentlyJoined ? 'current-room' : '';
+                        
+                        const buttonText = isCurrentlyJoined ? '滞在' : (needsPassword ? 'パスワードで参加' : '入室');
+                        const buttonDisabled = isCurrentlyJoined;
+
                         li.innerHTML = `
-                            <span>${roomName} (作成者: ${roomInfo.creator})</span>
-                            <button onclick="joinRoomByName('${roomName}')">参加</button>
+                            <div>
+                                ${lockIcon} <strong>${roomName}</strong> 
+                                <span style="font-size: 0.8em; color: ${isCurrentlyJoined ? 'blue' : '#555'};">${status}</span>
+                            </div>
+                            <button onclick="joinRoomByName('${roomName}', ${isPrivate}, ${isMember})" ${buttonDisabled ? 'disabled' : ''}>
+                                ${buttonText}
+                            </button>
                         `;
+
+                        li.addEventListener('click', () => {
+                            if (!buttonDisabled) {
+                                joinRoomByName(roomName, isPrivate, isMember);
+                            }
+                        });
+
                         publicRoomsList.appendChild(li);
                     }
                 });
             }
 
-            if (!publicRoomFound) {
+            if (!roomFound) {
                 const li = document.createElement('li');
                 li.className = 'system-message';
-                li.textContent = '現在、公開されているルームはありません。';
+                li.textContent = (type === 'joined') ? '参加中のルームはありません。' : '新規参加可能なルームはありません。';
                 publicRoomsList.appendChild(li);
             }
         }
 
-        function setName() {
-            const name = usernameInput.value.trim();
-            if (name) {
-                userName = name;
-                usernameInput.disabled = true;
-                setNameButton.disabled = true;
-                setNameButton.textContent = 'ユーザー名設定済み';
-                
-                roomControls.style.opacity = '1.0';
-                roomControls.style.pointerEvents = 'auto';
-                startRoomListListener();
-                alert(`ユーザー名: ${userName} で設定されました。`);
-            } else {
-                alert('ユーザー名を入力してください。');
-            }
-        }
-
         function createRoom() {
-            if (!userName) return alert('先にユーザー名を決定してください。');
+            if (!currentUserName) return alert('先にログインしてください。');
 
             const roomName = roomNameInput.value.trim();
             if (!roomName) return alert('チャットルーム名を入力してください。');
             
             const accessType = document.querySelector('input[name="access-type"]:checked').value;
+            const password = (accessType === 'private') ? privatePasswordInput.value.trim() : null;
             
+            if (accessType === 'private' && !password) return alert('非公開ルームを作成するにはパスワードが必要です。');
+
             roomsRef.child(roomName).once('value', (snapshot) => {
                 if (snapshot.exists()) {
-                    alert('その名前のルームはすでに存在します。手動入力欄を使う場合は「入力名で参加」を押すか、一覧から参加してください。');
+                    alert('その名前のルームはすでに存在します。');
                     return;
                 }
                 
                 const newRoomInfo = {
                     access: accessType,
                     createdAt: Date.now(),
-                    creator: userName
+                    creator: currentUserName,
+                    password: password,
+                    // 💡 修正点 2: 公開・非公開問わず、作成者名をメンバーに設定
+                    members: { [currentUserName]: true }
                 };
                 
                 roomsRef.child(roomName).set(newRoomInfo)
                     .then(() => {
-                        console.log(`ルーム ${roomName} (${accessType}) を作成しました。`);
-                        startChat(roomName, true);
-                    })
-                    .catch(error => {
-                        console.error("ルーム作成エラー:", error);
-                        alert("ルームの作成に失敗しました。");
+                        startChat(roomName, accessType === 'private', true); // isPrivate, isNewRoom
                     });
             });
         }
 
-        function joinRoomByInput() {
-            const roomName = roomNameInput.value.trim();
-            if (!roomName) return alert('参加したいチャットルーム名を入力してください。');
-            joinRoomByName(roomName);
-        }
+        function joinRoomByName(roomName, isPrivateRoomFromList, isMember) {
+            if (!currentUserName) return alert('先にログインしてください。');
+            if (currentRoom === roomName) return; 
 
-        function joinRoomByName(roomName) {
-            if (!userName) return alert('先にユーザー名を決定してください。');
-            if (!roomName) return;
-            
             roomsRef.child(roomName).once('value', (snapshot) => {
-                if (!snapshot.exists()) {
-                    alert('そのルームは存在しません。');
-                    return;
-                }
-                
                 const roomInfo = snapshot.val();
+                if (!roomInfo) return alert('そのルームは存在しません。');
                 
-                if (roomInfo.access === 'public') {
-                    startChat(roomName, false);
+                const isPrivate = roomInfo.access === 'private';
+                
+                if (isPrivate) {
+                    if (isMember) {
+                        startChat(roomName, true, false); 
+                    } else {
+                        let enteredPassword = prompt(`🔒 非公開ルーム「${roomName}」に参加するにはパスワードを入力してください:`);
+                        if (enteredPassword === null) return; 
+                        
+                        if (enteredPassword === roomInfo.password) {
+                            // 💡 修正点 2: 参加時にメンバーに追加
+                            roomsRef.child(roomName + '/members/' + currentUserName).set(true); 
+                            startChat(roomName, true, false); 
+                        } else {
+                            alert('パスワードが違います。');
+                            return;
+                        }
+                    }
                 } else {
-                    alert(`ルーム「${roomName}」は非公開のため参加できません。`);
+                    // 💡 修正点 2: 公開部屋でも参加時にメンバーに追加
+                    roomsRef.child(roomName + '/members/' + currentUserName).set(true)
+                        .then(() => {
+                            startChat(roomName, false, false); 
+                        });
                 }
             });
         }
         
-        function startChat(roomName, isNewRoom) {
-            if (messagesRef) {
-                messagesRef.off();
-                messagesList.innerHTML = '';
+        // --- チャットビューの制御 ---
+        
+        function startChat(roomName, privateRoom, isNewRoom) {
+            if (currentRoom) {
+                // 💡 修正点 1: 部屋移動時は退出通知を出さないように leaveRoom を呼び出す
+                leaveRoom(false, false); 
             }
             
             roomsRef.off('value'); 
 
             currentRoom = roomName;
-            currentRoomName.textContent = `ルーム: ${currentRoom}`;
+            isPrivateRoom = privateRoom;
+            currentRoomName.textContent = `${currentRoom} (${isPrivateRoom ? '🔒 非公開' : '💡 公開'})`;
             
+            messagesList.innerHTML = '';
             messagesRef = database.ref('chat-rooms/' + currentRoom + '/messages');
 
-            setupView.style.display = 'none';
-            chatView.style.display = 'block';
+            // 画面切り替えロジック
+            if (isMobile()) {
+                leftPane.style.display = 'none';
+                rightPane.style.display = 'flex';
+                backToListButton.style.display = 'block';
+            } else {
+                leftPane.style.display = 'flex';
+                rightPane.style.display = 'flex';
+                backToListButton.style.display = 'none'; 
+            }
 
+            // メッセージのリスナー設定
             messagesRef.on('child_added', (snapshot) => {
                 const message = snapshot.val();
-                displayMessage(message.user, message.text, message.timestamp);
+                const messageId = snapshot.key;
+                displayMessage(message.user, message.text, message.timestamp, messageId);
             });
             
-            const joinText = isNewRoom ? 
-                `${userName} がルームを作成し、入室しました。` :
-                `${userName} が入室しました。`;
-                
-            sendMessage(null, joinText); 
+            // 💡 修正点 1: 新しい部屋に入室した時のみ通知を出す
+            messagesRef.once('value', () => { 
+                const joinText = isNewRoom ? 
+                    `${currentUserName} がルームを作成し、入室しました。` :
+                    `${currentUserName} が入室しました。`;
+                sendSystemMessage(joinText);
+            });
         }
 
+        /**
+         * @param {boolean} isManualLeave - 退出ボタンを押したか (true: 完全に部屋から抜ける)
+         * @param {boolean} postMessage - 退出メッセージを投稿するか (今回は isManualLeave が true の時のみ通知)
+         */
+        function leaveRoom(isManualLeave, postMessage = false) {
+            const roomToLeave = currentRoom;
+            
+            if (!roomToLeave) return; 
+
+            if (messagesRef) {
+                messagesRef.off();
+            }
+
+            // 💡 修正点 1: 手動退出 (isManualLeave=true) の時のみ退出通知を出す
+            if (isManualLeave) {
+                 database.ref('chat-rooms/' + roomToLeave + '/messages').push({
+                     user: 'System',
+                     text: `${currentUserName} が退出しました。`,
+                     timestamp: Date.now()
+                 });
+            }
+            
+            if (isManualLeave) {
+                // 💡 修正点 3: データベースからメンバーリストを削除する (公開・非公開問わず)
+                const removePromise = database.ref('chat-rooms/' + roomToLeave + '/members/' + currentUserName).remove();
+
+                removePromise.then(() => {
+                    currentRoom = null;
+                    alert('部屋から退出しました。');
+                    showRoomList(); // データベース更新後に画面更新を呼ぶ
+                }).catch(error => {
+                    console.error("退出処理中のメンバー削除エラー:", error);
+                    alert('退出処理中にエラーが発生しました。エラーが発生しましたが、画面を更新します。');
+                    currentRoom = null;
+                    showRoomList(); 
+                });
+            } else {
+                // 手動退出ではない場合 (部屋移動時など) は、画面更新を伴わない終了処理のみ
+                currentRoom = null;
+            }
+            
+            messagesRef = null;
+            isPrivateRoom = false;
+            messagesList.innerHTML = '';
+        }
+        
+        // ルーム一覧へ戻るボタン用
+        function showRoomList() {
+            
+            leftPane.style.display = 'flex';
+            rightPane.style.display = 'flex'; 
+            backToListButton.style.display = 'none';
+            
+            currentRoomName.textContent = 'ルームを選択してください';
+            messagesList.innerHTML = '<li class="system-message">左側のリストからチャットルームを選択してください。</li>';
+
+            showRoomListView('joined'); 
+        }
+
+        // --- メッセージ操作 ---
+        
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const messageText = messageInput.value.trim();
             
             if (messageText && currentRoom) {
-                sendMessage(userName, messageText);
+                sendMessage(currentUserName, messageText);
                 messageInput.value = ''; 
             }
         });
@@ -371,65 +765,63 @@
             if (!messagesRef) return;
 
             const newMessage = {
-                user: user || 'System',
+                user: user,
                 text: text,
                 timestamp: Date.now()
             };
 
             messagesRef.push(newMessage)
-                .catch(error => {
-                    console.error("メッセージ送信エラー:", error);
-                    alert("メッセージの送信に失敗しました。");
-                });
+                .catch(error => console.error("メッセージ送信エラー:", error));
+        }
+        
+        function sendSystemMessage(text) {
+            if (!messagesRef) return;
+
+            const newMessage = {
+                user: 'System',
+                text: text,
+                timestamp: Date.now()
+            };
+
+            messagesRef.push(newMessage);
         }
 
-        function displayMessage(user, text, timestamp) {
+        function displayMessage(user, text, timestamp, messageId) {
             const li = document.createElement('li');
             const date = new Date(timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
             if (user === 'System') {
-                li.className = 'system-message';
+                li.className = 'system-message-small';
                 li.textContent = text;
             } else {
-                li.innerHTML = `<strong>${user}</strong> (${date}): ${text}`;
-                if (user === userName) {
-                    li.style.backgroundColor = '#ccff90'; 
+                const isMyMessage = user === currentUserName;
+                li.className = isMyMessage ? 'my-message' : 'other-message';
+                
+                let deleteButton = '';
+                if (isMyMessage) {
+                    deleteButton = `<button class="delete-button" onclick="deleteMessage('${messageId}')">削除</button>`;
                 }
+
+                li.innerHTML = `
+                    ${isMyMessage ? deleteButton : `<div class="sender-name">${user}</div>`}
+                    <div class="message-bubble">
+                        <p class="message-text">${text}</p>
+                        <span class="message-timestamp">${date}</span>
+                    </div>
+                `;
             }
 
             messagesList.appendChild(li);
             
-            const chatWindow = document.getElementById('chat-window');
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        function leaveRoom() {
-            if (messagesRef) {
-                sendMessage(null, `${userName} が退出しました。`);
-                messagesRef.off();
-            }
-
-            currentRoom = null;
-            messagesRef = null;
-            messagesList.innerHTML = '';
-            
-            chatView.style.display = 'none';
-            setupView.style.display = 'block';
-            
-            alert('部屋から退出しました。');
-            
-            if (userName) {
-                 startRoomListListener();
-            } else {
-                usernameInput.disabled = false;
-                usernameInput.value = '';
-                setNameButton.disabled = false;
-                setNameButton.textContent = 'ユーザー名を決定';
-                roomControls.style.opacity = '0.5';
-                roomControls.style.pointerEvents = 'none';
+        function deleteMessage(messageId) {
+            if (confirm('本当にこのメッセージを削除しますか？')) {
+                messagesRef.child(messageId).remove()
+                    .catch(error => alert("メッセージの削除に失敗しました。"));
             }
         }
-
     </script>
 </body>
 </html>
