@@ -151,6 +151,11 @@
         #public-rooms li:hover {
             background-color: #f0f0f0;
         }
+        
+        /* 現在滞在中の部屋のスタイル */
+        #public-rooms li.current-room {
+            background-color: #e0e0e0;
+        }
 
         /* ルームリスト内のボタン */
         #public-rooms li button {
@@ -450,20 +455,18 @@
                 backToListButton.style.display = 'none';
             }
             
-            showRoomListView('joined'); 
+            showRoomListView('joined', true); // ログイン時は自動入室を試みる
         }
 
         function logout() {
             if (currentRoom) {
-                // ログアウト時も、現在の部屋からメンバー情報を削除し、通知を出す (isManualLeave=true, postMessage=true)
-                // データベースからメンバー情報を削除するため、async/awaitやthen/catchを使うべきだが、
-                // ログアウト時の挙動は簡易的に同期的に処理する
+                // ログアウト時は、現在の部屋から退出し、通知を出す
+                // 💡 修正点: ログアウト時はメンバーリストからは削除しない (leaveRoom(true, false) と同じ退出通知のみ)
                 database.ref('chat-rooms/' + currentRoom + '/messages').push({
                      user: 'System',
-                     text: `${currentUserName} が退出しました。`,
+                     text: `${currentUserName} が退出しました。（ログアウト）`,
                      timestamp: Date.now()
                 });
-                database.ref('chat-rooms/' + currentRoom + '/members/' + currentUserName).remove();
             }
             localStorage.removeItem('chatUser');
             currentUserName = '';
@@ -482,13 +485,12 @@
         }
 
         // --- ルームリスト・ルーム操作 ---
-        
-        function showCreateRoomView() {
-            createRoomView.style.display = 'block';
-            roomListView.style.display = 'none';
-        }
 
-        function showRoomListView(type) {
+        /**
+         * @param {string} type - 'joined' または 'new'
+         * @param {boolean} tryAutoJoin - ログイン時など、メンバーになっている部屋に自動で入室を試みるか
+         */
+        function showRoomListView(type, tryAutoJoin = false) {
             createRoomView.style.display = 'none';
             roomListView.style.display = 'block';
             
@@ -498,35 +500,42 @@
                 roomListTitle.textContent = '🔍 部屋を探す (新規参加)';
             }
             
-            startRoomListListener(type);
+            startRoomListListener(type, tryAutoJoin);
         }
 
-        function startRoomListListener(type) {
+        function startRoomListListener(type, tryAutoJoin) {
             roomsRef.off('value');
             roomsRef.on('value', (snapshot) => {
                 const roomsData = snapshot.val();
-                updateRoomList(roomsData, type);
+                updateRoomList(roomsData, type, tryAutoJoin);
             });
         }
         
-        function updateRoomList(roomsData, type) {
+        function updateRoomList(roomsData, type, tryAutoJoin) {
             publicRoomsList.innerHTML = ''; 
             let roomFound = false;
+            let joinedRooms = [];
+            let lastJoinedRoomName = null;
+            let latestJoinTime = 0;
 
             if (roomsData) {
                 Object.keys(roomsData).forEach(roomName => {
                     const roomInfo = roomsData[roomName];
                     const isPrivate = roomInfo.access === 'private';
-                    // 💡 修正点 4: 参加判定を /members リストの有無に統一
+                    // 参加判定を /members リストの有無に統一
                     const isMember = roomInfo.members && roomInfo.members[currentUserName]; 
-                    const isCurrentlyJoined = currentRoom === roomName;
                     
                     let shouldDisplay = false;
                     
                     if (type === 'joined') {
-                        // 参加中のルーム: /members にユーザー名がある部屋
                         if (isMember) {
                             shouldDisplay = true;
+                            joinedRooms.push(roomName);
+                            // メンバーになった時間の追跡（簡易的に部屋の作成時間で代用）
+                            if (roomInfo.createdAt > latestJoinTime) {
+                                latestJoinTime = roomInfo.createdAt;
+                                lastJoinedRoomName = roomName;
+                            }
                         }
                     } else { // type === 'new' (部屋を探す)
                         // 新規のルーム: /members にユーザー名がない部屋
@@ -538,7 +547,11 @@
                     if (shouldDisplay) {
                         roomFound = true;
                         const lockIcon = isPrivate ? '🔒' : '💡';
+                        
+                        // 💡 修正点: 現在開いている部屋のみ「滞在」表示
+                        const isCurrentlyJoined = currentRoom === roomName; 
                         const status = isCurrentlyJoined ? ' (滞在中)' : '';
+                        
                         // 参加中ではない、かつ非公開の部屋を探している場合のみパスワードが必要
                         const needsPassword = isPrivate && type === 'new';
 
@@ -575,6 +588,13 @@
                 li.textContent = (type === 'joined') ? '参加中のルームはありません。' : '新規参加可能なルームはありません。';
                 publicRoomsList.appendChild(li);
             }
+            
+            // 💡 修正点: 自動入室ロジック
+            if (tryAutoJoin && lastJoinedRoomName && !currentRoom) {
+                // メンバーになっている部屋があり、かつ現在どの部屋にも入っていない場合
+                const roomInfo = roomsData[lastJoinedRoomName];
+                startChat(lastJoinedRoomName, roomInfo.access === 'private', false, false); // isNewRoom=false, isAutoJoin=true
+            }
         }
 
         function createRoom() {
@@ -599,13 +619,13 @@
                     createdAt: Date.now(),
                     creator: currentUserName,
                     password: password,
-                    // 💡 修正点 2: 公開・非公開問わず、作成者名をメンバーに設定
+                    // 公開・非公開問わず、作成者名をメンバーに設定
                     members: { [currentUserName]: true }
                 };
                 
                 roomsRef.child(roomName).set(newRoomInfo)
                     .then(() => {
-                        startChat(roomName, accessType === 'private', true); // isPrivate, isNewRoom
+                        startChat(roomName, accessType === 'private', true); // isNewRoom=true
                     });
             });
         }
@@ -620,27 +640,31 @@
                 
                 const isPrivate = roomInfo.access === 'private';
                 
+                // すでにメンバーである場合は、通知なしで入室
+                if (isMember) {
+                    startChat(roomName, isPrivate, false); // isNewRoom=false
+                    return;
+                }
+                
+                // メンバーではない場合（新規参加）
                 if (isPrivate) {
-                    if (isMember) {
-                        startChat(roomName, true, false); 
+                    let enteredPassword = prompt(`🔒 非公開ルーム「${roomName}」に参加するにはパスワードを入力してください:`);
+                    if (enteredPassword === null) return; 
+                    
+                    if (enteredPassword === roomInfo.password) {
+                        roomsRef.child(roomName + '/members/' + currentUserName).set(true)
+                            .then(() => {
+                                startChat(roomName, true, false, true); // isNewRoom=false, isNewJoin=true (新規参加通知を出す)
+                            });
                     } else {
-                        let enteredPassword = prompt(`🔒 非公開ルーム「${roomName}」に参加するにはパスワードを入力してください:`);
-                        if (enteredPassword === null) return; 
-                        
-                        if (enteredPassword === roomInfo.password) {
-                            // 💡 修正点 2: 参加時にメンバーに追加
-                            roomsRef.child(roomName + '/members/' + currentUserName).set(true); 
-                            startChat(roomName, true, false); 
-                        } else {
-                            alert('パスワードが違います。');
-                            return;
-                        }
+                        alert('パスワードが違います。');
+                        return;
                     }
                 } else {
-                    // 💡 修正点 2: 公開部屋でも参加時にメンバーに追加
+                    // 公開部屋への新規参加
                     roomsRef.child(roomName + '/members/' + currentUserName).set(true)
                         .then(() => {
-                            startChat(roomName, false, false); 
+                            startChat(roomName, false, false, true); // isNewRoom=false, isNewJoin=true
                         });
                 }
             });
@@ -648,10 +672,16 @@
         
         // --- チャットビューの制御 ---
         
-        function startChat(roomName, privateRoom, isNewRoom) {
+        /**
+         * @param {string} roomName - 入室する部屋の名前
+         * @param {boolean} privateRoom - 非公開部屋か
+         * @param {boolean} isNewRoom - 新規作成された部屋か
+         * @param {boolean} isNewJoin - 既存の部屋に初めてメンバーとして参加したか
+         */
+        function startChat(roomName, privateRoom, isNewRoom, isNewJoin = false) {
             if (currentRoom) {
-                // 💡 修正点 1: 部屋移動時は退出通知を出さないように leaveRoom を呼び出す
-                leaveRoom(false, false); 
+                // 💡 修正点: 部屋移動時は退出通知もメンバーからの削除も行わない
+                leaveRoom(false); 
             }
             
             roomsRef.off('value'); 
@@ -674,6 +704,9 @@
                 backToListButton.style.display = 'none'; 
             }
 
+            // リストの滞在表示を更新
+            showRoomListView('joined');
+
             // メッセージのリスナー設定
             messagesRef.on('child_added', (snapshot) => {
                 const message = snapshot.val();
@@ -681,20 +714,21 @@
                 displayMessage(message.user, message.text, message.timestamp, messageId);
             });
             
-            // 💡 修正点 1: 新しい部屋に入室した時のみ通知を出す
-            messagesRef.once('value', () => { 
-                const joinText = isNewRoom ? 
-                    `${currentUserName} がルームを作成し、入室しました。` :
-                    `${currentUserName} が入室しました。`;
-                sendSystemMessage(joinText);
-            });
+            // 💡 修正点: 新規作成時 or 新規メンバー参加時 のみ通知を出す
+            if (isNewRoom || isNewJoin) {
+                messagesRef.once('value', () => { 
+                    const joinText = isNewRoom ? 
+                        `${currentUserName} がルームを作成し、入室しました。` :
+                        `${currentUserName} が入室しました。`;
+                    sendSystemMessage(joinText);
+                });
+            }
         }
 
         /**
          * @param {boolean} isManualLeave - 退出ボタンを押したか (true: 完全に部屋から抜ける)
-         * @param {boolean} postMessage - 退出メッセージを投稿するか (今回は isManualLeave が true の時のみ通知)
          */
-        function leaveRoom(isManualLeave, postMessage = false) {
+        function leaveRoom(isManualLeave) {
             const roomToLeave = currentRoom;
             
             if (!roomToLeave) return; 
@@ -703,17 +737,17 @@
                 messagesRef.off();
             }
 
-            // 💡 修正点 1: 手動退出 (isManualLeave=true) の時のみ退出通知を出す
             if (isManualLeave) {
+                // 💡 修正点: 手動退出 (isManualLeave=true) の時のみ退出通知を出し、メンバーリストから削除
+                
+                // 1. 退出通知を投稿
                  database.ref('chat-rooms/' + roomToLeave + '/messages').push({
                      user: 'System',
                      text: `${currentUserName} が退出しました。`,
                      timestamp: Date.now()
                  });
-            }
-            
-            if (isManualLeave) {
-                // 💡 修正点 3: データベースからメンバーリストを削除する (公開・非公開問わず)
+
+                // 2. データベースからメンバーリストを削除する
                 const removePromise = database.ref('chat-rooms/' + roomToLeave + '/members/' + currentUserName).remove();
 
                 removePromise.then(() => {
@@ -727,7 +761,7 @@
                     showRoomList(); 
                 });
             } else {
-                // 手動退出ではない場合 (部屋移動時など) は、画面更新を伴わない終了処理のみ
+                // 部屋移動時など: 通知も削除も行わず、currentRoomをリセット
                 currentRoom = null;
             }
             
