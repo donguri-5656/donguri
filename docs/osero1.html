@@ -194,12 +194,29 @@
             flex-direction: column;
             align-items: center;
             position: relative; 
+            transition: box-shadow 0.3s, background-color 0.3s, transform 0.3s; /* 視覚的効果を追加 */
         }
         .player-info.black { border: 2px solid black;
         }
         .player-info.white { border: 2px solid #555;
         }
         
+        /* 現在のターンを強調するスタイル */
+        .player-info.current-turn {
+            transform: scale(1.03);
+            background-color: rgba(255, 255, 255, 0.95); /* 背景を明るく */
+            border-width: 3px;
+        }
+        
+        .player-info.current-turn.black {
+            box-shadow: 0 0 15px 5px rgba(0, 0, 0, 0.5); /* 黒い影 */
+        }
+        
+        .player-info.current-turn.white {
+            box-shadow: 0 0 15px 5px rgba(100, 100, 100, 0.5); /* 濃い灰色の影 */
+        }
+
+
         .point-display {
             font-size: 1.5em;
             font-weight: bold;
@@ -464,16 +481,25 @@
         let hand = { 'black': [], 'white': [] };
         let selectedCard = null; 
         let specialMoveType = null;
-        let skipNextTurn = { 'black': 0, 'white': 0 }; 
+        
+        // 連続ターンとパスの制御用変数
+        let consecutiveTurns = { 'black': 0, 'white': 0 }; // 連続して行動できる残り回数 (0なら通常、1ならあと1回)
+        let passCount = { 'black': 0, 'white': 0 }; // 連続してパスボタンを押した回数
+        let opponentForcedPass = { 'black': false, 'white': false }; // 直前の相手の手番が強制パスだったか
+        
         let isDiscarding = false;
 
         const DECK = [
-            { id: 1, name: 'どこでも置ける', cost: 2, type: 'special_move', effect: '空マスに石を置き、周囲の石をひっくり返す', action: 'anywhere' },
-            { id: 2, name: '色反転', cost: 3, type: 'special_move', effect: '相手の石一つを自分の色に反転', action: 'flipcolor' },
-            { id: 3, name: '連続ターン', cost: 2, type: 'status_effect', effect: '相手の次の2ターンを強制パスさせ、連続で2回置ける', action: 'skip_next_two' }, 
-           { id: 4, name: '石除去', cost: 4, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' },
-            { id: 6, name: '要塞化', cost: 8, type: 'special_move', effect: '空マスに、ゲーム終了まで破壊されない要塞石（自色）を置く', action: 'fortify' }, 
-            { id: 7, name: 'カオス', cost: 6, type: 'special_move', effect: '選択マス中心の3x3範囲の石の色をランダムに変更', action: 'chaos_3x3' }
+            // コストを全て変更
+            { id: 1, name: 'どこでも置ける', cost: 3, type: 'special_move', effect: '空マスに石を置き、周囲の石をひっくり返す', action: 'anywhere' }, 
+            { id: 2, name: '色反転', cost: 4, type: 'special_move', effect: '相手の石一つを自分の色に反転', action: 'flipcolor' }, 
+            // 連続ターンの効果を変更
+            { id: 3, name: '連続ターン', cost: 2, type: 'status_effect', effect: 'このターンにもう一度手番を得る (合計2回置ける)', action: 'extra_turn' }, 
+            { id: 4, name: '石除去', cost: 3, type: 'special_move', effect: '盤面の石を一つ取り除く', action: 'remove_disc' }, 
+            // ポイント奪取 (コスト変更のみ)
+            { id: 5, name: 'ポイント奪取', cost: 3, type: 'status_effect', effect: '相手から3ポイント奪う', action: 'steal_points' }, 
+            { id: 6, name: '要塞化', cost: 2, type: 'special_move', effect: '空マスに、ゲーム終了まで破壊されない要塞石（自色）を置く', action: 'fortify' }, 
+            { id: 7, name: 'カオス', cost: 3, type: 'special_move', effect: '選択マス中心の3x3範囲の石の色をランダムに変更', action: 'chaos_3x3' } 
         ];
         function drawRandomCard() {
             return DECK[Math.floor(Math.random() * DECK.length)];
@@ -504,7 +530,12 @@
             hand = { 'black': [], 'white': [] };
             selectedCard = null;
             specialMoveType = null;
-            skipNextTurn = { 'black': 0, 'white': 0 }; 
+            
+            // 連続ターンとパスの制御用変数を初期化
+            consecutiveTurns = { 'black': 0, 'white': 0 }; 
+            passCount = { 'black': 0, 'white': 0 }; 
+            opponentForcedPass = { 'black': false, 'white': false };
+            
             fortressMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
             pointSpotMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(false)); 
             initializeBoard();
@@ -546,6 +577,7 @@
             updateMessage();
             renderHand();
             updateControlButtons();
+            highlightCurrentPlayer(); // 追加: 現在のプレイヤーを強調表示
         }
 
         function updateScores() {
@@ -563,19 +595,33 @@
             blackPointsElement.textContent = points['black'];
             whitePointsElement.textContent = points['white'];
         }
+        
+        function highlightCurrentPlayer() {
+            const blackInfo = document.getElementById('player1-info');
+            const whiteInfo = document.getElementById('player2-info');
+
+            blackInfo.classList.remove('current-turn');
+            whiteInfo.classList.remove('current-turn');
+
+            if (currentPlayer === 'black') {
+                blackInfo.classList.add('current-turn');
+            } else {
+                whiteInfo.classList.add('current-turn');
+            }
+        }
 
         function updateMessage() {
             let turnText = currentPlayer === 'black' ?
             '黒' : '白';
             let actionText = '';
             
-            if (skipNextTurn[currentPlayer] > 0) {
-                turnText = `${turnText}はパス！ (カード効果)`;
+            if (consecutiveTurns[currentPlayer] > 0) {
+                turnText = `${turnText} (連続ターン中: あと${consecutiveTurns[currentPlayer] + 1}回行動)`;
             } else if (specialMoveType) {
                 const cardName = selectedCard ?
                 selectedCard.card.name : 'カード';
-                if (specialMoveType === 'skip_next_two') { 
-                    actionText = ` (${cardName}使用中: 相手にスキップ適用)`;
+                if (specialMoveType === 'extra_turn' || specialMoveType === 'steal_points') { 
+                    actionText = ` (${cardName}使用中)`;
                 } else {
                     actionText = ` (${cardName}使用中: 盤面を選択)`;
                 }
@@ -589,6 +635,20 @@
              specialMoveType !== null || isDiscarding;
              drawButton.disabled = disabled || points[currentPlayer] < 1; 
              passButton.disabled = disabled || points[currentPlayer] >= POINT_MAX;
+             
+             // 新パスルールによるボタンの無効化チェック
+             if (!disabled) {
+                 if (passCount[currentPlayer] >= 2) {
+                     passButton.disabled = true;
+                     passButton.textContent = 'パス不可 (2連続パス)';
+                 } else if (opponentForcedPass[currentPlayer]) {
+                     passButton.disabled = true;
+                     passButton.textContent = 'パス不可 (相手強制パス)';
+                 } else {
+                     passButton.textContent = 'パス (1P獲得)';
+                 }
+             }
+
              document.querySelectorAll('.discard-button').forEach(btn => {
                  btn.disabled = disabled;
              });
@@ -726,7 +786,7 @@
                 selectedCard = { index, card };
                 specialMoveType = card.action;
                 
-                if (specialMoveType === 'skip_next_two') {
+                if (specialMoveType === 'extra_turn' || specialMoveType === 'steal_points') { 
                     isProcessingMove = true;
                     setTimeout(() => {
                         activateCardEffect(null, null);
@@ -758,6 +818,9 @@
             if (points[currentPlayer] < 1 || isProcessingMove || specialMoveType !== null || isDiscarding) return;
             points[currentPlayer] -= 1;
             
+            // カードを引いたので、パス回数をリセット
+            passCount[currentPlayer] = 0; 
+            
             if (hand[currentPlayer].length >= HAND_MAX) {
                  if (points[currentPlayer] < POINT_MAX) {
                      points[currentPlayer] += 2;
@@ -776,6 +839,21 @@
 
         function handlePass() {
             if (isProcessingMove || specialMoveType !== null || isDiscarding) return;
+            
+            const player = currentPlayer;
+
+            // 新ルール 1: 2回連続パスのチェック (updateControlButtonsでボタンは無効化されているが、念のためロジックチェック)
+            if (passCount[player] >= 2) {
+                showNotification('2回連続でパスすることはできません！');
+                return;
+            }
+            
+            // 新ルール 2: 相手が直前に強制パスしたかのチェック
+            if (opponentForcedPass[player]) {
+                showNotification('相手が置けずに強制パスした直後は、パスすることはできません！');
+                return;
+            }
+
             let message = '';
             
             if (points[currentPlayer] < POINT_MAX) {
@@ -786,10 +864,17 @@
             }
             
             showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は${message}`);
+            
+            // パス回数をインクリメント
+            passCount[player]++; 
+            
+            // 連続ターンを強制終了
+            consecutiveTurns[player] = 0;
+
             isProcessingMove = true;
             setTimeout(() => {
                 isProcessingMove = false;
-                afterTurnAction(); 
+                afterTurnAction(true); // パスしたことを afterTurnAction に通知
             }, 300);
         }
         
@@ -802,13 +887,25 @@
             const targetContent = (x !== null && y !== null) ? board[y][x] : null;
             const targetFortress = (x !== null && y !== null) ? fortressMap[y][x] : null;
             
-            if (specialMoveType === 'skip_next_two') { 
-                const nextPlayer = opponent;
-                skipNextTurn[nextPlayer] += 2; 
+            if (specialMoveType === 'extra_turn') { 
+                consecutiveTurns[player] += 1; // 残り1回分の行動権を追加 (合計2回)
                 points[player] -= cardCost;
-                msg = `カード効果で相手(${nextPlayer === 'black' ? '黒' : '白'})の次の2ターンを強制パスさせます！連続で2回行動できます！`;
+                msg = `カード効果により、続けてもう一度手番を得ます！(合計2回行動)`;
                 success = true;
             } 
+            else if (specialMoveType === 'steal_points') { 
+                const stolenPoints = 3;
+                
+                let actualStolen = Math.min(stolenPoints, points[opponent]);
+                points[opponent] -= actualStolen;
+                
+                let actualAdded = Math.min(actualStolen, POINT_MAX - points[player]);
+                points[player] += actualAdded;
+                
+                points[player] -= cardCost;
+                msg = `カード効果で相手から${actualStolen}P奪い、${actualAdded}P獲得しました！`;
+                success = true;
+            }
             else if (specialMoveType === 'fortify') { 
                 if (targetContent !== null || targetFortress !== null) {
                     showNotification('空いているマスを選択してください。');
@@ -931,9 +1028,12 @@
                 specialMoveType = null;
                 showNotification(msg);
                 
+                // カード使用も行動とみなし、パス回数をリセット
+                passCount[player] = 0; 
+
                 setTimeout(() => {
                     isProcessingMove = false;
-                    afterTurnAction(); 
+                    afterTurnAction(false); // カード使用はパスではないので false
                 }, 600);
             }
         }
@@ -1124,33 +1224,73 @@
             });
         }
 
-        function afterTurnAction() {
-            const nextPlayer = currentPlayer === 'black' ?
-            'white' : 'black';
-            currentPlayer = nextPlayer;
+        function afterTurnAction(didPlayerPass = false) {
+            const previousPlayer = currentPlayer;
+            const nextPlayer = previousPlayer === 'black' ? 'white' : 'black';
             
-            if (skipNextTurn[currentPlayer] > 0) {
-                skipNextTurn[currentPlayer] -= 1; 
-                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}はカード効果により強制パス！(残り${skipNextTurn[currentPlayer]}回) (1P獲得)`);
-                if (points[currentPlayer] < POINT_MAX) {
-                    points[currentPlayer] += 1;
+            // 連続ターン判定
+            if (consecutiveTurns[previousPlayer] > 0) {
+                consecutiveTurns[previousPlayer] -= 1;
+                // currentPlayerは変えない
+                
+                // 連続ターン中の行動は、相手の強制パスフラグをリセットする行動とは見なさない
+                // ただし、連続ターン中の行動で石を置いた/カードを使った場合、次の手番のために自分のパス回数はリセットする
+                if (!didPlayerPass) {
+                    passCount[previousPlayer] = 0;
                 }
-                setTimeout(afterTurnAction, 1500);
-                return;
+                
+            } else {
+                // 通常のターン終了
+                currentPlayer = nextPlayer;
+                
+                // 相手にターンが移ったので、前のプレイヤーの強制パスフラグをリセット/設定 (次のターンに適用するルール)
+                if (didPlayerPass) {
+                    // パスボタンを押して終わった場合、相手(nextPlayer)の強制パスフラグをリセット
+                    opponentForcedPass[currentPlayer] = false;
+                } else {
+                    // 石を置いた/カードを使って終わった場合、相手(nextPlayer)の強制パスフラグをリセット
+                    opponentForcedPass[currentPlayer] = false;
+                }
             }
 
-            const blackMoves = getValidMoves('black', board);
-            const whiteMoves = getValidMoves('white', board);
 
-            if (blackMoves.length === 0 && whiteMoves.length === 0) {
-                endGame();
-            } else if (getValidMoves(currentPlayer, board).length === 0) {
-                showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は置ける場所がないためパスです (1P獲得)`);
-                if (points[currentPlayer] < POINT_MAX) {
-                    points[currentPlayer] += 1;
+            // 現在のプレイヤー（nextPlayer or samePlayer）の有効な手の数をチェック
+            const validMoves = getValidMoves(currentPlayer, board);
+
+            if (validMoves.length === 0) {
+                // 置ける場所がない場合 (強制パス)
+                const blackMoves = getValidMoves('black', board);
+                const whiteMoves = getValidMoves('white', board);
+
+                if (blackMoves.length === 0 && whiteMoves.length === 0) {
+                    endGame();
+                    return;
                 }
-                setTimeout(afterTurnAction, 1500);
+                
+                // 強制パスのフラグを設定（次のプレイヤーに適用）
+                const playerForcedPass = currentPlayer;
+                const nextToPassPlayer = playerForcedPass === 'black' ? 'white' : 'black';
+
+                // 強制パスを適用されるのは相手（つまり nextToPassPlayer）
+                opponentForcedPass[nextToPassPlayer] = true; 
+
+
+                showNotification(`${playerForcedPass === 'black' ? '黒' : '白'}は置ける場所がないため強制パスです (1P獲得)`);
+                if (points[playerForcedPass] < POINT_MAX) {
+                    points[playerForcedPass] += 1;
+                }
+                
+                // 強制パスの場合、パス回数をリセットしない（パスボタンを押したわけではないため）
+                // 連続ターン中の強制パスの場合、連続ターンはここで終了
+                consecutiveTurns[playerForcedPass] = 0; 
+                
+                setTimeout(() => {
+                     // ターンを相手に移して afterTurnAction を再帰的に呼び出す
+                     currentPlayer = nextToPassPlayer;
+                     afterTurnAction(false); // 強制パスは didPlayerPass = false として扱う
+                }, 1500);
             } else {
+                // 置ける場所がある場合
                 updateAllUI();
                 highlightValidMoves();
             }
@@ -1184,35 +1324,43 @@
             const x = parseInt(targetCell.dataset.x);
             const y = parseInt(targetCell.dataset.y);
             
+            // 1. カード使用準備中で、かつポイントがある場合
             if (specialMoveType !== null && points[currentPlayer] >= selectedCard.card.cost) {
-                isProcessingMove = true;
+                isProcessingMove = true; 
                 activateCardEffect(x, y);
                 return;
             }
 
+            // 2. 通常の手の処理
             if (!canPlaceDisc(x, y, currentPlayer, board)) {
                 showNotification('そこには置けません。');
                 return;
             }
             
-            isProcessingMove = true;
+            isProcessingMove = true; 
             const result = flipDiscs(x, y, currentPlayer);
             
             if (result.success) {
                 handleFlipAnimation(result.flipped, currentPlayer);
+                
+                // 石を置いたので、パス回数をリセット
+                passCount[currentPlayer] = 0;
+
+                // ポイントマス判定とポイント獲得処理
                 if (pointSpotMap[y][x]) {
+                    // 2P獲得 (上限チェックあり)
                     if (points[currentPlayer] < POINT_MAX) {
                          points[currentPlayer] += 2;
                          showNotification(`ポイントマスに置きました！2P獲得！`);
                     } else {
                          showNotification(`ポイントマスに置きましたが、ポイントが上限です。`);
                     }
-                    pointSpotMap[y][x] = false;
+                    pointSpotMap[y][x] = false; 
                 }
 
                 setTimeout(() => {
                     isProcessingMove = false;
-                    afterTurnAction(); 
+                    afterTurnAction(false); // 石を置いたので didPlayerPass = false
                 }, 600);
             } else {
                  isProcessingMove = false;
