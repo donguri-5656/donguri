@@ -194,7 +194,7 @@
             flex-direction: column;
             align-items: center;
             position: relative; 
-            transition: box-shadow 0.3s, background-color 0.3s, transform 0.3s; /* 視覚的効果を追加 */
+            transition: box-shadow 0.3s, background-color 0.3s, transform 0.3s; 
         }
         .player-info.black { border: 2px solid black;
         }
@@ -204,16 +204,16 @@
         /* 現在のターンを強調するスタイル */
         .player-info.current-turn {
             transform: scale(1.03);
-            background-color: rgba(255, 255, 255, 0.95); /* 背景を明るく */
+            background-color: rgba(255, 255, 255, 0.95); 
             border-width: 3px;
         }
         
         .player-info.current-turn.black {
-            box-shadow: 0 0 15px 5px rgba(0, 0, 0, 0.5); /* 黒い影 */
+            box-shadow: 0 0 15px 5px rgba(0, 0, 0, 0.5); 
         }
         
         .player-info.current-turn.white {
-            box-shadow: 0 0 15px 5px rgba(100, 100, 100, 0.5); /* 濃い灰色の影 */
+            box-shadow: 0 0 15px 5px rgba(100, 100, 100, 0.5); 
         }
 
 
@@ -577,7 +577,7 @@
             updateMessage();
             renderHand();
             updateControlButtons();
-            highlightCurrentPlayer(); // 追加: 現在のプレイヤーを強調表示
+            highlightCurrentPlayer(); 
         }
 
         function updateScores() {
@@ -816,22 +816,24 @@
 
         function handleDrawCard() {
             if (points[currentPlayer] < 1 || isProcessingMove || specialMoveType !== null || isDiscarding) return;
-            points[currentPlayer] -= 1;
             
-            // カードを引いたので、パス回数をリセット
-            passCount[currentPlayer] = 0; 
+            const player = currentPlayer;
+            points[player] -= 1;
             
-            if (hand[currentPlayer].length >= HAND_MAX) {
-                 if (points[currentPlayer] < POINT_MAX) {
-                     points[currentPlayer] += 2;
-                     showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は手札が満タンのため、カードの代わりに2Pを獲得しました！`);
+            // 【修正点】: カードを引くアクションはパス回数をリセットしない
+            // passCount[player] = 0; // この行を削除/コメントアウト
+            
+            if (hand[player].length >= HAND_MAX) {
+                 if (points[player] < POINT_MAX) {
+                     points[player] += 2;
+                     showNotification(`${player === 'black' ? '黒' : '白'}は手札が満タンのため、カードの代わりに2Pを獲得しました！`);
                  } else {
                      showNotification(`手札が満タン、ポイントも上限のため、カードもポイントも獲得できませんでした。`);
                  }
             } else {
                  const newCard = drawRandomCard();
-                 hand[currentPlayer].push(newCard);
-                 showNotification(`${currentPlayer === 'black' ? '黒' : '白'}は1Pを消費し「${newCard.name}」を引きました！`);
+                 hand[player].push(newCard);
+                 showNotification(`${player === 'black' ? '黒' : '白'}は1Pを消費し「${newCard.name}」を引きました！`);
             }
             
             updateAllUI();
@@ -1243,14 +1245,9 @@
                 // 通常のターン終了
                 currentPlayer = nextPlayer;
                 
-                // 相手にターンが移ったので、前のプレイヤーの強制パスフラグをリセット/設定 (次のターンに適用するルール)
-                if (didPlayerPass) {
-                    // パスボタンを押して終わった場合、相手(nextPlayer)の強制パスフラグをリセット
-                    opponentForcedPass[currentPlayer] = false;
-                } else {
-                    // 石を置いた/カードを使って終わった場合、相手(nextPlayer)の強制パスフラグをリセット
-                    opponentForcedPass[currentPlayer] = false;
-                }
+                // 相手にターンが移ったので、前のプレイヤーの強制パスフラグをリセット
+                // (石を置いた/カードを使った/パスボタンを押した場合、強制パス状態は解除されるべき)
+                opponentForcedPass[currentPlayer] = false;
             }
 
 
