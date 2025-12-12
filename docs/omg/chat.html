@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -297,6 +298,7 @@
                     <button style="width: 50%; background-color: #00bcd4;" onclick="showRoomListView('new')">部屋を探す</button>
                 </div>
 
+                <button onclick="showCreateRoomView()" style="background-color: #f39c12; margin-top: 10px;">新しい部屋を作成</button>
                 <div id="create-room-view" class="form-group" style="display:none; border-color: #00bcd4; margin-top: 10px;">
                     <h3>🆕 新しい部屋を作成</h3>
                     <input type="text" id="room-name-input" placeholder="チャットルーム名" maxlength="20">
@@ -461,7 +463,7 @@
         function logout() {
             if (currentRoom) {
                 // ログアウト時は、現在の部屋から退出し、通知を出す
-                // 💡 修正点: ログアウト時はメンバーリストからは削除しない (leaveRoom(true, false) と同じ退出通知のみ)
+                // ログアウト時はメンバーリストからは削除しない（前回修正点を維持）
                 database.ref('chat-rooms/' + currentRoom + '/messages').push({
                      user: 'System',
                      text: `${currentUserName} が退出しました。（ログアウト）`,
@@ -486,12 +488,18 @@
 
         // --- ルームリスト・ルーム操作 ---
 
+        function showCreateRoomView() {
+            createRoomView.style.display = 'block';
+            roomListView.style.display = 'none';
+        }
+
         /**
          * @param {string} type - 'joined' または 'new'
          * @param {boolean} tryAutoJoin - ログイン時など、メンバーになっている部屋に自動で入室を試みるか
          */
         function showRoomListView(type, tryAutoJoin = false) {
-            createRoomView.style.display = 'none';
+            // 部屋リストに戻るときは作成ビューを非表示にする
+            createRoomView.style.display = 'none'; 
             roomListView.style.display = 'block';
             
             if (type === 'joined') {
@@ -548,7 +556,7 @@
                         roomFound = true;
                         const lockIcon = isPrivate ? '🔒' : '💡';
                         
-                        // 💡 修正点: 現在開いている部屋のみ「滞在」表示
+                        // 現在開いている部屋のみ「滞在」表示
                         const isCurrentlyJoined = currentRoom === roomName; 
                         const status = isCurrentlyJoined ? ' (滞在中)' : '';
                         
@@ -589,11 +597,11 @@
                 publicRoomsList.appendChild(li);
             }
             
-            // 💡 修正点: 自動入室ロジック
+            // 自動入室ロジック
             if (tryAutoJoin && lastJoinedRoomName && !currentRoom) {
                 // メンバーになっている部屋があり、かつ現在どの部屋にも入っていない場合
                 const roomInfo = roomsData[lastJoinedRoomName];
-                startChat(lastJoinedRoomName, roomInfo.access === 'private', false, false); // isNewRoom=false, isAutoJoin=true
+                startChat(lastJoinedRoomName, roomInfo.access === 'private', false, false); // isNewRoom=false, isNewJoin=false (自動入室のため通知なし)
             }
         }
 
@@ -680,7 +688,7 @@
          */
         function startChat(roomName, privateRoom, isNewRoom, isNewJoin = false) {
             if (currentRoom) {
-                // 💡 修正点: 部屋移動時は退出通知もメンバーからの削除も行わない
+                // 部屋移動時は退出通知もメンバーからの削除も行わない
                 leaveRoom(false); 
             }
             
@@ -714,7 +722,7 @@
                 displayMessage(message.user, message.text, message.timestamp, messageId);
             });
             
-            // 💡 修正点: 新規作成時 or 新規メンバー参加時 のみ通知を出す
+            // 新規作成時 or 新規メンバー参加時 のみ通知を出す
             if (isNewRoom || isNewJoin) {
                 messagesRef.once('value', () => { 
                     const joinText = isNewRoom ? 
@@ -738,7 +746,7 @@
             }
 
             if (isManualLeave) {
-                // 💡 修正点: 手動退出 (isManualLeave=true) の時のみ退出通知を出し、メンバーリストから削除
+                // 手動退出 (isManualLeave=true) の時のみ退出通知を出し、メンバーリストから削除
                 
                 // 1. 退出通知を投稿
                  database.ref('chat-rooms/' + roomToLeave + '/messages').push({
