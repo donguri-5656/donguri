@@ -820,8 +820,6 @@
             const player = currentPlayer;
             points[player] -= 1;
             
-            // 【修正点】: カードを引くアクションはパス回数をリセットしない
-            // passCount[player] = 0; // この行を削除/コメントアウト
             
             if (hand[player].length >= HAND_MAX) {
                  if (points[player] < POINT_MAX) {
@@ -889,12 +887,28 @@
             const targetContent = (x !== null && y !== null) ? board[y][x] : null;
             const targetFortress = (x !== null && y !== null) ? fortressMap[y][x] : null;
             
+            // --- 修正開始: extra_turnはターンを継続させるため、afterTurnActionを呼ばない ---
             if (specialMoveType === 'extra_turn') { 
-                consecutiveTurns[player] += 1; // 残り1回分の行動権を追加 (合計2回)
+                consecutiveTurns[player] += 1; // 1 extra turn
                 points[player] -= cardCost;
                 msg = `カード効果により、続けてもう一度手番を得ます！(合計2回行動)`;
-                success = true;
+
+                // このカード使用でターンは継続するので、ターン終了処理をスキップし、手札とUIを更新
+                hand[player].splice(selectedCard.index, 1);
+                selectedCard = null;
+                specialMoveType = null;
+                passCount[player] = 0; // カード使用はパス回数をリセット
+                showNotification(msg);
+                
+                setTimeout(() => {
+                    isProcessingMove = false;
+                    updateAllUI(); // UIを更新して連続ターン中であることを反映
+                    highlightValidMoves();
+                }, 600);
+                return; // ここで処理を終了し、下の if (success) を実行しない
             } 
+            // --- 修正終了 ---
+            
             else if (specialMoveType === 'steal_points') { 
                 const stolenPoints = 3;
                 
@@ -1226,28 +1240,31 @@
             });
         }
 
-        function afterTurnAction(didPlayerPass = false) {
+        // 【修正】skipInitialSwitch パラメータを追加し、再帰呼び出し時にターンが戻るのを防止
+        function afterTurnAction(didPlayerPass = false, skipInitialSwitch = false) {
             const previousPlayer = currentPlayer;
             const nextPlayer = previousPlayer === 'black' ? 'white' : 'black';
             
-            // 連続ターン判定
-            if (consecutiveTurns[previousPlayer] > 0) {
-                consecutiveTurns[previousPlayer] -= 1;
-                // currentPlayerは変えない
-                
-                // 連続ターン中の行動は、相手の強制パスフラグをリセットする行動とは見なさない
-                // ただし、連続ターン中の行動で石を置いた/カードを使った場合、次の手番のために自分のパス回数はリセットする
-                if (!didPlayerPass) {
-                    passCount[previousPlayer] = 0;
+            if (!skipInitialSwitch) { // 強制パスの再帰呼び出しでなければ、ターン切り替えを実行
+                // 連続ターン判定
+                if (consecutiveTurns[previousPlayer] > 0) {
+                    consecutiveTurns[previousPlayer] -= 1; // 連続ターンを消費
+                    // currentPlayerは変えない
+                    
+                    // 連続ターン中の行動は、相手の強制パスフラグをリセットする行動とは見なさない
+                    // ただし、連続ターン中の行動で石を置いた/カードを使った場合、次の手番のために自分のパス回数はリセットする
+                    if (!didPlayerPass) {
+                        passCount[previousPlayer] = 0;
+                    }
+                    
+                } else {
+                    // 通常のターン終了
+                    currentPlayer = nextPlayer;
+                    
+                    // 相手にターンが移ったので、前のプレイヤーの強制パスフラグをリセット
+                    // (石を置いた/カードを使った/パスボタンを押した場合、強制パス状態は解除されるべき)
+                    opponentForcedPass[currentPlayer] = false;
                 }
-                
-            } else {
-                // 通常のターン終了
-                currentPlayer = nextPlayer;
-                
-                // 相手にターンが移ったので、前のプレイヤーの強制パスフラグをリセット
-                // (石を置いた/カードを使った/パスボタンを押した場合、強制パス状態は解除されるべき)
-                opponentForcedPass[currentPlayer] = false;
             }
 
 
@@ -1284,7 +1301,8 @@
                 setTimeout(() => {
                      // ターンを相手に移して afterTurnAction を再帰的に呼び出す
                      currentPlayer = nextToPassPlayer;
-                     afterTurnAction(false); // 強制パスは didPlayerPass = false として扱う
+                     // ここで skipInitialSwitch = true を渡すことで、次の呼び出しで currentPlayer が変わらないようにする
+                     afterTurnAction(false, true); 
                 }, 1500);
             } else {
                 // 置ける場所がある場合
