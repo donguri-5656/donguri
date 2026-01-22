@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日の占いランキング</title>
+    <style>
+        :root {
+            --bg-color: #d0f0ff; 
+            --primary-color: #5a9abf;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --rank1-color: #ffd700;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+
+        .date-display {
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #6a8ba0;
+        }
+
+        #fortune-container {
+            width: 100%;
+            max-width: 600px;
+            display: grid;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(90, 154, 191, 0.15);
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        .reaction-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .emoji-particle {
+            position: absolute;
+            font-size: 24px;
+            animation: float-up 2s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+
+        .rank-badge {
+            font-size: 24px;
+            font-weight: bold;
+            min-width: 50px;
+            height: 50px;
+            background: #e1f0f7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            z-index: 2;
+        }
+
+        .rank-1 { background: var(--rank1-color); color: #fff; }
+
+        .content { flex-grow: 1; z-index: 2; }
+        .sign-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; color: #2c5a75; }
+        .fortune-text { font-size: 0.95rem; line-height: 1.5; color: #444; }
+
+        .detail-item {
+            background: #f0f7fa;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: inline-block;
+            margin: 5px 5px 0 0;
+            border: 1px solid #e1f0f7;
+        }
+
+        .lucky-point { color: #d81b60; font-weight: bold; }
+        .special-target { border: 2px solid var(--primary-color); }
+    </style>
+</head>
+<body>
+
+    <h1>今日の占いランキング</h1>
+    <div id="date" class="date-display">読み込み中...</div>
+
+    <div id="fortune-container">
+        <p style="text-align:center;">データを取得中...</p>
+    </div>
+
+    <script>
+        function createReaction(card, emojis) {
+            setInterval(() => {
+                const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                const span = document.createElement('span');
+                span.className = 'emoji-particle';
+                span.textContent = emoji;
+                span.style.left = Math.random() * 90 + '%';
+                span.style.top = Math.random() * 50 + 20 + '%';
+                
+                const container = card.querySelector('.reaction-container');
+                if (container) {
+                    container.appendChild(span);
+                    setTimeout(() => span.remove(), 2000);
+                }
+            }, 50);
+        }
+
+        async function fetchFortune() {
+            const container = document.getElementById('fortune-container');
+            const dateEl = document.getElementById('date');
+            
+            // 直接取得するように変更
+            const url = "https://www.fujitv.co.jp/meza/uranai/data/uranai.json";
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('CORS制限またはネットワークエラー');
+                const data = await response.json();
+
+                dateEl.textContent = data.date;
+                container.innerHTML = '';
+
+                data.ranking.sort((a, b) => parseInt(a.rank) - parseInt(b.rank)).forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    const rankNum = parseInt(item.rank);
+                    
+                    let reactionEmojis = null;
+                    
+                    if (item.name.includes("おうし")) {
+                        if (rankNum <= 4) reactionEmojis = ['🤔', '😭', '😞', '😡'];
+                        if (rankNum >= 5) reactionEmojis = ['👏', '✨', '😊', '😯'];
+                    }
+                    if (item.name.includes("いて")) {
+                        if (rankNum <= 4) reactionEmojis = ['🎉', '👑', '🥰', '🔥'];
+                        if (rankNum >= 5) reactionEmojis = ['😱', '☁️', '歪', '☔'];
+                    }
+
+                    if (reactionEmojis) card.classList.add('special-target');
+
+                    card.innerHTML = `
+                        <div class="reaction-container"></div>
+                        <div class="rank-badge ${rankNum === 1 ? 'rank-1' : ''}">${item.rank}</div>
+                        <div class="content">
+                            <div class="sign-name">${item.name}</div>
+                            <div class="fortune-text">${item.text}</div>
+                            <div class="details">
+                                <span class="detail-item">🔑 <span class="lucky-point">${item.point}</span></span>
+                                ${item.advice ? `<span class="detail-item">💡 ${item.advice}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+                    if (reactionEmojis) createReaction(card, reactionEmojis);
+                });
+
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = `
+                    <div style="text-align:center; padding: 20px;">
+                        <p>直接取得がブロックされました（CORS制限）。</p>
+                        <p style="font-size: 0.8rem; color: #666;">開発者ツールのコンソールを確認してください。</p>
+                    </div>`;
+            }
+        }
+
+        window.onload = fetchFortune;
+    </script>
+</body>
+</html>
