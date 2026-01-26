@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Typing</title>
+    <title>Typing- HighScore Sync</title>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
@@ -11,72 +11,87 @@
             --bg-color: #f0f4f8; --sag-color: #ff6b6b; --tau-color: #4834d4;
             --lv-zero: #bdc3c7; --lv-low: #2ecc71; --lv-mid: #f1c40f; --lv-max: #e74c3c;
         }
-        body { font-family: sans-serif; background: var(--bg-color); margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
+        body { font-family: sans-serif; background: var(--bg-color); margin: 0; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; touch-action: manipulation; }
+        
         .playing #setup-screen, .playing .ranking-flex, .playing #battle-container, .playing #settings-trigger, .playing h2 { display: none !important; }
+        #quit-btn { display: none; position: absolute; top: 10px; left: 10px; padding: 8px 15px; background: #95a5a6; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; z-index: 150; }
+        .playing #quit-btn { display: block; }
 
         #game-area { position: relative; width: 95%; max-width: 700px; padding-top: 70px; display: flex; flex-direction: column; align-items: center; }
         #status-container { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 12px; }
         #time-display { font-size: 1.5rem; font-weight: bold; color: #2c3e50; }
+        
         #meter-wrapper { width: 180px; }
         #bonus-meter-box { position: relative; width: 100%; height: 20px; background: #eee; border-radius: 4px; border: 2px solid #fff; overflow: hidden; }
         #bonus-meter-fill { width: 0%; height: 100%; background: var(--lv-zero); transition: width 0.1s ease; }
         .divider { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.8); z-index: 5; }
         .meter-labels { display: flex; justify-content: space-between; font-size: 0.6rem; font-weight: bold; color: #888; }
 
-        #ja-hint { font-size: 1.8rem; color: #34495e; font-weight: bold; margin-bottom: 5px; }
-        #word-container { font-size: 2.5rem; font-weight: bold; font-family: monospace; height: 3.5rem; letter-spacing: 3px; width: 100%; text-align: center; }
-        .char { color: #bdc3c7; } .char.correct { color: #2ecc71; }
+        #ja-hint { font-size: 2rem; color: #34495e; font-weight: bold; margin-bottom: 5px; }
+        #word-container { font-size: 2.8rem; font-weight: bold; font-family: monospace; height: 4rem; letter-spacing: 3px; width: 100%; text-align: center; }
+        .char { color: #bdc3c7; border-bottom: 3px solid #ddd; } 
+        .char.correct { color: #2ecc71; border-bottom-color: #2ecc71; }
 
-        #bonus-pop { position: absolute; right: 30px; top: 40px; font-size: 1.8rem; font-weight: bold; opacity: 0; pointer-events: none; }
+        #bonus-pop { position: absolute; right: 30px; top: 40px; font-size: 1.8rem; font-weight: bold; opacity: 0; pointer-events: none; z-index: 100; }
         .pop-animation { animation: pop-up 0.6s ease-out forwards; }
-        @keyframes pop-up { 0% { opacity: 0; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-40px); } }
+        @keyframes pop-up { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-40px); } }
 
-        #start-btn { display: block; margin: 20px auto; padding: 12px 50px; font-size: 1.3rem; border-radius: 50px; border: none; background: #2ecc71; color: #fff; cursor: pointer; box-shadow: 0 4px 0 #1b8a4a; z-index: 10; }
+        #start-btn { display: block; margin: 20px auto; padding: 15px 60px; font-size: 1.5rem; border-radius: 50px; border: none; background: #2ecc71; color: #fff; cursor: pointer; box-shadow: 0 4px 0 #1b8a4a; }
         #score-display { font-weight: bold; color: #7f8c8d; margin-bottom: 10px; }
 
         #settings-trigger { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: #34495e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; z-index: 999; }
-        #admin-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 20px; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
-        .word-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-        .del-btn { background: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
-        
+        #admin-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; max-height: 80vh; overflow-y: auto; }
+        .word-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; }
+
         #battle-container { width: 95%; margin: 20px 0; }
         #battle-bar-container { width: 100%; height: 35px; background: #eee; border-radius: 20px; display: flex; overflow: hidden; border: 3px solid #fff; position: relative; }
-        .bar-text { position: absolute; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; line-height: 35px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000; pointer-events: none; }
+        .bar-text { position: absolute; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; line-height: 35px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000; }
         
-        .ranking-flex { display: flex; width: 95%; gap: 10px; margin-bottom: 20px; align-items: flex-start; }
-        .rank-column { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-        .team-total-label { background: #fff; padding: 8px; border-radius: 8px; font-weight: bold; text-align: center; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .rank-box { background: #fff; padding: 10px; border-radius: 12px; font-size: 0.75rem; min-height: 120px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        
+        .ranking-flex { display: flex; width: 95%; gap: 10px; margin-bottom: 20px; }
+        .rank-column { flex: 1; }
+        .rank-box { background: #fff; padding: 10px; border-radius: 12px; font-size: 0.8rem; min-height: 100px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
         #hidden-input { position: absolute; top: -100px; opacity: 0; }
+        .mode-btn { padding: 12px; border: 2px solid #ddd; border-radius: 10px; background: white; cursor: pointer; font-weight: bold; flex: 1; }
+        .mode-btn.active { border-color: var(--tau-color); background: #eef2ff; }
     </style>
 </head>
 <body>
 
 <div id="setup-screen" style="position:fixed; inset:0; background:var(--bg-color); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:30px; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,0.1); text-align:center; width:80%; max-width:350px;">
-        <h2 style="margin-top:0">おうし座アンチタイピング</h2>
-        <input type="text" id="user-name" placeholder="名前を入力" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:8px;">
+    <div style="background:#fff; padding:30px; border-radius:20px; box-shadow:0 10px 25px rgba(0,0,0,0.1); text-align:center; width:85%; max-width:400px;">
+        <h2 style="margin-top:0">タイピング</h2>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button id="btn-roma" class="mode-btn active" onclick="setMode('roma')">ローマ字</button>
+            <button id="btn-flick" class="mode-btn" onclick="setMode('flick')">フリック</button>
+        </div>
+        <input type="text" id="user-name" placeholder="名前を入力" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
         <div style="display:flex; gap:10px;">
-            <button onclick="selectTeam('いて座')" style="flex:1; padding:12px; border:none; border-radius:8px; background:var(--sag-color); color:#fff; font-weight:bold; cursor:pointer;">いて座</button>
-            <button onclick="selectTeam('おうし座')" style="flex:1; padding:12px; border:none; border-radius:8px; background:var(--tau-color); color:#fff; font-weight:bold; cursor:pointer;">おうし座</button>
+            <button onclick="selectTeam('いて座')" style="flex:1; padding:15px; border:none; border-radius:8px; background:var(--sag-color); color:#fff; font-weight:bold; cursor:pointer;">いて座</button>
+            <button onclick="selectTeam('おうし座')" style="flex:1; padding:15px; border:none; border-radius:8px; background:var(--tau-color); color:#fff; font-weight:bold; cursor:pointer;">おうし座</button>
         </div>
     </div>
 </div>
+
+<button id="quit-btn" onclick="quitGame()">中断して戻る</button>
 
 <div id="game-area">
     <div id="status-container">
         <div id="time-display">TIME: <span id="time">30</span>s</div>
         <div id="meter-wrapper">
-            <div id="bonus-meter-box"><div id="bonus-meter-fill"></div><div class="divider" style="left:33.3%;"></div><div class="divider" style="left:66.6%;"></div></div>
+            <div id="bonus-meter-box">
+                <div id="bonus-meter-fill"></div>
+                <div class="divider" style="left:33.3%;"></div>
+                <div class="divider" style="left:66.6%;"></div>
+            </div>
             <div class="meter-labels"><span>+0s</span><span>+2s</span><span>+3s</span><span>MAX+5s</span></div>
         </div>
     </div>
     <div id="bonus-pop"></div>
     <div id="score-display">SCORE: <span id="current-score">0</span></div>
     <div id="ja-hint">READY...</div>
-    <div id="word-container">Waiting</div>
+    <div id="word-container"></div>
     <button id="start-btn">START</button>
 </div>
 
@@ -84,11 +99,11 @@
 
 <div id="admin-modal">
     <div class="modal-content">
-        <h3>単語管理</h3>
+        <h3 id="admin-title">語句管理</h3>
         <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:20px;">
-            <input type="text" id="new-ja" placeholder="例: 桜、サクラ、さくら" style="width:100%; padding:8px; margin-bottom:5px;">
-            <input type="text" id="new-kana" placeholder="ふりがな (空欄なら自動補完)" style="width:100%; padding:8px; margin-bottom:10px;">
-            <button onclick="addWord()" style="width:100%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; font-weight:bold;">追加</button>
+            <input type="text" id="new-ja" placeholder="表示文字 (例: 桜)" style="width:100%; padding:8px; margin-bottom:5px;">
+            <input type="text" id="new-kana" placeholder="打ち込む文字" style="width:100%; padding:8px; margin-bottom:10px;">
+            <button onclick="addWord()" style="width:100%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px;">追加</button>
         </div>
         <div id="word-list-admin">読み込み中...</div>
         <button onclick="closeAdmin()" style="width:100%; margin-top:20px; padding:10px; background:#7f8c8d; color:white; border:none; border-radius:5px;">閉じる</button>
@@ -104,17 +119,11 @@
 </div>
 
 <div class="ranking-flex">
-    <div class="rank-column">
-        <div class="team-total-label" style="color:var(--sag-color)">TOP5合計: <span id="total-sag-val">0</span></div>
-        <div class="rank-box"><b>いて座 TOP5</b><div id="rank-sag-list"></div></div>
-    </div>
-    <div class="rank-column">
-        <div class="team-total-label" style="color:var(--tau-color)">TOP5合計: <span id="total-tau-val">0</span></div>
-        <div class="rank-box"><b>おうし座 TOP5</b><div id="rank-tau-list"></div></div>
-    </div>
+    <div class="rank-column"><div class="rank-box"><b>いて座 TOP5</b><div id="rank-sag-list"></div></div></div>
+    <div class="rank-column"><div class="rank-box"><b>おうし座 TOP5</b><div id="rank-tau-list"></div></div></div>
 </div>
 
-<input type="password" id="hidden-input" inputmode="url">
+<input type="text" id="hidden-input" autocomplete="off">
 
 <script>
     const firebaseConfig = {
@@ -127,69 +136,206 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let myName = "", myTeam = "", score = 0, timeLeft = 30, isPlaying = false, wordList = [];
-    let currentPair = null, targetRoma = "", typedRoma = "", meterValue = 0, lastWordId = "";
+    let gameMode = 'roma';
+    let myName = "", myTeam = "", score = 0, timeLeft = 30, isPlaying = false, gameTimer = null;
+    let wordList = [], currentPair = null, targetStr = "", typedStr = "", meterValue = 0;
     const MAX_VAL = 30;
 
-    const romanTable = {'あ':'a','い':'i','う':'u','え':'e','お':'o','か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko','さ':'sa','し':['shi','si'],'す':'su','せ':'se','そ':'so','た':'ta','ち':['chi','ti'],'つ':['tsu','tu'],'て':'te','と':'to','な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no','は':'ha','ひ':'hi','ふ':['fu','hu'],'へ':'he','ほ':'ho','ま':'ma','み':'mi','む':'mu','め':'me','も':'mo','や':'ya','ゆ':'yu','よ':'yo','ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro','わ':'wa','を':'wo','ん':['nn','n'],'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go','ざ':'za','じ':['ji','zi'],'ず':'zu','ぜ':'ze','ぞ':'zo','だ':'da','ぢ':['ji','zi'],'づ':['zu','du'],'で':'de','ど':'do','ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo','ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po','きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':['sha','sya'],'しゅ':['shu','syu'],'しょ':['sho','syo'],'ちゃ':['cha','tya'],'ちゅ':['chu','tyu'],'ちょ':['cho','tyo'],'にゃ':'nya','にゅ':'nyu','にょ':'nyo','ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo','りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo','じゃ':['ja','zya'],'じゅ':['ju','zyu'],'じょ':['jo','zyo'],'ー':'-','ぁ':'xa','ぃ':'xi','ぅ':'xu','ぇ':'xe','ぉ':'xo','ゃ':'xya','ゅ':'xyu','ょ':'xyo','っ':'xtu'};
+    const romanTable = {'あ':'a','い':'i','う':'u','え':'e','お':'o','か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko','さ':'sa','し':['shi','si'],'す':'su','せ':'se','そ':'so','た':'ta','ち':['chi','ti'],'つ':['tsu','tu'],'て':'te','と':'to','な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no','は':'ha','ひ':'hi','ふ':['fu','hu'],'へ':'he','ほ':'ho','ま':'ma','み':'mi','む':'mu','め':'me','も':'mo','や':'ya','ゆ':'yu','よ':'yo','ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro','わ':'wa','を':'wo','ん':['nn','n'],'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go','ざ':'za','じ':['ji','zi'],'ず':'zu','ぜ':'ze','ぞ':'zo','だ':'da','ぢ':['ji','zi'],'づ':['zu','du'],'て':'de','ど':'do','ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo','ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po','きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':['sha','sya'],'しゅ':['shu','syu'],'しょ':['sho','syo'],'ちゃ':['cha','tya'],'ちゅ':['chu','tyu'],'ちょ':['cho','tyo'],'にゃ':'nya','にゅ':'nyu','にょ':'nyo','ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo','りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo','じゃ':['ja','zya'],'じゅ':['ju','zyu'],'じょ':['jo','zyo'],'ー':'-','ぁ':'xa','ぃ':'xi','ぅ':'xu','ぇ':'xe','ぉ':'xo','ゃ':'xya','ゅ':'xyu','ょ':'xyo','っ':'xtu'};
 
-    function katakanaToHiragana(src) { return src.replace(/[ァ-ヶ]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0x60)); }
+    // 起動時に名前を復元
+    window.onload = () => {
+        const savedName = localStorage.getItem('typing_userName');
+        if(savedName) document.getElementById('user-name').value = savedName;
+    };
 
-    db.ref('words').on('value', snap => {
-        const data = snap.val() || {};
-        wordList = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-        renderAdminList();
+    function setMode(m) {
+        gameMode = m;
+        document.getElementById('btn-roma').classList.toggle('active', m === 'roma');
+        document.getElementById('btn-flick').classList.toggle('active', m === 'flick');
+        syncWordList();
+        initRealtimeRanking();
+    }
+
+    function syncWordList() {
+        db.ref(gameMode === 'roma' ? 'words' : 'words_flick').on('value', snap => {
+            const data = snap.val() || {};
+            wordList = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+            renderAdminList();
+        });
+    }
+
+    function applyBonus(isAuto) {
+        let add = 0; let color = "#666";
+        if(isAuto) { add = 5; color = "var(--lv-max)"; }
+        else if(meterValue >= 20) { add = 3; color = "var(--lv-mid)"; }
+        else if(meterValue >= 10) { add = 2; color = "var(--lv-low)"; }
+        if(add > 0) {
+            timeLeft += add; document.getElementById('time').innerText = timeLeft;
+            const pop = document.getElementById('bonus-pop');
+            pop.innerText = `+${add}s!`; pop.style.color = color;
+            pop.classList.remove('pop-animation'); void pop.offsetWidth; pop.classList.add('pop-animation');
+        }
+        meterValue = 0; updateMeterUI();
+    }
+
+    function updateMeterUI() {
+        const fill = document.getElementById('bonus-meter-fill');
+        fill.style.width = (meterValue / MAX_VAL * 100) + "%";
+        fill.style.background = meterValue >= 20 ? "var(--lv-mid)" : (meterValue >= 10 ? "var(--lv-low)" : "var(--lv-zero)");
+    }
+
+    document.getElementById('hidden-input').addEventListener('input', (e) => {
+        if (!isPlaying) return;
+        const val = e.target.value;
+        if (gameMode === 'roma') {
+            const match = currentPair.ro.find(p => p.startsWith(val));
+            if (match) {
+                if (val.length > typedStr.length) { score++; meterValue++; }
+                targetStr = match; typedStr = val;
+                if(meterValue >= MAX_VAL) applyBonus(true); else updateMeterUI();
+            } else { applyBonus(false); e.target.value = typedStr; }
+        } else {
+            const nextChar = targetStr[typedStr.length];
+            if (val.endsWith(nextChar)) {
+                typedStr += nextChar; score++; meterValue++;
+                e.target.value = "";
+                if(meterValue >= MAX_VAL) applyBonus(true); else updateMeterUI();
+            } else if (val.length > 0) { applyBonus(false); e.target.value = ""; }
+        }
+        render();
+        if (typedStr === targetStr) setTimeout(nextQuestion, 100);
+        document.getElementById('current-score').innerText = score;
     });
 
+    function selectTeam(t) {
+        const nameInput = document.getElementById('user-name').value.trim();
+        myName = nameInput || "匿名";
+        myTeam = t;
+        localStorage.setItem('typing_userName', myName); // 名前を保存
+        document.getElementById('setup-screen').style.display = 'none';
+        setMode(gameMode);
+    }
+
+    function quitGame() {
+        if(!confirm("ゲームを中断して戻りますか？")) return;
+        clearInterval(gameTimer);
+        isPlaying = false;
+        document.body.classList.remove('playing');
+        document.getElementById('setup-screen').style.display = 'flex';
+        document.getElementById('start-btn').style.display = 'block';
+    }
+
+    function finishGame() {
+        // 同名の既存データを取得
+        const ref = db.ref(`rankings_${gameMode}`);
+        ref.orderByChild('name').equalTo(myName).once('value', snap => {
+            const data = snap.val();
+            if (data) {
+                // 同じ名前が見つかった場合
+                const id = Object.keys(data)[0];
+                const oldScore = data[id].score;
+                if (score > oldScore) {
+                    ref.child(id).update({ score: score, team: myTeam, timestamp: Date.now() });
+                    alert(`ハイスコア更新！: ${score}`);
+                } else {
+                    alert(`終了！スコア: ${score}\n(自己ベスト ${oldScore} に届きませんでした)`);
+                }
+            } else {
+                // 新規名前の場合
+                ref.push({ name: myName, team: myTeam, score: score, timestamp: Date.now() });
+                alert(`終了！記録されました。スコア: ${score}`);
+            }
+        });
+        document.getElementById('setup-screen').style.display = 'flex';
+        document.getElementById('start-btn').style.display = 'block';
+    }
+
+    // --- 以降、語句管理・描画・ロジック等は共通 ---
     function openAdmin() {
-        if(prompt("パスワードを入力してください") === "1234") document.getElementById('admin-modal').style.display = 'flex';
-        else alert("パスワードが違います");
+        if(prompt("パスワード") === "1234") {
+            document.getElementById('admin-modal').style.display = 'flex';
+            renderAdminList();
+        }
     }
     function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
-
     function addWord() {
         const ja = document.getElementById('new-ja').value.trim();
-        let kana = document.getElementById('new-kana').value.trim();
-        if(!ja) return alert("文字を入力してください");
-        if(!kana) {
-            if(/^[ぁ-んァ-ヶー]*$/.test(ja)) kana = katakanaToHiragana(ja);
-            else return alert("漢字の場合はふりがなを入力してください");
-        } else kana = katakanaToHiragana(kana);
-        db.ref('words').push({ ja, kana });
+        const kana = document.getElementById('new-kana').value.trim();
+        if(!ja || !kana) return;
+        db.ref(gameMode === 'roma' ? 'words' : 'words_flick').push({ ja, kana });
         document.getElementById('new-ja').value = ""; document.getElementById('new-kana').value = "";
     }
-
-    function deleteWord(id) { if(confirm("削除しますか？")) db.ref('words').child(id).remove(); }
-
+    function deleteWord(id) { if(confirm("削除？")) db.ref(gameMode === 'roma' ? 'words' : 'words_flick').child(id).remove(); }
     function renderAdminList() {
         const container = document.getElementById('word-list-admin');
-        container.innerHTML = wordList.map(w => `
-            <div class="word-item"><span>${w.ja} (${w.kana})</span><button class="del-btn" onclick="deleteWord('${w.id}')">削除</button></div>
-        `).join('') || "単語がありません";
+        if(!container) return;
+        container.innerHTML = wordList.map(w => `<div class="word-item"><span>${w.ja}</span><button onclick="deleteWord('${w.id}')">削除</button></div>`).join('');
     }
-
     function nextQuestion() {
-        if(!wordList.length) return;
-        let pool = wordList.length >= 3 ? wordList.filter(w => w.id !== lastWordId) : wordList;
-        currentPair = pool[Math.floor(Math.random() * pool.length)];
-        lastWordId = currentPair.id;
+        if (!wordList.length) return;
+        currentPair = wordList[Math.floor(Math.random() * wordList.length)];
         document.getElementById('ja-hint').innerText = currentPair.ja;
-        currentPair.ro = generateRomaPatterns(currentPair.kana);
-        targetRoma = currentPair.ro[0]; typedRoma = ""; render();
+        typedStr = "";
+        if (gameMode === 'roma') {
+            currentPair.ro = generateRomaPatterns(currentPair.kana);
+            targetStr = currentPair.ro[0];
+        } else { targetStr = currentPair.kana; }
+        render();
         document.getElementById('hidden-input').value = "";
     }
-
+    function render() {
+        const container = document.getElementById('word-container');
+        container.innerHTML = "";
+        targetStr.split("").forEach((char, i) => {
+            const span = document.createElement('span');
+            span.innerText = char;
+            span.className = i < typedStr.length ? "char correct" : "char";
+            container.appendChild(span);
+        });
+    }
+    document.getElementById('start-btn').addEventListener('click', () => {
+        if(!wordList.length) return alert("語句を登録してください");
+        isPlaying = true; score = 0; timeLeft = 30; meterValue = 0;
+        document.body.classList.add('playing');
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('hidden-input').focus();
+        nextQuestion(); updateMeterUI();
+        gameTimer = setInterval(() => {
+            timeLeft--; document.getElementById('time').innerText = Math.max(0, timeLeft);
+            if (timeLeft <= 0) { clearInterval(gameTimer); isPlaying = false; document.body.classList.remove('playing'); finishGame(); }
+        }, 1000);
+    });
+    function initRealtimeRanking() {
+        db.ref(`rankings_${gameMode}`).on('value', snap => {
+            const data = snap.val() || {};
+            const allEntries = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+            const teams = ['いて座', 'おうし座'];
+            const totals = { 'いて座': 0, 'おうし座': 0 };
+            teams.forEach(team => {
+                const teamRank = allEntries.filter(e => e.team === team).sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
+                const top5 = teamRank.slice(0, 5);
+                totals[team] = top5.reduce((sum, item) => sum + item.score, 0);
+                document.getElementById(team === 'いて座' ? 'rank-sag-list' : 'rank-tau-list').innerHTML = top5.map((u, i) => `<div>${i + 1}. ${u.name} (${u.score})</div>`).join('');
+            });
+            const totalAll = (totals['いて座'] + totals['おうし座']) || 1;
+            document.getElementById('bar-sag').style.width = (totals['いて座'] / totalAll * 100) + "%";
+            document.getElementById('bar-tau').style.width = (totals['おうし座'] / totalAll * 100) + "%";
+            document.getElementById('label-sag').innerText = `いて座 ${totals['いて座']}`;
+            document.getElementById('label-tau').innerText = `おうし座 ${totals['おうし座']}`;
+        });
+    }
     function generateRomaPatterns(kana) {
         let patterns = [""];
         for (let i = 0; i < kana.length; ) {
             let nextPatterns = [], choices = [], step = 0;
             if (kana[i] === 'っ' && i + 1 < kana.length) {
-                let nextChar2 = kana.substring(i + 1, i + 3), nextChar1 = kana.substring(i + 1, i + 2);
-                let res = romanTable[nextChar2] || romanTable[nextChar1];
+                let nextChar1 = kana.substring(i + 1, i + 2);
+                let res = romanTable[nextChar1];
                 if (res) {
                     let resArr = Array.isArray(res) ? res : [res];
-                    resArr.forEach(r => { choices.push(r[0] + r); choices.push("xtu" + r); });
-                    step = (romanTable[nextChar2]) ? 3 : 2;
+                    resArr.forEach(r => { choices.push(r[0] + r); });
+                    step = 1; 
                 } else { choices = ["xtu"]; step = 1; }
             } else if (i + 1 < kana.length && romanTable[kana.substring(i, i + 2)]) {
                 let chunk = kana.substring(i, i + 2);
@@ -205,108 +351,8 @@
         }
         return patterns;
     }
-
-    function selectTeam(t) { myName = document.getElementById('user-name').value.trim() || "匿名"; myTeam = t; document.getElementById('setup-screen').style.display='none'; }
-    function render() {
-        const c = document.getElementById('word-container'); c.innerHTML = "";
-        targetRoma.split("").forEach((char, i) => {
-            const span = document.createElement('span'); span.innerText = char;
-            span.className = i < typedRoma.length ? "char correct" : "char";
-            c.appendChild(span);
-        });
-    }
-
-    document.getElementById('hidden-input').addEventListener('input', (e) => {
-        if(!isPlaying) return;
-        const input = e.target.value.toLowerCase();
-        const match = currentPair.ro.find(p => p.startsWith(input));
-        if(match) {
-            if(input.length > typedRoma.length) { 
-                score++; meterValue++; 
-                if(meterValue >= MAX_VAL) applyBonus(true); else updateMeter();
-            }
-            targetRoma = match; typedRoma = input; render();
-            if(typedRoma === targetRoma) setTimeout(nextQuestion, 50);
-        } else { applyBonus(false); e.target.value = typedRoma; }
-        document.getElementById('current-score').innerText = score;
-    });
-
-    function updateMeter() {
-        const fill = document.getElementById('bonus-meter-fill');
-        fill.style.width = (meterValue / MAX_VAL * 100) + "%";
-        fill.style.background = meterValue >= 20 ? "var(--lv-mid)" : (meterValue >= 10 ? "var(--lv-low)" : "var(--lv-zero)");
-    }
-
-    function applyBonus(isAuto) {
-        let add = 0; let color = "#666";
-        if(isAuto) { add = 5; color = "var(--lv-max)"; }
-        else if(meterValue >= 20) { add = 3; color = "var(--lv-mid)"; }
-        else if(meterValue >= 10) { add = 2; color = "var(--lv-low)"; }
-        if(add > 0) {
-            timeLeft += add; document.getElementById('time').innerText = timeLeft;
-            const pop = document.getElementById('bonus-pop'); pop.innerText = `+${add}s!`; pop.style.color = color;
-            pop.classList.remove('pop-animation'); void pop.offsetWidth; pop.classList.add('pop-animation');
-        }
-        meterValue = 0; updateMeter();
-    }
-
-    document.getElementById('start-btn').addEventListener('click', () => {
-        isPlaying = true; score = 0; timeLeft = 30; meterValue = 0; lastWordId = "";
-        document.body.classList.add('playing');
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('hidden-input').focus();
-        nextQuestion(); updateMeter();
-        const timer = setInterval(() => {
-            timeLeft--; document.getElementById('time').innerText = Math.max(0, timeLeft);
-            if(timeLeft <= 0) { clearInterval(timer); isPlaying = false; document.body.classList.remove('playing'); finishGame(); }
-        }, 1000);
-    });
-
-    function finishGame() {
-        db.ref('rankings').push({ name: myName, team: myTeam, score: score, timestamp: Date.now() });
-        alert(`終了！スコア: ${score}`);
-        document.getElementById('start-btn').style.display = 'block';
-    }
-
-    // ランキング監視と5位以下の削除ロジック
-    db.ref('rankings').on('value', snap => {
-        const data = snap.val() || {};
-        const allEntries = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-        
-        const teams = ['いて座', 'おうし座'];
-        const totals = { 'いて座': 0, 'おうし座': 0 };
-
-        teams.forEach(team => {
-            const teamRank = allEntries
-                .filter(e => e.team === team)
-                .sort((a, b) => b.score - a.score || a.timestamp - b.timestamp);
-
-            // 5位以内を抽出して合計を出す
-            const top5 = teamRank.slice(0, 5);
-            totals[team] = top5.reduce((sum, item) => sum + item.score, 0);
-
-            // 6位以下をFirebaseから削除
-            const toDelete = teamRank.slice(5);
-            toDelete.forEach(item => db.ref('rankings').child(item.id).remove());
-
-            // UI反映
-            const idMap = { 'いて座': 'rank-sag-list', 'おうし座': 'rank-tau-list' };
-            const totalIdMap = { 'いて座': 'total-sag-val', 'おうし座': 'total-tau-val' };
-            document.getElementById(totalIdMap[team]).innerText = totals[team];
-            document.getElementById(idMap[team]).innerHTML = top5.map((u, i) => `<div>${i + 1}. ${u.name} (${u.score})</div>`).join('');
-        });
-
-        // バトルバー更新
-        const tSag = totals['いて座'];
-        const tTau = totals['おうし座'];
-        const totalAll = (tSag + tTau) || 1;
-        document.getElementById('bar-sag').style.width = (tSag / totalAll * 100) + "%";
-        document.getElementById('bar-tau').style.width = (tTau / totalAll * 100) + "%";
-        document.getElementById('label-sag').innerText = `いて座 ${tSag}`;
-        document.getElementById('label-tau').innerText = `おうし座 ${tTau}`;
-    });
-
     document.addEventListener('touchstart', () => { if(isPlaying) document.getElementById('hidden-input').focus(); });
+    syncWordList();
 </script>
 </body>
 </html>
