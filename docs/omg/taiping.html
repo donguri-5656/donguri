@@ -66,7 +66,8 @@
             <button id="btn-roma" class="mode-btn active" onclick="setMode('roma')">ローマ字</button>
             <button id="btn-flick" class="mode-btn" onclick="setMode('flick')">フリック</button>
         </div>
-        <input type="text" id="user-name" placeholder="名前を入力" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
+        <p style="font-size:0.9rem; color:#666; margin-bottom:8px;">名前を入力してください（必須）</p>
+        <input type="text" id="user-name" placeholder="例: すいま" style="width:100%; padding:12px; margin-bottom:15px; border:2px solid #eee; border-radius:8px; box-sizing:border-box; font-size:1rem;">
         <div style="display:flex; gap:10px;">
             <button onclick="selectTeam('いて座')" style="flex:1; padding:15px; border:none; border-radius:8px; background:var(--sag-color); color:#fff; font-weight:bold; cursor:pointer;">いて座</button>
             <button onclick="selectTeam('おうし座')" style="flex:1; padding:15px; border:none; border-radius:8px; background:var(--tau-color); color:#fff; font-weight:bold; cursor:pointer;">おうし座</button>
@@ -141,9 +142,8 @@
     let wordList = [], currentPair = null, targetStr = "", typedStr = "", meterValue = 0;
     const MAX_VAL = 30;
 
-    const romanTable = {'あ':'a','い':'i','う':'u','え':'e','お':'o','か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko','さ':'sa','し':['shi','si'],'す':'su','せ':'se','そ':'so','た':'ta','ち':['chi','ti'],'つ':['tsu','tu'],'て':'te','と':'to','な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no','は':'ha','ひ':'hi','ふ':['fu','hu'],'へ':'he','ほ':'ho','ま':'ma','み':'mi','む':'mu','め':'me','も':'mo','や':'ya','ゆ':'yu','よ':'yo','ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro','わ':'wa','を':'wo','ん':['nn','n'],'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go','ざ':'za','じ':['ji','zi'],'ず':'zu','ぜ':'ze','ぞ':'zo','だ':'da','ぢ':['ji','zi'],'づ':['zu','du'],'て':'de','ど':'do','ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo','ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po','きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':['sha','sya'],'しゅ':['shu','syu'],'しょ':['sho','syo'],'ちゃ':['cha','tya'],'ちゅ':['chu','tyu'],'ちょ':['cho','tyo'],'にゃ':'nya','にゅ':'nyu','にょ':'nyo','ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo','りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo','じゃ':['ja','zya'],'じゅ':['ju','zyu'],'じょ':['jo','zyo'],'ー':'-','ぁ':'xa','ぃ':'xi','ぅ':'xu','ぇ':'xe','ぉ':'xo','ゃ':'xya','ゅ':'xyu','ょ':'xyo','っ':'xtu'};
+    const romanTable = {'あ':'a','い':'i','う':'u','え':'e','お':'o','か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko','さ':'sa','し':['shi','si'],'す':'su','せ':'se','そ':'so','た':'ta','ち':['chi','ti'],'つ':['tsu','tu'],'て':'te','と':'to','な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no','は':'ha','ひ':'hi','ふ':['fu','hu'],'へ':'he','ほ':'ho','ま':'ma','み':'mi','む':'mu','め':'me','も':'mo','や':'ya','ゆ':'yu','よ':'yo','ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro','わ':'wa','を':'wo','ん':['nn','n'],'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go','ざ':'za','じ':['ji','zi'],'ず':'zu','ぜ':'ze','ぞ':'zo','だ':'da','ぢ':['ji','zi'],'づ':['zu','du'],'で':'de','ど':'do','ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo','ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po','きゃ':'kya','きゅ':'kyu','きょ':'kyo','しゃ':['sha','sya'],'しゅ':['shu','syu'],'しょ':['sho','syo'],'ちゃ':['cha','tya'],'ちゅ':['chu','tyu'],'ちょ':['cho','tyo'],'にゃ':'nya','にゅ':'nyu','にょ':'nyo','ひゃ':'hya','ひゅ':'hyu','ひょ':'hyo','みゃ':'mya','みゅ':'myu','みょ':'myo','りゃ':'rya','りゅ':'ryu','りょ':'ryo','ぎゃ':'gya','ぎゅ':'gyu','ぎょ':'gyo','じゃ':['ja','zya'],'じゅ':['ju','zyu'],'じょ':['jo','zyo'],'ー':'-','ぁ':'xa','ぃ':'xi','ぅ':'xu','ぇ':'xe','ぉ':'xo','ゃ':'xya','ゅ':'xyu','ょ':'xyo','っ':'xtu'};
 
-    // 起動時に名前を復元
     window.onload = () => {
         const savedName = localStorage.getItem('typing_userName');
         if(savedName) document.getElementById('user-name').value = savedName;
@@ -157,12 +157,45 @@
         initRealtimeRanking();
     }
 
-    function syncWordList() {
-        db.ref(gameMode === 'roma' ? 'words' : 'words_flick').on('value', snap => {
+    function selectTeam(t) {
+        const nameInput = document.getElementById('user-name').value.trim();
+        // 名前入力必須チェック
+        if (!nameInput) {
+            alert("名前を入力してください。");
+            document.getElementById('user-name').focus();
+            return;
+        }
+        myName = nameInput;
+        myTeam = t;
+        localStorage.setItem('typing_userName', myName);
+        document.getElementById('setup-screen').style.display = 'none';
+        setMode(gameMode);
+    }
+
+    function finishGame() {
+        const ref = db.ref(`rankings_${gameMode}`);
+        // 修正：名前とチームの両方が一致するデータを検索
+        ref.orderByChild('name').equalTo(myName).once('value', snap => {
             const data = snap.val() || {};
-            wordList = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-            renderAdminList();
+            // フィルタリングでチームも一致するもののみ抽出
+            const existingId = Object.keys(data).find(id => data[id].team === myTeam);
+
+            if (existingId) {
+                const oldScore = data[existingId].score;
+                if (score > oldScore) {
+                    ref.child(existingId).update({ score: score, timestamp: Date.now() });
+                    alert(`ハイスコア更新！ (${myTeam}): ${score}`);
+                } else {
+                    alert(`終了！スコア: ${score}\n(${myTeam} 自己ベスト ${oldScore} に届きませんでした)`);
+                }
+            } else {
+                // そのチームでその名前が初めての場合
+                ref.push({ name: myName, team: myTeam, score: score, timestamp: Date.now() });
+                alert(`終了！記録されました。\nチーム: ${myTeam}\nスコア: ${score}`);
+            }
         });
+        document.getElementById('setup-screen').style.display = 'flex';
+        document.getElementById('start-btn').style.display = 'block';
     }
 
     function applyBonus(isAuto) {
@@ -208,15 +241,6 @@
         document.getElementById('current-score').innerText = score;
     });
 
-    function selectTeam(t) {
-        const nameInput = document.getElementById('user-name').value.trim();
-        myName = nameInput || "匿名";
-        myTeam = t;
-        localStorage.setItem('typing_userName', myName); // 名前を保存
-        document.getElementById('setup-screen').style.display = 'none';
-        setMode(gameMode);
-    }
-
     function quitGame() {
         if(!confirm("ゲームを中断して戻りますか？")) return;
         clearInterval(gameTimer);
@@ -226,32 +250,14 @@
         document.getElementById('start-btn').style.display = 'block';
     }
 
-    function finishGame() {
-        // 同名の既存データを取得
-        const ref = db.ref(`rankings_${gameMode}`);
-        ref.orderByChild('name').equalTo(myName).once('value', snap => {
-            const data = snap.val();
-            if (data) {
-                // 同じ名前が見つかった場合
-                const id = Object.keys(data)[0];
-                const oldScore = data[id].score;
-                if (score > oldScore) {
-                    ref.child(id).update({ score: score, team: myTeam, timestamp: Date.now() });
-                    alert(`ハイスコア更新！: ${score}`);
-                } else {
-                    alert(`終了！スコア: ${score}\n(自己ベスト ${oldScore} に届きませんでした)`);
-                }
-            } else {
-                // 新規名前の場合
-                ref.push({ name: myName, team: myTeam, score: score, timestamp: Date.now() });
-                alert(`終了！記録されました。スコア: ${score}`);
-            }
+    function syncWordList() {
+        db.ref(gameMode === 'roma' ? 'words' : 'words_flick').on('value', snap => {
+            const data = snap.val() || {};
+            wordList = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+            renderAdminList();
         });
-        document.getElementById('setup-screen').style.display = 'flex';
-        document.getElementById('start-btn').style.display = 'block';
     }
 
-    // --- 以降、語句管理・描画・ロジック等は共通 ---
     function openAdmin() {
         if(prompt("パスワード") === "1234") {
             document.getElementById('admin-modal').style.display = 'flex';
@@ -297,6 +303,7 @@
     document.getElementById('start-btn').addEventListener('click', () => {
         if(!wordList.length) return alert("語句を登録してください");
         isPlaying = true; score = 0; timeLeft = 30; meterValue = 0;
+        document.getElementById('current-score').innerText = score;
         document.body.classList.add('playing');
         document.getElementById('start-btn').style.display = 'none';
         document.getElementById('hidden-input').focus();
