@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D数学物理エディター - 選択修正版</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #ffffff; }
+        .panel {
+            position: absolute; background: rgba(255, 255, 255, 0.95);
+            padding: 15px; border-radius: 8px; border: 1px solid #ccc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;
+        }
+        #main-menu { top: 10px; left: 10px; width: 180px; }
+        #inspector { top: 10px; right: 10px; width: 320px; display: none; max-height: 90vh; overflow-y: auto; }
+        
+        button { width: 100%; padding: 8px; margin: 4px 0; cursor: pointer; border: 1px solid #aaa; border-radius: 4px; background: #fff; font-size: 13px; }
+        button:hover { background: #f0f0f0; }
+        button.active { background: #3498db; color: white; border-color: #2980b9; }
+        button.add { background: #2ecc71; color: white; border: none; font-weight: bold; }
+        button.save-load { background: #f39c12; color: white; border: none; font-weight: bold; }
+        button.spawn { background: #e67e22; color: white; border: none; font-weight: bold; }
+
+        .group { margin-bottom: 12px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+        label { display: block; font-size: 11px; font-weight: bold; color: #555; margin-bottom: 8px; }
+        
+        .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .slider-row span { font-size: 10px; color: #888; width: 15px; font-weight: bold; }
+        input[type="range"] { flex: 1; cursor: pointer; }
+        input[type="number"] { width: 60px; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; text-align: center; }
+        
+        #save-list { margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; font-size: 12px; }
+        .save-item { display: flex; justify-content: space-between; margin-bottom: 5px; background: #eee; padding: 5px; border-radius: 4px; }
+        .save-item button { width: auto; padding: 2px 8px; margin: 0; font-size: 10px; }
+
+        #mode-switcher { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        .mode-btn { width: auto; padding: 10px 20px; }
+    </style>
+</head>
+<body>
+
+<div id="main-menu" class="panel">
+    <h3>図形追加</h3>
+    <button class="add" onclick="addObject('line')">＋ 直線</button>
+    <button class="add" onclick="addObject('plane')">＋ 平面</button>
+    <button class="spawn" onclick="addObject('emitter')">＋ ボール生成</button>
+    
+    <h3 style="margin-top:20px; font-size:14px;">保存データ</h3>
+    <button class="save-load" onclick="saveLayout()">現在の状態を保存</button>
+    <div id="save-list"></div>
+</div>
+
+<div id="inspector" class="panel">
+    <h3 id="target-name">設定</h3>
+    
+    <div id="emitter-settings" class="group" style="display:none;">
+        <label>生成モード</label>
+        <select id="sel-spawn-mode" style="width:100%; margin-bottom:10px;">
+            <option value="manual">タップで生成</option>
+            <option value="auto">自動生成</option>
+        </select>
+        <label>自動生成の間隔 (秒)</label>
+        <div class="slider-row">
+            <input type="range" id="sld-interval" min="0.1" max="5" step="0.1" value="1">
+            <input type="number" id="num-interval" step="0.1">
+        </div>
+        <button id="manual-spawn-btn" class="spawn" style="margin-top:10px;">ボールを発射！</button>
+    </div>
+
+    <div class="group">
+        <label>位置 (X, Y, Z)</label>
+        <div class="slider-row"><span>X</span><input type="range" id="sld-px" min="-10" max="10" step="0.1"><input type="number" id="num-px" step="0.1"></div>
+        <div class="slider-row"><span>Y</span><input type="range" id="sld-py" min="-10" max="10" step="0.1"><input type="number" id="num-py" step="0.1"></div>
+        <div class="slider-row"><span>Z</span><input type="range" id="sld-pz" min="-10" max="10" step="0.1"><input type="number" id="num-pz" step="0.1"></div>
+    </div>
+
+    <div class="group">
+        <label>回転 (X, Y, Z) 度</label>
+        <div class="slider-row"><span>X</span><input type="range" id="sld-rx" min="0" max="360" step="1"><input type="number" id="num-rx" step="1"></div>
+        <div class="slider-row"><span>Y</span><input type="range" id="sld-ry" min="0" max="360" step="1"><input type="number" id="num-ry" step="1"></div>
+        <div class="slider-row"><span>Z</span><input type="range" id="sld-rz" min="0" max="360" step="1"><input type="number" id="num-rz" step="1"></div>
+    </div>
+
+    <div class="group">
+        <label>大きさ (X, Y, Z)</label>
+        <div class="slider-row"><span>X</span><input type="range" id="sld-sx" min="0.1" max="20" step="0.1"><input type="number" id="num-sx" step="0.1"></div>
+        <div class="slider-row"><span>Y</span><input type="range" id="sld-sy" min="0.1" max="20" step="0.1"><input type="number" id="num-sy" step="0.1"></div>
+        <div class="slider-row"><span>Z</span><input type="range" id="sld-sz" min="0.1" max="20" step="0.1"><input type="number" id="num-sz" step="0.1"></div>
+    </div>
+
+    <div class="group" id="color-group">
+        <label>色 / 透明度</label>
+        <div class="slider-row">
+            <input type="color" id="colorPicker" style="width:40px;height:24px;border:none;">
+            <input type="range" id="sld-op" min="0" max="1" step="0.05">
+            <input type="number" id="num-op" step="0.05">
+        </div>
+    </div>
+
+    <button onclick="deselect()" style="background:#eee;">選択解除</button>
+    <button style="color:red;" onclick="confirmDeleteObject()">このオブジェクトを削除</button>
+</div>
+
+<div id="mode-switcher" class="panel">
+    <button id="btn-translate" class="mode-btn active" onclick="setMode('translate')">移動</button>
+    <button id="btn-rotate" class="mode-btn" onclick="setMode('rotate')">回転</button>
+    <button id="btn-scale" class="mode-btn" onclick="setMode('scale')">大きさ</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+    let scene, camera, renderer, controls, transformControls, world;
+    let selectedObj = null;
+    let isDragging = false;
+    let objects = [];
+    let balls = [];
+    let lastSpawnTime = 0;
+
+    const groundMaterial = new CANNON.Material('groundMaterial');
+    const ballMaterial = new CANNON.Material('ballMaterial');
+
+    init();
+
+    function init() {
+        world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+        world.solver.iterations = 10;
+
+        const contactMat = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
+            friction: 0.3,
+            restitution: 0.4
+        });
+        world.addContactMaterial(contactMat);
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(10, 10, 10);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        scene.add(new THREE.GridHelper(20, 20));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        controls = new OrbitControls(camera, renderer.domElement);
+        
+        transformControls = new TransformControls(camera, renderer.domElement);
+        transformControls.addEventListener('dragging-changed', (e) => {
+            controls.enabled = !e.value;
+            isDragging = e.value;
+        });
+        transformControls.addEventListener('change', () => { 
+            if(selectedObj && isDragging) { 
+                syncPhysics(); 
+                updateUI(); 
+            } 
+        });
+        scene.add(transformControls);
+
+        // UIパネル上のクリックをイベント伝播させない
+        document.querySelectorAll('.panel').forEach(p => {
+            p.addEventListener('pointerdown', e => e.stopPropagation());
+        });
+
+        renderer.domElement.addEventListener('pointerdown', onPointerDown);
+        setupUIListeners();
+        refreshSaveList();
+        animate();
+    }
+
+    function onPointerDown(event) {
+        if (isDragging) return;
+
+        const mouse = new THREE.Vector2(
+            (event.clientX / window.innerWidth) * 2 - 1,
+            -(event.clientY / window.innerHeight) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        
+        // 直線などの細い物体のために判定精度を調整
+        raycaster.params.Line.threshold = 0.5;
+
+        const intersects = raycaster.intersectObjects(objects, true);
+
+        if (intersects.length > 0) {
+            // TransformControls自体をクリックしていないか確認
+            let target = intersects[0].object;
+            // メッシュの親がシーンに直接あるもの（追加したオブジェクト）を探す
+            while(target.parent && target.parent !== scene) {
+                target = target.parent;
+            }
+            if (objects.includes(target)) {
+                selectObject(target);
+            }
+        }
+    }
+
+    window.addObject = function(type, savedData = null) {
+        let mesh;
+        if(type === 'line' || type === 'plane') {
+            mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1), 
+                new THREE.MeshPhongMaterial({ color: type==='line'?0xff4444:0x4444ff, transparent:true, opacity:0.6 })
+            );
+            if(type==='line') mesh.scale.set(0.3, 10, 0.3); else mesh.scale.set(8, 0.3, 8);
+            mesh.userData.type = type==='line'?'直線':'平面';
+            
+            const body = new CANNON.Body({ mass: 0, material: groundMaterial });
+            body.addShape(new CANNON.Box(new CANNON.Vec3(mesh.scale.x/2, mesh.scale.y/2, mesh.scale.z/2)));
+            mesh.userData.physics = body;
+            world.addBody(body);
+        } else if(type === 'emitter') {
+            mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshPhongMaterial({ color: 0xe67e22 }));
+            mesh.userData.type = 'ボール生成';
+            mesh.userData.spawnConfig = { mode: 'manual', interval: 1.0 };
+            mesh.position.y = 5;
+        }
+
+        if(savedData) {
+            mesh.position.fromArray(savedData.pos);
+            mesh.rotation.fromArray(savedData.rot);
+            mesh.scale.fromArray(savedData.sca);
+            if(mesh.material) {
+                mesh.material.color.set(savedData.col);
+                mesh.material.opacity = savedData.opa;
+            }
+            if(savedData.spawnConfig) mesh.userData.spawnConfig = savedData.spawnConfig;
+        }
+
+        scene.add(mesh);
+        objects.push(mesh);
+        selectObject(mesh);
+        syncPhysics();
+    };
+
+    function syncPhysics() {
+        if(!selectedObj || !selectedObj.userData.physics) return;
+        const body = selectedObj.userData.physics;
+        body.position.copy(selectedObj.position);
+        body.quaternion.copy(selectedObj.quaternion);
+        
+        // 物理形状の更新
+        body.removeShape(body.shapes[0]);
+        const halfExtents = new CANNON.Vec3(
+            Math.abs(selectedObj.scale.x / 2), 
+            Math.abs(selectedObj.scale.y / 2), 
+            Math.abs(selectedObj.scale.z / 2)
+        );
+        body.addShape(new CANNON.Box(halfExtents));
+    }
+
+    // --- 以下、ユーティリティ関数群 ---
+
+    window.saveLayout = function() {
+        const name = prompt("保存名:", "物理構成" + (localStorage.length + 1));
+        if(!name) return;
+        const data = objects.map(obj => ({
+            type: obj.userData.type === '直線' ? 'line' : (obj.userData.type === '平面' ? 'plane' : 'emitter'),
+            pos: obj.position.toArray(), rot: obj.rotation.toArray(), sca: obj.scale.toArray(),
+            col: obj.material ? '#' + obj.material.color.getHexString() : null,
+            opa: obj.material ? obj.material.opacity : null,
+            spawnConfig: obj.userData.spawnConfig || null
+        }));
+        localStorage.setItem('phys_save_' + name, JSON.stringify(data));
+        refreshSaveList();
+    };
+
+    window.loadLayout = function(key) {
+        if(!confirm("現在の状態を消去してロードしますか？")) return;
+        const data = JSON.parse(localStorage.getItem(key));
+        objects.forEach(obj => { scene.remove(obj); if(obj.userData.physics) world.removeBody(obj.userData.physics); });
+        objects = [];
+        balls.forEach(b => { scene.remove(b.mesh); world.removeBody(b.body); });
+        balls = [];
+        deselect();
+        data.forEach(d => addObject(d.type, d));
+    };
+
+    window.deleteSave = function(key) {
+        if(confirm("データを完全に削除しますか？")) { localStorage.removeItem(key); refreshSaveList(); }
+    };
+
+    function refreshSaveList() {
+        const listDiv = document.getElementById('save-list');
+        listDiv.innerHTML = '';
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('phys_save_')) {
+                const name = key.replace('phys_save_', '');
+                const item = document.createElement('div');
+                item.className = 'save-item';
+                item.innerHTML = `<span>${name}</span><div><button onclick="loadLayout('${key}')">読込</button><button style="color:red" onclick="deleteSave('${key}')">消去</button></div>`;
+                listDiv.appendChild(item);
+            }
+        }
+    }
+
+    function spawnBall(emitter) {
+        const radius = 0.25;
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 12), new THREE.MeshPhongMaterial({ color: Math.random() * 0xffffff }));
+        const body = new CANNON.Body({ mass: 1, material: ballMaterial });
+        body.addShape(new CANNON.Sphere(radius));
+        body.position.set(emitter.position.x, emitter.position.y - 0.6, emitter.position.z);
+        
+        scene.add(mesh);
+        world.addBody(body);
+        balls.push({ mesh, body });
+        if(balls.length > 30) { const old = balls.shift(); scene.remove(old.mesh); world.removeBody(old.body); }
+    }
+
+    function animate(time) {
+        requestAnimationFrame(animate);
+        world.step(1/60, 1/60, 5); 
+        balls.forEach(b => { b.mesh.position.copy(b.body.position); b.mesh.quaternion.copy(b.body.quaternion); });
+        objects.forEach(obj => {
+            if(obj.userData.type === 'ボール生成' && obj.userData.spawnConfig.mode === 'auto') {
+                if(time - lastSpawnTime > obj.userData.spawnConfig.interval * 1000) { spawnBall(obj); lastSpawnTime = time; }
+            }
+        });
+        renderer.render(scene, camera);
+    }
+
+    function updateUI() {
+        if(!selectedObj) return;
+        document.getElementById('target-name').innerText = selectedObj.userData.type;
+        const sync = (id, val) => {
+            const sld = document.getElementById('sld-' + id);
+            const num = document.getElementById('num-' + id);
+            if(sld) sld.value = val;
+            if(num) num.value = Number(val).toFixed(2);
+        };
+        sync('px', selectedObj.position.x); sync('py', selectedObj.position.y); sync('pz', selectedObj.position.z);
+        sync('rx', selectedObj.rotation.x * 180 / Math.PI); sync('ry', selectedObj.rotation.y * 180 / Math.PI); sync('rz', selectedObj.rotation.z * 180 / Math.PI);
+        sync('sx', selectedObj.scale.x); sync('sy', selectedObj.scale.y); sync('sz', selectedObj.scale.z);
+        if(selectedObj.userData.spawnConfig) {
+            document.getElementById('sel-spawn-mode').value = selectedObj.userData.spawnConfig.mode;
+            sync('interval', selectedObj.userData.spawnConfig.interval);
+        }
+        if(selectedObj.material) {
+            document.getElementById('colorPicker').value = "#" + selectedObj.material.color.getHexString();
+            sync('op', selectedObj.material.opacity);
+        }
+    }
+
+    function setupUIListeners() {
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', (e) => {
+                if(!selectedObj) return;
+                const id = e.target.id;
+                const val = parseFloat(e.target.value);
+                if(id.includes('px')) selectedObj.position.x = val;
+                if(id.includes('py')) selectedObj.position.y = val;
+                if(id.includes('pz')) selectedObj.position.z = val;
+                if(id.includes('rx')) selectedObj.rotation.x = val * Math.PI/180;
+                if(id.includes('ry')) selectedObj.rotation.y = val * Math.PI/180;
+                if(id.includes('rz')) selectedObj.rotation.z = val * Math.PI/180;
+                if(id.includes('sx')) selectedObj.scale.x = Math.max(0.1, val);
+                if(id.includes('sy')) selectedObj.scale.y = Math.max(0.1, val);
+                if(id.includes('sz')) selectedObj.scale.z = Math.max(0.1, val);
+                if(id === 'sel-spawn-mode') selectedObj.userData.spawnConfig.mode = e.target.value;
+                if(id.includes('interval')) selectedObj.userData.spawnConfig.interval = val;
+                if(id.includes('op')) { selectedObj.material.opacity = val; selectedObj.material.transparent = val < 1; }
+                if(id === 'colorPicker') selectedObj.material.color.set(e.target.value);
+                syncPhysics(); updateUI();
+            });
+        });
+        document.getElementById('manual-spawn-btn').addEventListener('click', () => { if(selectedObj && selectedObj.userData.type === 'ボール生成') spawnBall(selectedObj); });
+    }
+
+    window.selectObject = (obj) => {
+        selectedObj = obj; 
+        transformControls.attach(obj);
+        document.getElementById('inspector').style.display = 'block';
+        document.getElementById('emitter-settings').style.display = obj.userData.type === 'ボール生成' ? 'block' : 'none';
+        document.getElementById('color-group').style.display = obj.userData.type === 'ボール生成' ? 'none' : 'block';
+        updateUI();
+    };
+    window.deselect = () => { selectedObj = null; transformControls.detach(); document.getElementById('inspector').style.display='none'; };
+    window.setMode = (m) => { transformControls.setMode(m); document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active')); document.getElementById('btn-'+m).classList.add('active'); };
+    window.confirmDeleteObject = () => { if(confirm("選択中のオブジェクトを削除しますか？")){ scene.remove(selectedObj); if(selectedObj.userData.physics) world.removeBody(selectedObj.userData.physics); objects.splice(objects.indexOf(selectedObj),1); deselect(); }};
+
+</script>
+</body>
+</html>
