@@ -17,61 +17,28 @@
             font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
 
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 5px;
-            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-        }
+        h1 { color: var(--primary-color); margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+        .date-display { font-weight: bold; margin-bottom: 20px; color: #6a8ba0; }
 
-        .date-display {
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #6a8ba0;
-        }
-
-        #fortune-container {
-            width: 100%;
-            max-width: 600px;
-            display: grid;
-            gap: 15px;
-        }
+        #fortune-container { width: 100%; max-width: 600px; display: grid; gap: 15px; }
 
         .card {
-            background: var(--card-bg);
-            border-radius: 15px;
-            padding: 20px;
+            background: var(--card-bg); border-radius: 15px; padding: 20px;
             box-shadow: 0 4px 12px rgba(90, 154, 191, 0.15);
-            display: flex;
-            align-items: center;
-            transition: transform 0.2s;
-            position: relative;
-        }
-
-        .reaction-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            display: flex; align-items: center; position: relative;
             overflow: visible;
         }
 
+        /* リアクション演出 */
+        .reaction-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .emoji-particle {
-            position: absolute;
-            font-size: 24px;
-            animation: float-up 2s ease-out forwards;
-            opacity: 0;
+            position: absolute; font-size: 24px;
+            animation: float-up 2s ease-out forwards; opacity: 0;
         }
-
         @keyframes float-up {
             0% { transform: translateY(0) scale(0.5); opacity: 0; }
             20% { opacity: 1; }
@@ -79,37 +46,23 @@
         }
 
         .rank-badge {
-            font-size: 24px;
-            font-weight: bold;
-            min-width: 50px;
-            height: 50px;
-            background: #e1f0f7;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 20px;
-            z-index: 2;
+            font-size: 24px; font-weight: bold; min-width: 50px; height: 50px;
+            background: #e1f0f7; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; margin-right: 20px; z-index: 2;
         }
-
         .rank-1 { background: var(--rank1-color); color: #fff; }
 
         .content { flex-grow: 1; z-index: 2; }
-        .sign-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; color: #2c5a75; }
+        .sign-name { font-size: 1.2rem; font-weight: bold; color: #2c5a75; }
         .fortune-text { font-size: 0.95rem; line-height: 1.5; color: #444; }
-
-        .detail-item {
-            background: #f0f7fa;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            display: inline-block;
-            margin: 5px 5px 0 0;
-            border: 1px solid #e1f0f7;
-        }
-
-        .lucky-point { color: #d81b60; font-weight: bold; }
+        .detail-item { background: #f0f7fa; padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; display: inline-block; margin: 5px 5px 0 0; }
         .special-target { border: 2px solid var(--primary-color); }
+
+        /* 履歴セクション */
+        .history-section { margin-top: 40px; width: 100%; max-width: 600px; border-top: 2px dashed #5a9abf; padding-top: 20px; }
+        .history-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .history-item { background: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: 1px solid #5a9abf; font-size: 0.85rem; transition: 0.2s; }
+        .history-item:hover { background: #5a9abf; color: #fff; }
     </style>
 </head>
 <body>
@@ -118,12 +71,41 @@
     <div id="date" class="date-display">読み込み中...</div>
 
     <div id="fortune-container">
-        <p style="text-align:center;">データを取得中...</p>
+        <p style="text-align:center;">データを同期中...</p>
     </div>
 
-    <script>
+    <div class="history-section">
+        <h3>占いアーカイブ</h3>
+        <div id="history-list" class="history-list"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBctIq2rPN9B2_PzYGMsKEWtX0zPx38EVY",
+            authDomain: "donguri-st5.firebaseapp.com",
+            databaseURL: "https://donguri-st5-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "donguri-st5",
+            storageBucket: "donguri-st5.firebasestorage.app",
+            messagingSenderId: "682462941192",
+            appId: "1:682462941192:web:ed80276ff6ec95aa6c41bd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const SIGNS = ["おひつじ座", "おうし座", "ふたご座", "かに座", "しし座", "おとめ座", "てんびん座", "さそり座", "いて座", "やぎ座", "みずがめ座", "うお座"];
+        let reactionIntervals = [];
+
+        // --- 演出エンジン ---
+        function clearReactions() {
+            reactionIntervals.forEach(clearInterval);
+            reactionIntervals = [];
+        }
+
         function createReaction(card, emojis) {
-            setInterval(() => {
+            const interval = setInterval(() => {
                 const emoji = emojis[Math.floor(Math.random() * emojis.length)];
                 const span = document.createElement('span');
                 span.className = 'emoji-particle';
@@ -136,67 +118,100 @@
                     container.appendChild(span);
                     setTimeout(() => span.remove(), 2000);
                 }
-            }, 50);
+            }, 100);
+            reactionIntervals.push(interval);
         }
 
+        // --- データ処理 ---
         async function fetchFortune() {
-            const container = document.getElementById('fortune-container');
-            const dateEl = document.getElementById('date');
-            
-            // 直接取得するように変更
-            const url = "https://www.fujitv.co.jp/meza/uranai/data/uranai.json";
-
+            const url = "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://www.fujitv.co.jp/meza/uranai/data/uranai.json");
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('CORS制限またはネットワークエラー');
                 const data = await response.json();
-
-                dateEl.textContent = data.date;
-                container.innerHTML = '';
-
-                data.ranking.sort((a, b) => parseInt(a.rank) - parseInt(b.rank)).forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    const rankNum = parseInt(item.rank);
-                    
-                    let reactionEmojis = null;
-                    
-                    if (item.name.includes("おうし")) {
-                        if (rankNum <= 4) reactionEmojis = ['は？', '😭', '不正', '？'];
-                        if (rankNum >= 5) reactionEmojis = ['👏', '✨', '😊', '😯'];
-                    }
-                    if (item.name.includes("いて")) {
-                        if (rankNum <= 4) reactionEmojis = ['🎉', '👑', '🥰', '🔥'];
-                        if (rankNum >= 5) reactionEmojis = ['😱', '☁️', '歪', '☔'];
-                    }
-
-                    if (reactionEmojis) card.classList.add('special-target');
-
-                    card.innerHTML = `
-                        <div class="reaction-container"></div>
-                        <div class="rank-badge ${rankNum === 1 ? 'rank-1' : ''}">${item.rank}</div>
-                        <div class="content">
-                            <div class="sign-name">${item.name}</div>
-                            <div class="fortune-text">${item.text}</div>
-                            <div class="details">
-                                <span class="detail-item">🔑 <span class="lucky-point">${item.point}</span></span>
-                                ${item.advice ? `<span class="detail-item">💡 ${item.advice}</span>` : ''}
-                            </div>
-                        </div>
-                    `;
-                    
-                    container.appendChild(card);
-                    if (reactionEmojis) createReaction(card, reactionEmojis);
-                });
-
-            } catch (error) {
-                console.error(error);
-                container.innerHTML = `
-                    <div style="text-align:center; padding: 20px;">
-                        <p>直接取得がブロックされました（CORS制限）。</p>
-                        <p style="font-size: 0.8rem; color: #666;">開発者ツールのコンソールを確認してください。</p>
-                    </div>`;
+                document.getElementById('date').textContent = data.date;
+                
+                renderFortune(data.ranking);
+                await saveToHistory(data);
+                loadHistoryList();
+            } catch (e) {
+                console.error("Fetch error", e);
+                loadHistoryList(); // 失敗時は履歴から最新を表示するなどの対応
             }
+        }
+
+        async function saveToHistory(data) {
+            const dateKey = data.date.replace(/[^0-9]/g, ""); 
+            const dbRef = ref(db, `history/${dateKey}`);
+            const snap = await get(dbRef);
+            if (snap.exists()) return;
+
+            // 超圧縮：キーの短縮と星座名のID化
+            const compressed = data.ranking.map(item => ({
+                r: parseInt(item.rank),
+                s: SIGNS.indexOf(item.name),
+                t: item.text,
+                p: item.point,
+                a: item.advice || ""
+            }));
+            await set(dbRef, compressed);
+        }
+
+        function renderFortune(ranking) {
+            clearReactions();
+            const container = document.getElementById('fortune-container');
+            container.innerHTML = '';
+
+            ranking.sort((a, b) => (a.rank || a.r) - (b.rank || b.r)).forEach(item => {
+                const r = item.rank || item.r;
+                const name = item.name || SIGNS[item.s];
+                const text = item.text || item.t;
+                const p = item.point || item.p;
+                const a = item.advice || item.a;
+
+                let reactionEmojis = null;
+                if (name.includes("おうし")) {
+                    reactionEmojis = (r <= 4) ? ['は？', '😭', '不正', '？'] : ['👏', '✨', '😊', '😯'];
+                }
+                if (name.includes("いて")) {
+                    reactionEmojis = (r <= 4) ? ['🎉', '👑', '🥰', '🔥'] : ['😱', '☁️', '歪', '☔'];
+                }
+
+                const card = document.createElement('div');
+                card.className = `card ${reactionEmojis ? 'special-target' : ''}`;
+                card.innerHTML = `
+                    <div class="reaction-container"></div>
+                    <div class="rank-badge ${r == 1 ? 'rank-1' : ''}">${r}</div>
+                    <div class="content">
+                        <div class="sign-name">${name}</div>
+                        <div class="fortune-text">${text}</div>
+                        <div class="details">
+                            <span class="detail-item">🔑 ${p}</span>
+                            ${a ? `<span class="detail-item">💡 ${a}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+                if (reactionEmojis) createReaction(card, reactionEmojis);
+            });
+        }
+
+        async function loadHistoryList() {
+            const listEl = document.getElementById('history-list');
+            const snap = await get(ref(db, 'history'));
+            if (!snap.exists()) return;
+
+            const historyData = snap.val();
+            listEl.innerHTML = '';
+            Object.keys(historyData).sort().reverse().forEach(key => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = key.replace(/(\d{4})(\d{2})(\d{2})/, '$1/$2/$3');
+                item.onclick = () => {
+                    document.getElementById('date').textContent = item.textContent + " (アーカイブ)";
+                    renderFortune(historyData[key]);
+                };
+                listEl.appendChild(item);
+            });
         }
 
         window.onload = fetchFortune;
