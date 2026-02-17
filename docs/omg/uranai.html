@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>今日の占いランキング</title>
+    <title>今日の占いランキング - Direct</title>
     <style>
         :root {
             --bg-color: #d0f0ff; 
@@ -30,10 +30,9 @@
             background: var(--card-bg); border-radius: 15px; padding: 20px;
             box-shadow: 0 4px 12px rgba(90, 154, 191, 0.15);
             display: flex; align-items: center; position: relative;
-            overflow: visible;
+            overflow: visible; transition: transform 0.2s;
         }
 
-        /* リアクション演出 */
         .reaction-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .emoji-particle {
             position: absolute; font-size: 24px;
@@ -50,15 +49,14 @@
             background: #e1f0f7; border-radius: 50%; display: flex;
             align-items: center; justify-content: center; margin-right: 20px; z-index: 2;
         }
-        .rank-1 { background: var(--rank1-color); color: #fff; }
+        .rank-1 { background: var(--rank1-color); color: #fff; box-shadow: 0 0 10px var(--rank1-color); }
 
         .content { flex-grow: 1; z-index: 2; }
         .sign-name { font-size: 1.2rem; font-weight: bold; color: #2c5a75; }
         .fortune-text { font-size: 0.95rem; line-height: 1.5; color: #444; }
         .detail-item { background: #f0f7fa; padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; display: inline-block; margin: 5px 5px 0 0; }
-        .special-target { border: 2px solid var(--primary-color); }
+        .special-target { border: 2px solid var(--primary-color); background: #f9feff; }
 
-        /* 履歴セクション */
         .history-section { margin-top: 40px; width: 100%; max-width: 600px; border-top: 2px dashed #5a9abf; padding-top: 20px; }
         .history-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .history-item { background: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: 1px solid #5a9abf; font-size: 0.85rem; transition: 0.2s; }
@@ -71,7 +69,7 @@
     <div id="date" class="date-display">読み込み中...</div>
 
     <div id="fortune-container">
-        <p style="text-align:center;">データを同期中...</p>
+        <p style="text-align:center;">データを取得中...</p>
     </div>
 
     <div class="history-section">
@@ -81,7 +79,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, get, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBctIq2rPN9B2_PzYGMsKEWtX0zPx38EVY",
@@ -98,7 +96,6 @@
         const SIGNS = ["おひつじ座", "おうし座", "ふたご座", "かに座", "しし座", "おとめ座", "てんびん座", "さそり座", "いて座", "やぎ座", "みずがめ座", "うお座"];
         let reactionIntervals = [];
 
-        // --- 演出エンジン ---
         function clearReactions() {
             reactionIntervals.forEach(clearInterval);
             reactionIntervals = [];
@@ -118,39 +115,43 @@
                     container.appendChild(span);
                     setTimeout(() => span.remove(), 2000);
                 }
-            }, 100);
+            }, 150);
             reactionIntervals.push(interval);
         }
 
-        // --- データ処理 ---
+        // --- データの取得 (プロキシなし) ---
         async function fetchFortune() {
-            const url = "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://www.fujitv.co.jp/meza/uranai/data/uranai.json");
+            const url = "https://www.fujitv.co.jp/meza/uranai/data/uranai.json";
             try {
-                const response = await fetch(url);
+                // セキュリティ制限がないとのことなので直接fetch
+                const response = await fetch(url, { cache: "no-store" });
                 const data = await response.json();
-                document.getElementById('date').textContent = data.date;
                 
+                document.getElementById('date').textContent = data.date;
                 renderFortune(data.ranking);
-                await saveToHistory(data);
-                loadHistoryList();
+                
+                // 非同期でFirebase保存と履歴更新
+                saveToHistory(data).then(() => loadHistoryList());
             } catch (e) {
-                console.error("Fetch error", e);
-                loadHistoryList(); // 失敗時は履歴から最新を表示するなどの対応
+                console.error("Direct fetch failed, trying history...", e);
+                loadHistoryList(true); // 失敗時は最新履歴を表示
             }
         }
 
+        // --- Firebase最適化 ---
         async function saveToHistory(data) {
             const dateKey = data.date.replace(/[^0-9]/g, ""); 
             const dbRef = ref(db, `history/${dateKey}`);
+            
+            // 既に存在するかチェック
             const snap = await get(dbRef);
             if (snap.exists()) return;
 
-            // 超圧縮：キーの短縮と星座名のID化
             const compressed = data.ranking.map(item => ({
                 r: parseInt(item.rank),
                 s: SIGNS.indexOf(item.name),
-                t: item.text,
-                p: item.point,
+                t: item.content || item.text, // JSONのキー名に合わせる
+                p: item.item || item.point,   // JSONのキー名に合わせる
                 a: item.advice || ""
             }));
             await set(dbRef, compressed);
@@ -161,32 +162,35 @@
             const container = document.getElementById('fortune-container');
             container.innerHTML = '';
 
-            ranking.sort((a, b) => (a.rank || a.r) - (b.rank || b.r)).forEach(item => {
-                const r = item.rank || item.r;
-                const name = item.name || SIGNS[item.s];
-                const text = item.text || item.t;
-                const p = item.point || item.p;
-                const a = item.advice || item.a;
+            // データの正規化 (API生データとFirebase圧縮データの両方に対応)
+            const normalized = ranking.map(item => ({
+                rank: item.rank || item.r,
+                name: item.name || (item.s !== undefined ? SIGNS[item.s] : "不明"),
+                text: item.content || item.text || item.t,
+                point: item.item || item.point || item.p,
+                advice: item.advice || item.a
+            })).sort((a, b) => a.rank - b.rank);
 
+            normalized.forEach(item => {
                 let reactionEmojis = null;
-                if (name.includes("おうし")) {
-                    reactionEmojis = (r <= 4) ? ['は？', '😭', '不正', '？'] : ['👏', '✨', '😊', '😯'];
+                if (item.name.includes("おうし")) {
+                    reactionEmojis = (item.rank <= 4) ? ['は？', '😭', '不正', '？'] : ['👏', '✨', '😊', '😯'];
                 }
-                if (name.includes("いて")) {
-                    reactionEmojis = (r <= 4) ? ['🎉', '👑', '🥰', '🔥'] : ['😱', '☁️', '歪', '☔'];
+                if (item.name.includes("いて")) {
+                    reactionEmojis = (item.rank <= 4) ? ['🎉', '👑', '🥰', '🔥'] : ['😱', '☁️', '歪', '☔'];
                 }
 
                 const card = document.createElement('div');
                 card.className = `card ${reactionEmojis ? 'special-target' : ''}`;
                 card.innerHTML = `
                     <div class="reaction-container"></div>
-                    <div class="rank-badge ${r == 1 ? 'rank-1' : ''}">${r}</div>
+                    <div class="rank-badge ${item.rank == 1 ? 'rank-1' : ''}">${item.rank}</div>
                     <div class="content">
-                        <div class="sign-name">${name}</div>
-                        <div class="fortune-text">${text}</div>
+                        <div class="sign-name">${item.name}</div>
+                        <div class="fortune-text">${item.text}</div>
                         <div class="details">
-                            <span class="detail-item">🔑 ${p}</span>
-                            ${a ? `<span class="detail-item">💡 ${a}</span>` : ''}
+                            <span class="detail-item">🔑 ${item.point}</span>
+                            ${item.advice ? `<span class="detail-item">💡 ${item.advice}</span>` : ''}
                         </div>
                     </div>
                 `;
@@ -195,22 +199,36 @@
             });
         }
 
-        async function loadHistoryList() {
+        async function loadHistoryList(loadLatest = false) {
             const listEl = document.getElementById('history-list');
-            const snap = await get(ref(db, 'history'));
+            // 最新15件に制限して取得（最適化）
+            const historyQuery = query(ref(db, 'history'), limitToLast(15));
+            const snap = await get(historyQuery);
+            
             if (!snap.exists()) return;
 
             const historyData = snap.val();
+            const keys = Object.keys(historyData).sort().reverse();
+            
             listEl.innerHTML = '';
-            Object.keys(historyData).sort().reverse().forEach(key => {
-                const item = document.createElement('div');
-                item.className = 'history-item';
-                item.textContent = key.replace(/(\d{4})(\d{2})(\d{2})/, '$1/$2/$3');
-                item.onclick = () => {
-                    document.getElementById('date').textContent = item.textContent + " (アーカイブ)";
+            keys.forEach((key, index) => {
+                const displayDate = key.replace(/(\d{4})(\d{2})(\d{2})/, '$1/$2/$3');
+                
+                // 読み込み失敗時に最新履歴を自動表示する場合
+                if (loadLatest && index === 0) {
+                    document.getElementById('date').textContent = displayDate + " (最新アーカイブ)";
                     renderFortune(historyData[key]);
+                }
+
+                const btn = document.createElement('div');
+                btn.className = 'history-item';
+                btn.textContent = displayDate;
+                btn.onclick = () => {
+                    document.getElementById('date').textContent = displayDate + " (アーカイブ)";
+                    renderFortune(historyData[key]);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
-                listEl.appendChild(item);
+                listEl.appendChild(btn);
             });
         }
 
